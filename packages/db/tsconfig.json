@@ -1,5 +1,5 @@
 {
-  "extends": "@loyaltystudio/typescript-config/base.json",
+  "extends": "@monet/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
@@ -8,6 +8,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist"]
-}
+} 

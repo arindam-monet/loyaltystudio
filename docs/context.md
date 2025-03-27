@@ -44,7 +44,8 @@ monet/
 │  ├─ api/               # Fastify API (PORT 3001)
 │  ├─ admin-portal/      # Next.js Admin (PORT 3002)
 │  ├─ merchant-web/      # Next.js Merchant App (PORT 3003)
-│  ├─ docs/              # Scalar API Docs (PORT 3000)
+│  ├─ docs/              # Public Documentation Site (PORT 3000)
+│  ├─ web/               # Landing & Marketing Pages (PORT 3004)
 ├─ packages/
 │  ├─ auth/              # Supabase utilities
 │  ├─ ui/                # Shadcn components
@@ -53,6 +54,29 @@ monet/
 │  ├─ client-sdk/        # OpenAPI-generated client
 └─ turbo.json            # Build pipeline config
 ```
+
+### 3.3 Documentation Strategy
+- **Public Documentation Site** (`apps/docs`): 
+  - Platform overview and features
+  - Getting started guides
+  - Integration tutorials
+  - Best practices
+  - Pricing and plans
+  - Built with Next.js and MDX
+- **Marketing Site** (`apps/web`):
+  - Landing pages
+  - Product features
+  - Customer testimonials
+  - Blog and resources
+  - Contact information
+  - SEO-optimized content
+- **API Documentation** (Generated from OpenAPI):
+  - Available at `/api/docs`
+  - Generated using Scalar
+  - Interactive API playground
+  - Authentication guides
+  - Rate limiting info
+  - Webhook documentation
 
 ---
 

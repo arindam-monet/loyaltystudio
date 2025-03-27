@@ -1,0 +1,195 @@
+# General Guidelines for Monet: Headless Loyalty Platform
+
+Reference [development-plan.md](mdc:docs/development-plan.md) and keep updating it based on completed changes.
+
+## Product Overview
+You are assisting in building Monet, a next-generation, API-first loyalty platform with:
+- White-label launch via `*.loyaltystudio.ai` subdomains
+- Multi-tenant, highly secure architecture with RBAC
+- Plug-and-play integrations with 50+ commerce platforms
+- Enterprise-scale processing (100M+ transactions/month)
+- Developer-first approach with SDKs, API docs, and CLI tools
+
+## Core Objectives
+- <15 min merchant onboarding (95% completion rate)
+- 99.99% API uptime (monitored via Better Stack)
+- SDK adoption >80% (tracked via npm downloads)
+- <5ms authentication latency (verified via APM traces)
+
+## Technical Stack & Expertise
+You are an AI assistant with expertise in:
+- **Fastify v5.0.0**: High-performance Node.js web framework
+- **Next.js v14.1.0**: React-based framework for server-rendered applications
+- **Prisma v5.12.0**: Next-generation ORM for Node.js and TypeScript
+- **Tailwind CSS v3.0.0**: Utility-first CSS framework
+- **TypeScript v5.0.0**: Typed superset of JavaScript
+- **Turborepo v2.9.0**: Monorepo build system with caching
+
+## Repository Structure
+```bash
+monet/
+├─ apps/
+│  ├─ api/               # Fastify API (PORT 3001)
+│  ├─ admin-portal/      # Next.js Admin (PORT 3002)
+│  ├─ merchant-web/      # Next.js Merchant App (PORT 3003)
+│  ├─ docs/              # Scalar API Docs (PORT 3000)
+├─ packages/
+│  ├─ auth/              # Supabase utilities
+│  ├─ ui/                # Shared UI components
+│  ├─ schemas/           # Zod validation
+│  ├─ db/                # Prisma migrations
+│  ├─ client-sdk/        # OpenAPI-generated client
+└─ turbo.json            # Build pipeline config
+```
+
+## Development Guidelines
+
+### Code Generation Patterns
+1. **Type Safety**: Always use TypeScript with strict mode enabled
+2. **API Contracts**: Generate types from OpenAPI/Swagger specs
+3. **Database Access**: Use Prisma Client for type-safe queries
+4. **Component Props**: Define explicit interfaces for all components
+5. **Error Handling**: Use typed error classes and proper logging
+
+### Architecture Patterns
+1. **API Design**: RESTful endpoints with proper versioning
+2. **Multi-tenancy**: Tenant isolation at database and API levels
+3. **State Management**: Use Zustand for client-side state
+4. **Authentication**: JWT-based auth with refresh token rotation
+5. **Caching**: Redis for session and API response caching
+
+### Security Requirements
+1. **Data Protection**: AES-256 encryption for sensitive data
+2. **Authentication**: JWT with refresh token rotation
+3. **Authorization**: Role-based access control (RBAC)
+4. **Compliance**: SOC 2 Type II, PCI DSS Level 1, ISO 27001
+5. **Audit Logging**: Comprehensive audit trails via Better Stack
+
+### Performance Standards
+1. **API Latency**: <50ms at 95th percentile
+2. **Build Times**: <2 minutes for full builds with caching
+3. **Bundle Size**: <100KB initial JS payload
+4. **Time to Interactive**: <3 seconds on 4G connections
+5. **Database Queries**: <10ms average query time
+
+### Testing Requirements
+1. **Unit Tests**: Jest with >80% coverage
+2. **Integration Tests**: Supertest for API endpoints
+3. **E2E Tests**: Playwright for critical user flows
+4. **Load Tests**: k6 for performance benchmarking
+5. **Snapshot Tests**: For UI components
+
+### Code Quality Standards
+1. **Linting**: ESLint with strict configuration
+2. **Formatting**: Prettier with consistent rules
+3. **Complexity**: Max cyclomatic complexity of 10
+4. **Dependencies**: Regular security audits
+5. **Documentation**: JSDoc for public APIs
+
+### Deployment & Infrastructure
+1. **CI/CD**: GitHub Actions for automated pipelines
+2. **Infrastructure**: AWS and Vercel with Cloudflare CDN
+3. **Monitoring**: Better Stack for unified observability
+4. **Scaling**: Auto-scaling based on load metrics
+5. **Backups**: Daily database backups with point-in-time recovery
+
+### Success Metrics
+1. **API Uptime**: 99.99% availability
+2. **Deployment Frequency**: 50 deployments per day
+3. **Lead Time**: <2 hours from commit to production
+4. **Recovery Time**: <15 minutes MTTR
+5. **Change Failure Rate**: <5% of deployments
+
+### Cost Management
+1. **Engineering**: $120k/month (6 FTEs)
+2. **Infrastructure**: $18k/month (AWS + Vercel)
+3. **Observability**: Better Stack OSS (Free Tier)
+4. **ROI Target**: 12-month payback period
+5. **Margin Target**: 38% gross margins
+
+## AI Development Guidelines
+
+### Code Generation Best Practices
+1. **Context Awareness**: Always consider the full codebase context
+2. **Type Safety**: Generate fully typed code with proper imports
+3. **Error Handling**: Include comprehensive error handling
+4. **Testing**: Include test cases for generated code
+5. **Documentation**: Add JSDoc comments for maintainability
+
+### AI-Assisted Workflows
+1. **Requirements Analysis**: Break down requirements into clear tasks
+2. **Code Generation**: Generate code with proper error handling
+3. **Testing**: Generate comprehensive test coverage
+4. **Documentation**: Create clear documentation with examples
+5. **Review**: Validate generated code against standards
+
+### Quality Assurance
+1. **Static Analysis**: Run ESLint and TypeScript checks
+2. **Security Scanning**: Check for vulnerabilities
+3. **Performance Testing**: Verify performance metrics
+4. **Accessibility**: Ensure WCAG 2.1 compliance
+5. **Cross-browser Testing**: Verify browser compatibility
+
+### Documentation Standards
+1. **Public Documentation Site**
+   - Use MDX for content creation
+   - Follow consistent heading hierarchy
+   - Include code examples with syntax highlighting
+   - Add interactive demos where applicable
+   - Maintain mobile-first responsive design
+   - Support dark/light mode
+   - Include search functionality
+   - Optimize for SEO
+
+2. **Marketing Site**
+   - Focus on conversion optimization
+   - Implement SEO best practices
+   - Use performance-optimized images
+   - Include clear call-to-actions
+   - Maintain brand consistency
+   - Support multiple languages
+   - Implement analytics tracking
+   - Optimize for mobile devices
+   - Include social proof elements
+   - Set up A/B testing framework
+   - Implement cookie consent
+   - Ensure GDPR compliance
+   - Create content management system
+   - Set up newsletter integration
+   - Configure social media sharing
+
+3. **API Documentation**
+   - Generate from OpenAPI/Swagger specs
+   - Include authentication examples
+   - Document rate limits and quotas
+   - Provide webhook documentation
+   - Add integration examples
+   - Include error responses
+   - Document versioning strategy
+
+4. **Content Guidelines**
+   - Write clear, concise content
+   - Use consistent terminology
+   - Include practical examples
+   - Add troubleshooting guides
+   - Keep documentation up-to-date
+   - Include feedback mechanisms
+   - Support multiple languages
+
+5. **Technical Writing**
+   - Use active voice
+   - Break down complex concepts
+   - Include step-by-step guides
+   - Add visual aids when helpful
+   - Link related content
+   - Include version information
+   - Document breaking changes
+
+6. **Documentation Infrastructure**
+   - Use version control for content
+   - Implement automated testing
+   - Set up CI/CD for docs
+   - Monitor documentation metrics
+   - Track user feedback
+   - Maintain changelog
+   - Regular content audits 
