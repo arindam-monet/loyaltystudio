@@ -11,10 +11,10 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@workspace/ui/components",
-    "utils": "@workspace/ui/lib/utils",
-    "hooks": "@workspace/ui/hooks",
-    "lib": "@workspace/ui/lib",
-    "ui": "@workspace/ui/components"
+    "components": "@loyaltystudio/ui/components",
+    "utils": "@loyaltystudio/ui/lib/utils",
+    "hooks": "@loyaltystudio/ui/hooks",
+    "lib": "@loyaltystudio/ui/lib",
+    "ui": "@loyaltystudio/ui/components"
   }
 }

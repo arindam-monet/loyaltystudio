@@ -14,7 +14,7 @@
     "components": "@/components",
     "hooks": "@/hooks",
     "lib": "@/lib",
-    "utils": "@workspace/ui/lib/utils",
-    "ui": "@workspace/ui/components"
+    "utils": "@loyaltystudio/ui/lib/utils",
+    "ui": "@loyaltystudio/ui/components"
   }
 }

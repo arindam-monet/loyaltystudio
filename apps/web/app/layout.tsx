@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google"
+import { Metadata } from "next"
 
-import "@workspace/ui/globals.css"
+import "@loyaltystudio/ui/globals.css"
 import { Providers } from "@/components/providers"
 
 const fontSans = Geist({
@@ -12,6 +13,11 @@ const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+
+export const metadata: Metadata = {
+  title: "LoyaltyStudio.ai",
+  description: "A modern loyalty program management platform",
+}
 
 export default function RootLayout({
   children,
