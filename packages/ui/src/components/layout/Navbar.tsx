@@ -1,54 +1,62 @@
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
+
+interface NavLink {
+  href: string;
+  label: string;
+}
 
 interface NavbarProps {
   variant?: 'admin' | 'merchant';
+  links: NavLink[];
+  activePath?: string;
+  onLinkClick?: (href: string) => void;
+  brandName?: string;
+  brandLink?: string;
 }
 
-export default function Navbar({ variant = 'admin' }: NavbarProps) {
-  const pathname = usePathname();
-
-  const adminLinks = [
-    { href: '/admin/dashboard', label: 'Dashboard' },
-    { href: '/admin/tenants', label: 'Tenants' },
-    { href: '/admin/users', label: 'Users' },
-    { href: '/admin/settings', label: 'Settings' },
-  ];
-
-  const merchantLinks = [
-    { href: '/merchant/dashboard', label: 'Dashboard' },
-    { href: '/merchant/programs', label: 'Programs' },
-    { href: '/merchant/customers', label: 'Customers' },
-    { href: '/merchant/reports', label: 'Reports' },
-  ];
-
-  const links = variant === 'admin' ? adminLinks : merchantLinks;
-
+export default function Navbar({
+  variant = 'admin',
+  links,
+  activePath,
+  onLinkClick,
+  brandName = 'Loyalty Studio',
+  brandLink = '/',
+}: NavbarProps) {
   return (
     <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl font-bold text-gray-900">
-                Loyalty Studio
-              </Link>
+              <a
+                href={brandLink}
+                className="text-xl font-bold text-gray-900"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onLinkClick?.(brandLink);
+                }}
+              >
+                {brandName}
+              </a>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {links.map((link) => (
-                <Link
+                <a
                   key={link.href}
                   href={link.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onLinkClick?.(link.href);
+                  }}
                   className={cn(
                     'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
-                    pathname === link.href
+                    activePath === link.href
                       ? 'border-indigo-500 text-gray-900'
                       : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   )}
                 >
                   {link.label}
-                </Link>
+                </a>
               ))}
             </div>
           </div>

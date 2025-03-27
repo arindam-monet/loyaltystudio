@@ -1,0 +1,87 @@
+# General Guidelines for Monet: Headless Loyalty Platform
+
+Reference [development-plan.md](mdc:docs/development-plan.md) and keep updating it based on completed changes
+
+## Role & Expertise Definition
+You are an AI assistant with expertise in the following technologies:
+- **Fastify v5.0.0**: High-performance Node.js web framework.
+- **Next.js v15.0.0**: React-based framework for server-rendered applications.
+- **Prisma v5.12.0**: Next-generation ORM for Node.js and TypeScript.
+- **Tailwind CSS v4.0.0**: Utility-first CSS framework.
+- **TypeScript v5.0.0**: Typed superset of JavaScript.
+
+## Response Structure
+- **Analysis**: Thoroughly analyze requirements before implementation.
+- **Planning**: Provide step-by-step plans prior to coding.
+- **Code Blocks**: Use appropriate language tags and include file paths in metadata.
+- **Complexity Management**: Break down complex changes into manageable steps.
+- **Context & Explanation**: Offer context for changes and explain trade-offs.
+- **Examples**: Include examples where beneficial.
+- **Documentation**: Reference relevant documentation links.
+
+## Coding Conventions
+- **Language**: All code should be written in TypeScript.
+- **Naming**:
+  - Use camelCase for variables and functions.
+  - Use PascalCase for classes and React components.
+  - Use `@loyaltystudio` as the package scope for all internal packages.
+- **Comments**: Provide JSDoc comments for functions, classes, and complex logic.
+- **Error Handling**: Implement comprehensive error handling and logging.
+
+## Package Naming Conventions
+- All internal packages must use the `@loyaltystudio` scope
+- Examples:
+  - `@loyaltystudio/ui` for shared UI components
+  - `@loyaltystudio/auth` for authentication package
+  - `@loyaltystudio/schemas` for shared schemas
+  - `@loyaltystudio/db` for database utilities
+  - `@loyaltystudio/client-sdk` for client SDK
+
+## Fastify API Development
+- **Project Structure**: Organize files into controllers, services, and plugins.
+- **Plugins**: Utilize Fastify's plugin system for modularity.
+- **Validation**: Use Zod schemas for request and response validation.
+
+## Next.js Frontend Development
+- **Component Structure**: Organize components into pages, components, and hooks directories.
+- **Styling**: Use Tailwind CSS for styling, adhering to utility-first principles.
+- **State Management**: Utilize React's Context API or Zustand.
+
+## Prisma ORM Usage
+- **Schema Management**: Define database schemas in the `prisma/schema.prisma` file.
+- **Migrations**: Use Prisma Migrate for database migrations.
+- **Queries**: Leverage Prisma's query capabilities for database interactions.
+
+## Tailwind CSS Styling
+- **Utility Classes**: Apply utility classes directly in JSX elements.
+- **Customization**: Configure the `tailwind.config.js` file as needed.
+- **Responsive Design**: Use Tailwind's responsive utilities for mobile-first design.
+
+## Monorepo Management with Turborepo
+- **Project Structure**: Organize the monorepo with separate packages for API, frontend, and shared utilities.
+- **Build Pipelines**: Configure `turbo.json` to define build and test pipelines.
+- **Caching**: Utilize Turborepo's caching mechanisms to speed up builds.
+
+## Security Practices
+- **Data Protection**: Implement AES-256 encryption for sensitive data.
+- **Authentication**: Use JWTs with refresh token rotation.
+- **Compliance**: Adhere to SOC 2 Type II, PCI DSS Level 1, and ISO 27001 standards.
+
+## Observability
+- **Monitoring**: Integrate Better Stack for unified metrics, logs, and tracing.
+- **Logging**: Ensure comprehensive logging across all services.
+- **Alerts**: Set up alerts for critical issues.
+
+## Deployment Strategy
+- **Infrastructure**: Deploy services using AWS and Vercel, utilizing Cloudflare for DDoS protection.
+- **CI/CD**: Implement a CI/CD pipeline with GitHub Actions.
+- **Scaling**: Design the system to scale to 100M+ transactions per month.
+
+## Success Metrics
+- **Performance**: Aim for API latency under 50ms at the 95th percentile.
+- **Reliability**: Maintain 99.99% API uptime.
+- **Developer Productivity**: Target a deployment frequency of 50 times per day.
+
+## Cost Management
+- **Budgeting**: Monitor and manage costs for engineering, cloud infrastructure, and observability tools.
+- **ROI**: Strive for a 12-month payback period with 38% gross margins. 

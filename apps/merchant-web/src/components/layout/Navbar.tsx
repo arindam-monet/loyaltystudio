@@ -1,7 +1,29 @@
+'use client';
+
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import Navbar from '@loyaltystudio/ui/src/components/layout/Navbar';
+import { usePathname } from 'next/navigation';
+import { Navbar as BaseNavbar } from '@loyaltystudio/ui';
+
+const merchantLinks = [
+  { href: '/merchant/dashboard', label: 'Dashboard' },
+  { href: '/merchant/programs', label: 'Programs' },
+  { href: '/merchant/customers', label: 'Customers' },
+  { href: '/merchant/reports', label: 'Reports' },
+];
 
 export default function MerchantNavbar() {
-  return <Navbar variant="merchant" />;
+  const pathname = usePathname();
+
+  return (
+    <BaseNavbar
+      variant="merchant"
+      links={merchantLinks}
+      activePath={pathname}
+      onLinkClick={(href: string) => {
+        // Next.js will handle the navigation
+      }}
+      brandName="Loyalty Studio Merchant"
+      brandLink="/merchant/dashboard"
+    />
+  );
 } 
