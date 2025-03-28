@@ -27,6 +27,7 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
     // Log job start
     await logger.info("Starting points calculation job", { payload });
 
+    let loyaltyProgram;
     try {
       // Get transaction and related data
       const transaction = await prisma.pointsTransaction.findUnique({
@@ -37,6 +38,18 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
         throw new Error(`Transaction ${payload.transactionId} not found`);
       }
 
+      // Get merchant's active loyalty program
+      loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+        where: {
+          merchantId: payload.merchantId,
+          isActive: true
+        }
+      });
+
+      if (!loyaltyProgram) {
+        throw new Error(`No active loyalty program found for merchant ${payload.merchantId}`);
+      }
+
       const pointsService = new PointsCalculationService();
 
       // Calculate points using the service
@@ -44,6 +57,7 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
         transactionAmount: transaction.amount,
         merchantId: payload.merchantId,
         userId: payload.userId,
+        loyaltyProgramId: loyaltyProgram.id,
         metadata: {
           transactionId: payload.transactionId,
           ...payload.metadata,
@@ -54,6 +68,7 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
       await pointsService.updatePointsBalance(
         payload.userId,
         payload.merchantId,
+        loyaltyProgram.id,
         result.totalPoints
       );
 
@@ -62,6 +77,7 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
         payload.transactionId,
         payload.merchantId,
         payload.userId,
+        loyaltyProgram.id,
         result.totalPoints,
         "COMPLETED",
         undefined
@@ -90,6 +106,7 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
         payload.transactionId,
         payload.merchantId,
         payload.userId,
+        loyaltyProgram?.id || "",
         0,
         "FAILED",
         error instanceof Error ? error.message : "Unknown error"
@@ -97,5 +114,5 @@ export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
 
       throw error;
     }
-  },
+  }
 });
