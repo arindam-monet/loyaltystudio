@@ -417,15 +417,71 @@
 ### Package Naming Convention
 - Using `@loyaltystudio/` as the package namespace for all workspace packages
 - This includes:
-  - `@loyaltystudio/api` - Fastify API service
+  - `@loyaltystudio/api` - Fastify API Gateway service (includes auth and db)
   - `@loyaltystudio/ui` - Shared UI components
   - `@loyaltystudio/eslint-config` - Shared ESLint configuration
   - `@loyaltystudio/typescript-config` - Shared TypeScript configuration
+  - `@loyaltystudio/client-sdk` - OpenAPI-generated client
+
+### Architecture Overview
+- **Monolithic API Approach**:
+  - Fastify API Gateway contains all backend logic
+  - Auth and database modules integrated within API
+  - Unified API documentation using Scalar
+  - Frontend apps communicate exclusively through Fastify API
+  - Clear separation between frontend and backend concerns
+
+### API Structure
+- **Auth Module** (`api/src/auth/`):
+  - Supabase client configuration
+  - Authentication middleware
+  - User management
+  - Token handling
+  - RBAC implementation
+
+- **Database Module** (`api/src/db/`):
+  - Prisma client setup
+  - Database migrations
+  - Multi-tenant schema
+  - Connection pooling
+  - Query utilities
+
+- **Routes** (`api/src/routes/`):
+  - REST API endpoints
+  - WebSocket handlers
+  - Request validation
+  - Response formatting
+
+- **Services** (`api/src/services/`):
+  - Business logic
+  - Integration with auth/db
+  - External service communication
+  - Background jobs
+
+- **Middleware** (`api/src/middleware/`):
+  - Request processing
+  - Error handling
+  - Logging
+  - Rate limiting
+  - Tenant isolation
 
 ### API Documentation
-- Using Scalar API Reference instead of Swagger UI for better developer experience
-- Scalar provides modern, interactive API documentation with better usability
+- Using Scalar API Reference for unified documentation
+- Combines both Fastify and Supabase endpoints in one interface
+- Features:
+  - Interactive API playground
+  - Authentication examples
+  - Rate limiting information
+  - Webhook documentation
+  - Integration guides
+  - SDK examples
 - Integration with Fastify through `@scalar/fastify-api-reference`
+
+### Authentication Flow
+1. Frontend authenticates through Fastify API
+2. Fastify API uses Supabase client for auth operations
+3. JWT tokens managed server-side
+4. Real-time subscriptions handled through Fastify WebSocket endpoints
 
 ### Logging Infrastructure
 - Using Pino (v8.17.2) as the default logger
@@ -436,6 +492,28 @@
   - JSON format in production
   - Customizable log levels
   - Performance-optimized logging
+  - Supabase operation logging
+
+### Frontend Integration
+- Frontend apps use generated TypeScript client SDK
+- SDK provides type-safe API calls
+- Authentication handled through Fastify endpoints
+- Real-time features through Fastify WebSocket endpoints
+- No direct Supabase client usage in frontend
+
+### Security Measures
+- Supabase credentials kept server-side only
+- Custom rate limiting per tenant
+- Additional security layers through Fastify middleware
+- Comprehensive audit logging
+- DDoS protection via Cloudflare
+
+### Performance Optimization
+- Redis caching for frequently accessed data
+- Connection pooling for database operations
+- Optimized Supabase client usage
+- Efficient WebSocket handling
+- CDN integration for static assets
 
 ## Progress Update Log
 

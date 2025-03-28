@@ -1,70 +1,100 @@
 import fastify from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
-import { fastifyApiReference } from '@scalar/fastify-api-reference';
-import { logger } from './utils/logger';
-import authPlugin from './plugins/auth';
-import authRoutes from './routes/auth.routes';
+import fastifyApiReference from '@scalar/fastify-api-reference';
+import { authPlugin } from './auth/index.js';
+import { authRoutes } from './auth/routes.js';
+import { dbPlugin } from './db/index.js';
+import { loggerPlugin } from './middleware/logger.js';
 
 const app = fastify({
-  logger: false, // Using custom logger instead
-  disableRequestLogging: true // Explicitly disable request logging since we use custom logger
+  logger: false // We'll use our custom logger
 });
 
-// Register CORS
-await app.register(cors, {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+// Register plugins
+app.register(cors, {
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true
 });
 
-// Register Swagger for OpenAPI schema generation
-await app.register(swagger, {
-  openapi: {
+// Register custom logger first
+app.register(loggerPlugin);
+
+// Register Swagger for OpenAPI spec generation
+app.register(swagger, {
+  swagger: {
     info: {
-      title: 'Monet Loyalty Platform API',
-      description: 'API documentation for the Monet Headless Loyalty Platform',
-      version: '0.0.1'
-    },
-    servers: [
-      {
-        url: `http://${process.env.API_HOST || 'localhost'}:${process.env.PORT || 3001}`,
-        description: 'Development server'
+      title: 'Loyaltystudio API Documentation',
+      description: 'API documentation for Loyaltystudio Platform',
+      version: '1.0.0',
+      contact: {
+        name: 'API Support',
+        email: 'support@loyaltystudio.ai'
       }
+    },
+    host: process.env.API_URL || 'localhost:3001',
+    schemes: ['http'],
+    consumes: ['application/json'],
+    produces: ['application/json'],
+    tags: [
+      { name: 'auth', description: 'Authentication endpoints' },
+      { name: 'users', description: 'User management endpoints' }
     ]
   }
 });
 
-// Register Scalar API Reference UI
-await app.register(fastifyApiReference, {
-  routePrefix: '/docs',
-  title: 'Monet API Reference',
-  description: 'API documentation for the Monet Headless Loyalty Platform',
-  theme: {
-    primaryColor: '#6366f1' // Indigo color to match the brand
+// Register Scalar API Reference
+app.register(fastifyApiReference, {
+  routePrefix: '/documentation',
+  configuration: {
+    theme: 'fastify'
   }
 });
 
-// Register auth plugin
-await app.register(authPlugin);
+// Register auth and db plugins
+app.register(authPlugin);
+app.register(authRoutes);
+app.register(dbPlugin);
 
-// Register routes
-await app.register(authRoutes, { prefix: '/api/auth' });
-
-// Health check route
+// Health check endpoint
 app.get('/health', async () => {
   return { status: 'ok' };
 });
 
-// Start the server
+// Serve OpenAPI spec
+app.get('/openapi.json', async () => {
+  return app.swagger();
+});
+
+// Debug endpoint to check OpenAPI spec
+app.get('/debug/openapi', async () => {
+  const spec = app.swagger();
+  return spec;
+});
+
+// Start server
 const start = async () => {
   try {
-    const port = parseInt(process.env.PORT || '3001');
-    await app.listen({ port, host: '0.0.0.0' });
-    logger.info(`Server is running on port ${port}`);
+    console.log('Starting server...');
+    await app.listen({ port: 3001, host: '0.0.0.0' });
+    console.log('Server is running on http://localhost:3001');
+    console.log('API Documentation available at http://localhost:3001/documentation');
+    console.log('Debug OpenAPI spec available at http://localhost:3001/debug/openapi');
   } catch (err) {
-    logger.error('Error starting server:', err);
+    console.error('Failed to start server:', err);
     process.exit(1);
   }
 };
+
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
 
 start(); 

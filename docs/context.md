@@ -28,7 +28,8 @@ Monet is a next-generation, API-first loyalty platform designed to help business
 ### 3.1 Stack Components  
 | Layer              | Technology       | Version | Purpose                          |
 |--------------------|------------------|---------|----------------------------------|
-| API Framework      | Fastify          | v5      | High-performance endpoints       |
+| API Gateway        | Fastify          | v5      | High-performance endpoints & business logic |
+| Auth & Real-time   | Supabase         | v2      | Authentication & real-time features |
 | Frontend           | Next.js          | 15      | Admin & Merchant Dashboards      |
 | Database           | PostgreSQL       | 14+     | Multi-tenant reward storage      |
 | ORM                | Prisma           | 5.12    | Scalable database abstraction    |
@@ -41,21 +42,33 @@ Monet is a next-generation, API-first loyalty platform designed to help business
 ```bash
 monet/
 ├─ apps/
-│  ├─ api/               # Fastify API (PORT 3001)
+│  ├─ api/               # Fastify API Gateway (PORT 3001)
+│  │  ├─ src/
+│  │  │  ├─ auth/       # Supabase authentication
+│  │  │  ├─ db/         # Prisma database
+│  │  │  ├─ routes/     # API endpoints
+│  │  │  ├─ services/   # Business logic
+│  │  │  ├─ middleware/ # Custom middleware
+│  │  │  └─ supabase/   # Supabase client & utilities
 │  ├─ admin-portal/      # Next.js Admin (PORT 3002)
 │  ├─ merchant-web/      # Next.js Merchant App (PORT 3003)
 │  ├─ docs/              # Public Documentation Site (PORT 3000)
 │  ├─ web/               # Landing & Marketing Pages (PORT 3004)
 ├─ packages/
-│  ├─ auth/              # Supabase utilities
 │  ├─ ui/                # Shadcn components
 │  ├─ schemas/           # Zod validation
-│  ├─ db/                # Prisma migrations
 │  ├─ client-sdk/        # OpenAPI-generated client
 └─ turbo.json            # Build pipeline config
 ```
 
 ### 3.3 Documentation Strategy
+- **Unified API Documentation** (Using Scalar):
+  - Combined Fastify + Supabase endpoints
+  - Interactive API playground
+  - Authentication guides
+  - Rate limiting info
+  - Webhook documentation
+  - Available at `/api/docs`
 - **Public Documentation Site** (`apps/docs`): 
   - Platform overview and features
   - Getting started guides
@@ -70,13 +83,6 @@ monet/
   - Blog and resources
   - Contact information
   - SEO-optimized content
-- **API Documentation** (Generated from OpenAPI):
-  - Available at `/api/docs`
-  - Generated using Scalar
-  - Interactive API playground
-  - Authentication guides
-  - Rate limiting info
-  - Webhook documentation
 
 ---
 

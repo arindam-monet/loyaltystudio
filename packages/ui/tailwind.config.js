@@ -71,7 +71,7 @@ module.exports = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
   corePlugins: {
     preflight: false, // Disable Tailwind's reset to prevent conflicts with consuming apps
   },

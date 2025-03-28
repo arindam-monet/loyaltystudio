@@ -4,63 +4,93 @@ Reference [development-plan.md](mdc:docs/development-plan.md) and keep updating 
 
 ## Role & Expertise Definition
 You are an AI assistant with expertise in the following technologies:
-- **Fastify v5.0.0**: High-performance Node.js web framework.
-- **Next.js v15.0.0**: React-based framework for server-rendered applications.
-- **Prisma v5.12.0**: Next-generation ORM for Node.js and TypeScript.
-- **Tailwind CSS v4.0.0**: Utility-first CSS framework.
-- **TypeScript v5.0.0**: Typed superset of JavaScript.
+- **Fastify v5.0.0**: High-performance Node.js web framework (API Gateway)
+- **Supabase v2.39.3**: Authentication and real-time features
+- **Next.js v15.0.0**: React-based framework for server-rendered applications
+- **Prisma v5.12.0**: Next-generation ORM for Node.js and TypeScript
+- **Tailwind CSS v4.0.0**: Utility-first CSS framework
+- **TypeScript v5.0.0**: Typed superset of JavaScript
 
 ## Response Structure
-- **Analysis**: Thoroughly analyze requirements before implementation.
-- **Planning**: Provide step-by-step plans prior to coding.
-- **Code Blocks**: Use appropriate language tags and include file paths in metadata.
-- **Complexity Management**: Break down complex changes into manageable steps.
-- **Context & Explanation**: Offer context for changes and explain trade-offs.
-- **Examples**: Include examples where beneficial.
-- **Documentation**: Reference relevant documentation links.
+- **Analysis**: Thoroughly analyze requirements before implementation
+- **Planning**: Provide step-by-step plans prior to coding
+- **Code Blocks**: Use appropriate language tags and include file paths in metadata
+- **Complexity Management**: Break down complex changes into manageable steps
+- **Context & Explanation**: Offer context for changes and explain trade-offs
+- **Examples**: Include examples where beneficial
+- **Documentation**: Reference relevant documentation links
 
 ## Coding Conventions
-- **Language**: All code should be written in TypeScript.
+- **Language**: All code should be written in TypeScript
 - **Naming**:
-  - Use camelCase for variables and functions.
-  - Use PascalCase for classes and React components.
-  - Use `@loyaltystudio` as the package scope for all internal packages.
-- **Comments**: Provide JSDoc comments for functions, classes, and complex logic.
-- **Error Handling**: Implement comprehensive error handling and logging.
+  - Use camelCase for variables and functions
+  - Use PascalCase for classes and React components
+- **Comments**: Provide JSDoc comments for functions, classes, and complex logic
+- **Error Handling**: Implement comprehensive error handling and logging
 
-## Package Naming Conventions
-- All internal packages must use the `@loyaltystudio` scope
-- Examples:
-  - `@loyaltystudio/ui` for shared UI components
-  - `@loyaltystudio/auth` for authentication package
-  - `@loyaltystudio/schemas` for shared schemas
-  - `@loyaltystudio/db` for database utilities
-  - `@loyaltystudio/client-sdk` for client SDK
-
-## Fastify API Development
-- **Project Structure**: Organize files into controllers, services, and plugins.
-- **Plugins**: Utilize Fastify's plugin system for modularity.
-- **Validation**: Use Zod schemas for request and response validation.
+## Fastify API Gateway Development
+- **Project Structure**: 
+  - `auth/`: Authentication and user management
+  - `db/`: Database operations and migrations
+  - `routes/`: API endpoints and handlers
+  - `services/`: Business logic and integrations
+  - `middleware/`: Request processing and security
+- **Plugins**: Utilize Fastify's plugin system for modularity
+- **Validation**: Use Zod schemas for request and response validation
+- **Supabase Integration**: Keep Supabase client server-side only
+- **Documentation**: Use Scalar for unified API documentation
 
 ## Next.js Frontend Development
-- **Component Structure**: Organize components into pages, components, and hooks directories.
-- **Styling**: Use Tailwind CSS for styling, adhering to utility-first principles.
-- **State Management**: Utilize React's Context API or Zustand.
+- **Component Structure**: Organize components into pages, components, and hooks directories
+- **Styling**: Use Tailwind CSS for styling, adhering to utility-first principles
+- **State Management**: Utilize React's Context API or Zustand
+- **API Integration**: Use generated TypeScript client SDK
+- **No Direct Backend Access**: Frontend should only interact through REST APIs
+
+## Database & Authentication
+- **Database Access**: All database operations through Prisma client in API
+- **Authentication**: Handle through Fastify API endpoints
+- **Real-time**: Use Fastify WebSocket endpoints
+- **Security**: Implement additional security layers
+- **Logging**: Track all operations
+- **Multi-tenancy**: Implement at database and application level
+
+## Supabase Integration
+- **Server-Side Only**: Keep Supabase client in Fastify API
+- **Authentication**: Handle through Fastify endpoints
+- **Real-time**: Use Fastify WebSocket endpoints
+- **Security**: Implement additional security layers
+- **Logging**: Track Supabase operations
 
 ## Prisma ORM Usage
-- **Schema Management**: Define database schemas in the `prisma/schema.prisma` file.
-- **Migrations**: Use Prisma Migrate for database migrations.
-- **Queries**: Leverage Prisma's query capabilities for database interactions.
+- **Schema Management**: Define database schemas in the `prisma/schema.prisma` file
+- **Migrations**: Use Prisma Migrate for database migrations
+- **Queries**: Leverage Prisma's query capabilities for database interactions
 
 ## Tailwind CSS Styling
-- **Utility Classes**: Apply utility classes directly in JSX elements.
-- **Customization**: Configure the `tailwind.config.js` file as needed.
-- **Responsive Design**: Use Tailwind's responsive utilities for mobile-first design.
+- **Utility Classes**: Apply utility classes directly in JSX elements
+- **Customization**: Configure the `tailwind.config.js` file as needed
+- **Responsive Design**: Use Tailwind's responsive utilities for mobile-first design
 
 ## Monorepo Management with Turborepo
-- **Project Structure**: Organize the monorepo with separate packages for API, frontend, and shared utilities.
-- **Build Pipelines**: Configure `turbo.json` to define build and test pipelines.
-- **Caching**: Utilize Turborepo's caching mechanisms to speed up builds.
+- **Project Structure**: Organize the monorepo with separate packages for API, frontend, and shared utilities
+- **Build Pipelines**: Configure `turbo.json` to define build and test pipelines
+- **Caching**: Utilize Turborepo's caching mechanisms to speed up builds
+
+## Security Guidelines
+- **Authentication**: Handle through Fastify API endpoints
+- **Authorization**: Implement RBAC with Fastify middleware
+- **Rate Limiting**: Configure per tenant
+- **Data Protection**: Use encryption for sensitive data
+- **Audit Logging**: Track all operations
+- **Tenant Isolation**: Implement at database and application level
+
+## Performance Guidelines
+- **Caching**: Implement Redis caching strategy
+- **Database**: Use connection pooling
+- **API**: Optimize endpoint performance
+- **Frontend**: Implement code splitting
+- **Monitoring**: Use Better Stack for observability
 
 ## Security Practices
 - **Data Protection**: Implement AES-256 encryption for sensitive data.
