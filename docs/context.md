@@ -217,3 +217,19 @@ graph LR
 
 ---
 
+## 11. Pricing Model
+
+### Subscription Tiers
+| Tier      | Monthly | Includes                    |
+|-----------|---------|----------------------------|
+| Starter   | $299    | 1 subdomain, 50k API calls |
+| Growth    | $899    | 5 subdomains, 250k calls   |
+| Enterprise| Custom  | Dedicated cluster, SLA     |
+
+### Overage Charges
+- $0.0001 per additional API call
+- Volume discounts available for enterprise customers
+- Custom pricing for high-volume merchants
+
+---
+

@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // Tenant model for multi-tenancy
@@ -23,10 +24,11 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  password  String
+  password  String?  // Made optional since we're using Supabase for auth
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  role      Role     @default(USER)
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -41,9 +43,38 @@ model Merchant {
   updatedAt DateTime @updatedAt
 }
 
-// Role enum for user permissions
-enum Role {
-  ADMIN
-  USER
-  MERCHANT
+// Permission model for granular access control
+model Permission {
+  id          String         @id @default(cuid())
+  name        String         @unique // e.g., "create:user", "read:merchant"
+  description String?
+  resource    String         // e.g., "user", "merchant", "tenant"
+  action      String         // e.g., "create", "read", "update", "delete"
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  roles       RolePermission[]
+}
+
+// Convert Role from enum to model
+model Role {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  permissions RolePermission[]
+  users       User[]
+}
+
+// Update RolePermission model
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  permissionId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([roleId, permissionId])
 } 

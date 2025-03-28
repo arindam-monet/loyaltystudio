@@ -1,12 +1,19 @@
 import fp from 'fastify-plugin';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { FastifyInstance } from 'fastify';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 interface User {
   id: string;
   email: string;
   tenantId: string;
-  role: string;
+  role: {
+    id: string;
+    name: string;
+    description?: string;
+  };
 }
 
 declare module 'fastify' {
@@ -86,14 +93,15 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
         return reply.code(401).send({ error: 'Invalid token' });
       }
 
-      // Get user metadata from your database
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('tenant_id, role')
-        .eq('id', user.id)
-        .single();
+      // Get user data with role information from your database
+      const userData = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          role: true,
+        },
+      });
 
-      if (userError || !userData) {
+      if (!userData) {
         console.log('User data not found for:', request.url);
         return reply.code(401).send({ error: 'User data not found' });
       }
@@ -102,8 +110,12 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
       request.user = {
         id: user.id,
         email: user.email,
-        tenantId: userData.tenant_id,
-        role: userData.role
+        tenantId: userData.tenantId,
+        role: {
+          id: userData.role.id,
+          name: userData.role.name,
+          description: userData.role.description || undefined,
+        },
       };
       
       console.log('Auth successful for:', request.url);

@@ -1,5 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,7 +12,9 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  tenantId: z.string()
+  name: z.string(),
+  tenantId: z.string(),
+  roleId: z.string().optional()
 });
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -36,8 +41,16 @@ export async function authRoutes(fastify: FastifyInstance) {
               properties: {
                 id: { type: 'string' },
                 email: { type: 'string' },
+                name: { type: 'string' },
                 tenantId: { type: 'string' },
-                role: { type: 'string' }
+                role: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    description: { type: 'string' }
+                  }
+                }
               }
             }
           }
@@ -57,13 +70,24 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(401).send({ error: error.message });
       }
 
+      // Get user from our database to include role information
+      const user = await prisma.user.findUnique({
+        where: { id: data.user?.id },
+        include: { role: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found in database' });
+      }
+
       return {
         token: data.session?.access_token,
         user: {
-          id: data.user?.id,
-          email: data.user?.email,
-          tenantId: data.user?.user_metadata?.tenant_id,
-          role: data.user?.user_metadata?.role
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          tenantId: user.tenantId,
+          role: user.role
         }
       };
     } catch (error) {
@@ -78,11 +102,13 @@ export async function authRoutes(fastify: FastifyInstance) {
       tags: ['auth'],
       body: {
         type: 'object',
-        required: ['email', 'password', 'tenantId'],
+        required: ['email', 'password', 'name', 'tenantId'],
         properties: {
           email: { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
-          tenantId: { type: 'string' }
+          name: { type: 'string' },
+          tenantId: { type: 'string' },
+          roleId: { type: 'string' }
         }
       },
       response: {
@@ -94,8 +120,16 @@ export async function authRoutes(fastify: FastifyInstance) {
               properties: {
                 id: { type: 'string' },
                 email: { type: 'string' },
+                name: { type: 'string' },
                 tenantId: { type: 'string' },
-                role: { type: 'string' }
+                role: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    description: { type: 'string' }
+                  }
+                }
               }
             }
           }
@@ -103,10 +137,29 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request, reply) => {
-    const { email, password, tenantId } = registerSchema.parse(request.body);
+    const { email, password, name, tenantId, roleId } = registerSchema.parse(request.body);
     
     try {
-      const { data, error } = await fastify.supabase.auth.signUp({
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+      
+      if (existingUser) {
+        return reply.code(400).send({ error: 'User already exists' });
+      }
+
+      // Get default role (USER) if no role is specified
+      const finalRoleId = roleId || await prisma.role.findFirst({
+        where: { name: 'USER' },
+      }).then(role => role?.id);
+
+      if (!finalRoleId) {
+        return reply.code(500).send({ error: 'Default role not found' });
+      }
+
+      // Create user in Supabase
+      const { data: supabaseUser, error: supabaseError } = await fastify.supabase.auth.signUp({
         email,
         password,
         options: {
@@ -117,19 +170,35 @@ export async function authRoutes(fastify: FastifyInstance) {
         }
       });
 
-      if (error) {
-        return reply.code(400).send({ error: error.message });
+      if (supabaseError) {
+        return reply.code(400).send({ error: supabaseError.message });
       }
+
+      // Create user in our database
+      const user = await prisma.user.create({
+        data: {
+          id: supabaseUser.user?.id,
+          email,
+          name,
+          tenantId,
+          roleId: finalRoleId
+        },
+        include: {
+          role: true
+        }
+      });
 
       return reply.code(201).send({
         user: {
-          id: data.user?.id,
-          email: data.user?.email,
-          tenantId: data.user?.user_metadata?.tenant_id,
-          role: data.user?.user_metadata?.role
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          tenantId: user.tenantId,
+          role: user.role
         }
       });
     } catch (error) {
+      console.error('Registration error:', error);
       return reply.code(500).send({ error: 'Registration failed' });
     }
   });

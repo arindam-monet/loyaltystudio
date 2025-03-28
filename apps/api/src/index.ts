@@ -6,19 +6,30 @@ import { authPlugin } from './auth/index.js';
 import { authRoutes } from './auth/routes.js';
 import { dbPlugin } from './db/index.js';
 import { loggerPlugin } from './middleware/logger.js';
+import { rbacPlugin } from './middleware/rbac.js';
+import { cachePlugin } from './plugins/cache.js';
+import { permissionRoutes } from './routes/permissions.js';
+import { roleRoutes } from './routes/roles.js';
+import { userRoutes } from './routes/users.js';
+import { env } from './config/env.js';
 
 const app = fastify({
-  logger: false // We'll use our custom logger
+  logger: {
+    level: env.LOG_LEVEL,
+  },
 });
 
 // Register plugins
 app.register(cors, {
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: env.CORS_ORIGIN,
+  credentials: true,
 });
 
 // Register custom logger first
 app.register(loggerPlugin);
+
+// Register cache plugin
+app.register(cachePlugin);
 
 // Register Swagger for OpenAPI spec generation
 app.register(swagger, {
@@ -60,16 +71,33 @@ app.register(fastifyApiReference, {
 
 // Register auth plugin
 app.register(authPlugin);
+app.register(rbacPlugin);
 
 // Register routes
 app.register(authRoutes);
+app.register(permissionRoutes);
+app.register(roleRoutes);
+app.register(userRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
 
 // Health check endpoint
 app.get('/health', async () => {
-  return { status: 'ok' };
+  try {
+    // Check Redis connection
+    await app.cache.get('health-check');
+    return { 
+      status: 'ok',
+      redis: 'connected'
+    };
+  } catch (error) {
+    return { 
+      status: 'error',
+      redis: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 });
 
 // Serve OpenAPI spec
@@ -89,8 +117,8 @@ app.get('/debug/openapi', async () => {
 const start = async () => {
   try {
     console.log('Starting server...');
-    await app.listen({ port: 3001, host: '0.0.0.0' });
-    console.log('Server is running on http://localhost:3001');
+    await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
+    console.log(`Server is running on ${env.API_URL}`);
     console.log('API Documentation available at http://localhost:3001/docs');
     console.log('Debug OpenAPI spec available at http://localhost:3001/debug/openapi');
   } catch (err) {
