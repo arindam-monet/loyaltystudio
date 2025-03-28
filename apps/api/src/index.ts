@@ -39,21 +39,32 @@ app.register(swagger, {
     tags: [
       { name: 'auth', description: 'Authentication endpoints' },
       { name: 'users', description: 'User management endpoints' }
-    ]
+    ],
+    securityDefinitions: {
+      bearerAuth: {
+        type: 'apiKey',
+        name: 'Authorization',
+        in: 'header'
+      }
+    }
   }
 });
 
 // Register Scalar API Reference
 app.register(fastifyApiReference, {
-  routePrefix: '/documentation',
+  routePrefix: '/docs',
   configuration: {
     theme: 'fastify'
   }
 });
 
-// Register auth and db plugins
+// Register auth plugin
 app.register(authPlugin);
+
+// Register routes
 app.register(authRoutes);
+
+// Register db plugin
 app.register(dbPlugin);
 
 // Health check endpoint
@@ -63,11 +74,13 @@ app.get('/health', async () => {
 
 // Serve OpenAPI spec
 app.get('/openapi.json', async () => {
+  console.log('Serving OpenAPI spec');
   return app.swagger();
 });
 
 // Debug endpoint to check OpenAPI spec
 app.get('/debug/openapi', async () => {
+  console.log('Serving debug OpenAPI spec');
   const spec = app.swagger();
   return spec;
 });
@@ -78,7 +91,7 @@ const start = async () => {
     console.log('Starting server...');
     await app.listen({ port: 3001, host: '0.0.0.0' });
     console.log('Server is running on http://localhost:3001');
-    console.log('API Documentation available at http://localhost:3001/documentation');
+    console.log('API Documentation available at http://localhost:3001/docs');
     console.log('Debug OpenAPI spec available at http://localhost:3001/debug/openapi');
   } catch (err) {
     console.error('Failed to start server:', err);

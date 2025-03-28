@@ -21,14 +21,17 @@ declare module 'fastify' {
 // Paths that don't require authentication
 const PUBLIC_PATHS = [
   '/health',
-  '/documentation',
-  '/documentation/',
-  '/documentation/openapi.json',
+  '/docs',
+  '/docs/',
+  '/docs/openapi.json',
   '/debug/openapi',
-  '/documentation/assets',
-  '/documentation/assets/',
-  '/documentation/assets/*',
-  '/openapi.json'
+  '/docs/assets',
+  '/docs/assets/',
+  '/docs/assets/*',
+  '/openapi.json',
+  '/docs/static',
+  '/docs/static/*',
+  '/favicon.ico'
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {
@@ -44,12 +47,28 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
   // Add auth middleware
   fastify.addHook('preHandler', async (request, reply) => {
     // Debug logging for auth middleware
-    console.log('Auth middleware processing request:', request.url);
+    console.log('Auth middleware processing request:', {
+      url: request.url,
+      method: request.method,
+      headers: request.headers
+    });
 
     // Skip auth for public paths
     if (PUBLIC_PATHS.some(path => request.url.startsWith(path))) {
       console.log('Skipping auth for public path:', request.url);
       return;
+    }
+
+    // Skip auth for OPTIONS requests (CORS preflight)
+    if (request.method === 'OPTIONS') {
+      console.log('Skipping auth for OPTIONS request');
+      return;
+    }
+
+    // Skip auth for favicon.ico
+    if (request.url === '/favicon.ico') {
+      console.log('Skipping auth for favicon.ico');
+      return reply.code(404).send();
     }
 
     const authHeader = request.headers.authorization;
@@ -63,6 +82,7 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
       const { data: { user }, error } = await supabase.auth.getUser(token);
 
       if (error || !user || !user.email) {
+        console.log('Invalid token for:', request.url);
         return reply.code(401).send({ error: 'Invalid token' });
       }
 
@@ -74,6 +94,7 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
         .single();
 
       if (userError || !userData) {
+        console.log('User data not found for:', request.url);
         return reply.code(401).send({ error: 'User data not found' });
       }
 
@@ -84,7 +105,10 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
         tenantId: userData.tenant_id,
         role: userData.role
       };
+      
+      console.log('Auth successful for:', request.url);
     } catch (error) {
+      console.error('Auth error for:', request.url, error);
       return reply.code(401).send({ error: 'Authentication failed' });
     }
   });
