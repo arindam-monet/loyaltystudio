@@ -1,0 +1,67 @@
+{
+  "zone_id": "your-zone-id",
+  "dns_records": [
+    {
+      "type": "A",
+      "name": "api",
+      "content": "your-api-ip",
+      "proxied": true
+    },
+    {
+      "type": "CNAME",
+      "name": "admin",
+      "content": "your-admin-domain",
+      "proxied": true
+    },
+    {
+      "type": "CNAME",
+      "name": "merchant",
+      "content": "your-merchant-domain",
+      "proxied": true
+    }
+  ],
+  "security_rules": [
+    {
+      "description": "Block suspicious IPs",
+      "action": "block",
+      "expression": "ip.src in {1.2.3.4 5.6.7.8}"
+    },
+    {
+      "description": "Rate limiting",
+      "action": "challenge",
+      "expression": "http.request.uri.path matches \"/api/.*\" and rate.gt(100)"
+    }
+  ],
+  "page_rules": [
+    {
+      "target": "api/*",
+      "actions": [
+        {
+          "id": "cache_level",
+          "value": "bypass"
+        }
+      ]
+    },
+    {
+      "target": "static/*",
+      "actions": [
+        {
+          "id": "cache_level",
+          "value": "aggressive"
+        }
+      ]
+    }
+  ],
+  "waf_rules": [
+    {
+      "description": "Block SQL injection attempts",
+      "expression": "http.request.body.raw contains \"' OR '1'='1\"",
+      "action": "block"
+    },
+    {
+      "description": "Block XSS attempts",
+      "expression": "http.request.body.raw contains \"<script>\"",
+      "action": "block"
+    }
+  ]
+} 

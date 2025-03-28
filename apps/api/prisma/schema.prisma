@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -21,60 +24,192 @@ model Tenant {
 
 // User model for authentication
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String?  // Made optional since we're using Supabase for auth
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  roleId    String
-  role      Role     @relation(fields: [roleId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String              @id @default(cuid())
+  email             String              @unique
+  name              String?
+  password          String?  // Made optional since we're using Supabase for auth
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  roleId            String?
+  role              Role?               @relation(fields: [roleId], references: [id])
+  pointsTransactions PointsTransaction[]
+  rewardRedemptions RewardRedemption[]
+  pointsBalances    PointsBalance[]
+  pointsCalculations PointsCalculation[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 }
 
 // Merchant model for loyalty program management
 model Merchant {
-  id        String   @id @default(cuid())
-  name      String
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String         @id @default(cuid())
+  name            String
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  loyaltyPrograms LoyaltyProgram[]
+  pointsBalances  PointsBalance[]
+  pointsCalculations PointsCalculation[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 // Permission model for granular access control
 model Permission {
-  id          String         @id @default(cuid())
-  name        String         @unique // e.g., "create:user", "read:merchant"
+  id          String           @id @default(cuid())
+  name        String
+  resource    String
+  action      String
   description String?
-  resource    String         // e.g., "user", "merchant", "tenant"
-  action      String         // e.g., "create", "read", "update", "delete"
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
   roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([resource, action])
 }
 
-// Convert Role from enum to model
+// Role model for access control
 model Role {
-  id          String         @id @default(cuid())
-  name        String         @unique
+  id          String       @id @default(cuid())
+  name        String       @unique
   description String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  permissions RolePermission[]
   users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
-// Update RolePermission model
+// Many-to-many relationship between Role and Permission
 model RolePermission {
   id           String     @id @default(cuid())
-  role         Role       @relation(fields: [roleId], references: [id])
   roleId       String
-  permission   Permission @relation(fields: [permissionId], references: [id])
   permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   @@unique([roleId, permissionId])
+}
+
+model PointsTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Int
+  type      String   // EARN, REDEEM, ADJUST
+  reason    String
+  metadata  Json?
+  calculations PointsCalculation[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+}
+
+// Loyalty Program model
+model LoyaltyProgram {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  pointsRules PointsRule[]
+  rewards     Reward[]
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([merchantId])
+}
+
+// Update PointsRule model
+model PointsRule {
+  id              String         @id @default(cuid())
+  name            String
+  description     String?
+  conditions      Json          // Array of conditions for points calculation
+  points          Int
+  metadata        Json?
+  isActive        Boolean       @default(true)
+  loyaltyProgramId String
+  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([loyaltyProgramId])
+}
+
+// Update Reward model
+model Reward {
+  id              String         @id @default(cuid())
+  name            String
+  description     String
+  pointsCost      Int
+  type            String        // PHYSICAL, DIGITAL, EXPERIENCE
+  metadata        Json?
+  isActive        Boolean       @default(true)
+  loyaltyProgramId String
+  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
+  redemptions     RewardRedemption[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([loyaltyProgramId])
+}
+
+model RewardRedemption {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  rewardId   String
+  reward     Reward   @relation(fields: [rewardId], references: [id])
+  quantity   Int
+  pointsCost Int
+  status     String   // PENDING, COMPLETED, CANCELLED
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([rewardId])
+  @@index([status])
+}
+
+model PointsBalance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  merchantId String
+  merchant  Merchant @relation(fields: [merchantId], references: [id])
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, merchantId])
+  @@index([userId])
+  @@index([merchantId])
+}
+
+model PointsCalculation {
+  id           String   @id @default(cuid())
+  transactionId String
+  transaction   PointsTransaction @relation(fields: [transactionId], references: [id])
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  points        Int?
+  status        String   // PENDING, COMPLETED, FAILED
+  error         String?
+  metadata      Json?    // Store calculation metadata including matched rules
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([transactionId])
+  @@index([merchantId])
+  @@index([userId])
+  @@index([status])
 } 

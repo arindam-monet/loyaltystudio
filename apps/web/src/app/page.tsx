@@ -1,112 +1,97 @@
 import Link from "next/link"
+import { Button } from '@/components/ui/button'
+import { ArrowRight, CheckCircle2, Zap } from 'lucide-react'
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <Link className="mr-6 flex items-center space-x-2" href="/">
-              <span className="font-bold">Monet</span>
-            </Link>
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
-                href="/features"
-              >
-                Features
-              </Link>
-              <Link
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
-                href="/pricing"
-              >
-                Pricing
-              </Link>
-              <Link
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
-                href="/blog"
-              >
-                Blog
-              </Link>
-              <Link
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
-                href="/docs"
-              >
-                Documentation
-              </Link>
-            </nav>
-          </div>
-          <div className="flex flex-1 items-center justify-end space-x-4">
-            <nav className="flex items-center space-x-4">
-              <Link
-                className="transition-colors hover:text-foreground/80 text-foreground/60"
-                href="/login"
-              >
-                Login
-              </Link>
-              <Link
-                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                href="/signup"
-              >
-                Get Started
-              </Link>
-            </nav>
-          </div>
+    <div className="flex flex-col gap-16">
+      {/* Hero Section */}
+      <section className="container flex flex-col items-center justify-center gap-4 py-24 text-center md:py-32">
+        <h1 className="text-3xl font-bold leading-tight tracking-tighter md:text-5xl lg:leading-[1.1]">
+          Build Powerful Loyalty Programs
+          <br />
+          <span className="text-primary">Without the Complexity</span>
+        </h1>
+        <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
+          LoyaltyStudio is a headless loyalty platform that helps you create, manage, and scale
+          personalized rewards programs. Integrate with any e-commerce system and delight your customers.
+        </p>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <Link href="/signup">
+            <Button size="lg" className="gap-2">
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/demo">
+            <Button size="lg" variant="outline" className="gap-2">
+              Request Demo
+            </Button>
+          </Link>
         </div>
-      </header>
-      <main className="flex-1">
-        <section className="space-y-6 pb-8 pt-6 md:pb-12 md:pt-10 lg:py-32">
-          <div className="container flex max-w-[64rem] flex-col items-center gap-4 text-center">
-            <h1 className="font-heading text-3xl sm:text-5xl md:text-6xl lg:text-7xl">
-              Next-Generation Loyalty Platform
-            </h1>
-            <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-              Deploy and scale personalized rewards programs in minutes. Built for modern businesses with a developer-first approach.
+      </section>
+
+      {/* Features Section */}
+      <section className="container py-12">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <Zap className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">Lightning Fast</h3>
+            <p className="text-muted-foreground">
+              Built with performance in mind. Our platform delivers instant rewards and real-time updates.
             </p>
-            <div className="space-x-4">
-              <Link
-                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                href="/signup"
-              >
-                Get Started
-              </Link>
-              <Link
-                className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                href="/docs"
-              >
-                Documentation
-              </Link>
-            </div>
           </div>
-        </section>
-      </main>
-      <footer className="border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
-          <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-            <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-              Built by{" "}
-              <a
-                href="https://monet.loyaltystudio.ai"
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium underline underline-offset-4"
-              >
-                Monet
-              </a>
-              . The source code is available on{" "}
-              <a
-                href="https://github.com/monet/loyaltystudio"
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium underline underline-offset-4"
-              >
-                GitHub
-              </a>
-              .
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">Easy Integration</h3>
+            <p className="text-muted-foreground">
+              Connect with any e-commerce platform or custom solution through our powerful API.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">Flexible Rules</h3>
+            <p className="text-muted-foreground">
+              Create complex reward rules with our visual rule builder. No coding required.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">Multi-tenant</h3>
+            <p className="text-muted-foreground">
+              Built for scale with multi-tenant architecture. Perfect for agencies and enterprises.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">Analytics</h3>
+            <p className="text-muted-foreground">
+              Get insights into your loyalty program with detailed analytics and reporting.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 rounded-lg border p-6">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            <h3 className="text-xl font-semibold">White Label</h3>
+            <p className="text-muted-foreground">
+              Fully customizable with white-label options. Make it your own brand.
             </p>
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* CTA Section */}
+      <section className="container flex flex-col items-center justify-center gap-4 py-12 text-center">
+        <h2 className="text-2xl font-bold md:text-3xl">
+          Ready to Transform Your Customer Loyalty?
+        </h2>
+        <p className="max-w-[600px] text-muted-foreground">
+          Join thousands of businesses using LoyaltyStudio to build stronger customer relationships.
+        </p>
+        <Link href="/signup">
+          <Button size="lg" className="gap-2">
+            Start Free Trial <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </section>
     </div>
   )
 } 

@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../middleware/logger.js';
 
-const prisma = new PrismaClient({
+export const prisma = new PrismaClient({
   log: [
     {
       emit: 'event',
@@ -38,6 +38,4 @@ prisma.$on('info', (e: Prisma.LogEvent) => {
 
 prisma.$on('warn', (e: Prisma.LogEvent) => {
   logger.warn('Prisma Warning: ' + e.message);
-});
-
-export default prisma; 
+}); 

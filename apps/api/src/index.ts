@@ -11,7 +11,12 @@ import { cachePlugin } from './plugins/cache.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { roleRoutes } from './routes/roles.js';
 import { userRoutes } from './routes/users.js';
+import { pointsRoutes } from './routes/points.js';
+import { rewardsRoutes } from './routes/rewards.js';
+import { merchantRoutes } from './routes/merchants.js';
 import { env } from './config/env.js';
+import { trigger } from './config/trigger.js';
+import { registerJobs } from './jobs/index.js';
 
 const app = fastify({
   logger: {
@@ -78,6 +83,9 @@ app.register(authRoutes);
 app.register(permissionRoutes);
 app.register(roleRoutes);
 app.register(userRoutes);
+app.register(pointsRoutes);
+app.register(rewardsRoutes);
+app.register(merchantRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
@@ -117,6 +125,11 @@ app.get('/debug/openapi', async () => {
 const start = async () => {
   try {
     console.log('Starting server...');
+    
+    // Initialize Trigger.dev and register jobs
+    await trigger.initialize();
+    await registerJobs();
+    
     await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
     console.log(`Server is running on ${env.API_URL}`);
     console.log('API Documentation available at http://localhost:3001/docs');

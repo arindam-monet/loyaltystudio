@@ -34,6 +34,10 @@ export const env = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
   REDIS_TLS: process.env.REDIS_TLS === 'true',
+
+  // Trigger.dev Configuration
+  TRIGGER_API_KEY: process.env.TRIGGER_API_KEY!,
+  TRIGGER_API_URL: process.env.TRIGGER_API_URL || 'https://api.trigger.dev',
 } as const;
 
 // Validate required environment variables
@@ -43,6 +47,7 @@ const requiredEnvVars = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_KEY',
   'SUPABASE_ANON_KEY',
+  'TRIGGER_API_KEY',
 ] as const;
 
 for (const envVar of requiredEnvVars) {

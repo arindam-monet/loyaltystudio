@@ -10,11 +10,67 @@ const roleSchema = z.object({
 });
 
 export async function roleRoutes(fastify: FastifyInstance) {
+  // Get all roles
+  fastify.get('/roles', {
+    schema: {
+      description: 'Get all roles',
+      tags: ['roles'],
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              description: { type: 'string' },
+              permissions: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    resource: { type: 'string' },
+                    action: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      try {
+        const roles = await prisma.role.findMany({
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        });
+
+        return roles.map(role => ({
+          ...role,
+          permissions: role.permissions.map(p => p.permission),
+        }));
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to fetch roles' });
+      }
+    },
+  });
+
   // Create role
   fastify.post('/roles', {
     schema: {
       description: 'Create a new role',
       tags: ['roles'],
+      security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
         required: ['name'],
@@ -34,125 +90,29 @@ export async function roleRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    config: {
-      permissions: [
-        { resource: 'role', action: 'create' },
-      ],
-    },
-  }, async (request, reply) => {
-    const role = roleSchema.parse(request.body);
-    
-    try {
-      const created = await prisma.role.create({
-        data: role,
-      });
-      
-      return reply.code(201).send(created);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Failed to create role' });
-    }
-  });
+    handler: async (request, reply) => {
+      try {
+        const data = roleSchema.parse(request.body);
 
-  // List roles
-  fastify.get('/roles', {
-    schema: {
-      description: 'List all roles',
-      tags: ['roles'],
-      response: {
-        200: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              name: { type: 'string' },
-              description: { type: 'string' },
-            },
-          },
-        },
-      },
-    },
-    config: {
-      permissions: [
-        { resource: 'role', action: 'read' },
-      ],
-    },
-  }, async (request, reply) => {
-    try {
-      const roles = await prisma.role.findMany();
-      return roles;
-    } catch (error) {
-      return reply.code(500).send({ error: 'Failed to fetch roles' });
-    }
-  });
+        // Check if role already exists
+        const existing = await prisma.role.findUnique({
+          where: { name: data.name },
+        });
 
-  // Get role by ID
-  fastify.get('/roles/:id', {
-    schema: {
-      description: 'Get a role by ID',
-      tags: ['roles'],
-      params: {
-        type: 'object',
-        required: ['id'],
-        properties: {
-          id: { type: 'string' },
-        },
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            permissions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  resource: { type: 'string' },
-                  action: { type: 'string' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    config: {
-      permissions: [
-        { resource: 'role', action: 'read' },
-      ],
-    },
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    
-    try {
-      const role = await prisma.role.findUnique({
-        where: { id },
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      });
-      
-      if (!role) {
-        return reply.code(404).send({ error: 'Role not found' });
+        if (existing) {
+          return reply.code(400).send({ error: 'Role already exists' });
+        }
+
+        const role = await prisma.role.create({
+          data,
+        });
+
+        return reply.code(201).send(role);
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to create role' });
       }
-      
-      return {
-        ...role,
-        permissions: role.permissions.map(rp => rp.permission),
-      };
-    } catch (error) {
-      return reply.code(500).send({ error: 'Failed to fetch role' });
-    }
+    },
   });
 
   // Update role
@@ -160,6 +120,7 @@ export async function roleRoutes(fastify: FastifyInstance) {
     schema: {
       description: 'Update a role',
       tags: ['roles'],
+      security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         required: ['id'],
@@ -169,7 +130,6 @@ export async function roleRoutes(fastify: FastifyInstance) {
       },
       body: {
         type: 'object',
-        required: ['name'],
         properties: {
           name: { type: 'string' },
           description: { type: 'string' },
@@ -186,25 +146,22 @@ export async function roleRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    config: {
-      permissions: [
-        { resource: 'role', action: 'update' },
-      ],
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const data = roleSchema.partial().parse(request.body);
+
+        const role = await prisma.role.update({
+          where: { id },
+          data,
+        });
+
+        return role;
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to update role' });
+      }
     },
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const role = roleSchema.parse(request.body);
-    
-    try {
-      const updated = await prisma.role.update({
-        where: { id },
-        data: role,
-      });
-      
-      return updated;
-    } catch (error) {
-      return reply.code(500).send({ error: 'Failed to update role' });
-    }
   });
 
   // Delete role
@@ -212,6 +169,7 @@ export async function roleRoutes(fastify: FastifyInstance) {
     schema: {
       description: 'Delete a role',
       tags: ['roles'],
+      security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         required: ['id'],
@@ -228,22 +186,79 @@ export async function roleRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    config: {
-      permissions: [
-        { resource: 'role', action: 'delete' },
-      ],
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        // Check if role is assigned to any users
+        const usersWithRole = await prisma.user.findFirst({
+          where: { roleId: id },
+        });
+
+        if (usersWithRole) {
+          return reply.code(400).send({ error: 'Cannot delete role that is assigned to users' });
+        }
+
+        await prisma.role.delete({
+          where: { id },
+        });
+
+        return { message: 'Role deleted successfully' };
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to delete role' });
+      }
     },
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    
-    try {
-      await prisma.role.delete({
-        where: { id },
-      });
-      
-      return { message: 'Role deleted successfully' };
-    } catch (error) {
-      return reply.code(500).send({ error: 'Failed to delete role' });
-    }
+  });
+
+  // Get role permissions
+  fastify.get('/roles/:id/permissions', {
+    schema: {
+      description: 'Get all permissions for a role',
+      tags: ['roles'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              resource: { type: 'string' },
+              action: { type: 'string' },
+              description: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        const permissions = await prisma.permission.findMany({
+          where: {
+            roles: {
+              some: {
+                roleId: id,
+              },
+            },
+          },
+        });
+
+        return permissions;
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to fetch role permissions' });
+      }
+    },
   });
 } 

@@ -35,7 +35,7 @@ Monet is a next-generation, API-first loyalty platform designed to help business
 | ORM                | Prisma           | 5.12    | Scalable database abstraction    |
 | Cache             | Redis            | Latest  | Low-latency session caching      |
 | Background Jobs    | Trigger.dev      | 3.12    | Event-driven workflows          |
-| Monitoring         | Better Stack     | OSS     | Unified logs, metrics, tracing  |
+| Monitoring         | Custom Pino      | 8.0     | Unified logs, metrics, tracing  |
 | Monorepo           | Turborepo        | 2.9     | Optimized builds with caching   |
 
 ### 3.2 Repository Structure  
@@ -99,7 +99,7 @@ monet/
 ### 4.2 Developer Experience  
 - TypeScript SDK with React hooks.
 - Scalar API documentation with OpenAPI 3.0.
-- Better Stack-based error replay.
+- Custom Pino-based error tracking and logging.
 - Localstack integration for seamless local development.
 
 ---
@@ -143,7 +143,7 @@ curl -H "Host: acme.loyaltystudio.ai" http://localhost:3001/health
 | Network            | DDoS protection              | Cloudflare         |
 | Data               | AES-256 encryption           | AWS KMS            |
 | Auth               | JWT refresh rotation         | Supabase           |
-| Logging           | SOC2-ready audit trails      | Better Stack       |
+| Logging           | SOC2-ready audit trails      | Custom Pino        |
 
 ### 6.2 Compliance Roadmap  
 - **SOC 2 Type II** (Q3 2024)  
@@ -166,9 +166,9 @@ graph LR
 ```
 
 ### 7.2 Observability Stack  
-- **Metrics:** Better Stack  
-- **Logs:** Better Stack + ClickHouse  
-- **Traces:** Better Stack OpenTelemetry  
+- **Metrics:** Custom Pino-based metrics  
+- **Logs:** Pino logger with JSON formatting  
+- **Traces:** Request/Response tracing via Pino  
 
 ---
 
@@ -194,10 +194,10 @@ graph LR
 ## 9. Success Metrics  
 | KPI                  | Target            | Measurement               |
 |----------------------|-------------------|---------------------------|
-| API Latency          | <50ms p95         | Better Stack APM          |
+| API Latency          | <50ms p95         | Custom Pino metrics       |
 | Deployment Frequency | 50/day            | GitHub Actions            |
 | Lead Time            | <2hrs             | CI/CD pipeline metrics    |
-| Incident Recovery    | <15min MTTR       | Better Stack alerts       |
+| Incident Recovery    | <15min MTTR       | Custom alerting system    |
 
 ---
 
@@ -208,7 +208,7 @@ graph LR
 |-------------------|------------------|----------------------------|
 | Engineering       | $120k            | 6 FTEs                     |
 | Cloud Infra       | $18k             | AWS + Vercel               |
-| Observability     | $0 (Free Tier)   | Better Stack OSS           |
+| Observability     | $0               | Custom Pino solution       |
 
 ### ROI Projection  
 - 12-month payback period.  
