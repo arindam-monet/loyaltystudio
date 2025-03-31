@@ -16,4 +16,6 @@ export const dbPlugin = fp(async (fastify: FastifyInstance) => {
   fastify.addHook('onClose', async (instance) => {
     await instance.prisma.$disconnect();
   });
-}); 
+});
+
+export { prisma } from './prisma.js'; 

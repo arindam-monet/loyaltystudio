@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Label } from '@loyaltystudio/ui';
 import Link from 'next/link';
-import apiClient from '@/lib/api-client';
+import { useMutation } from '@tanstack/react-query';
+import { authApi } from '@/lib/api-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,29 +14,25 @@ export default function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const loginMutation = useMutation({
+    mutationFn: () => authApi.login(formData),
+    onSuccess: (data) => {
+      // Store the token
+      localStorage.setItem('auth_token', data.token);
+      
+      // Redirect to dashboard
+      router.push('/merchant/dashboard');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Login failed');
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
-
-    try {
-      const response = await apiClient.post('/auth/login', {
-        email: formData.email,
-        password: formData.password,
-      });
-
-      // Store the token
-      localStorage.setItem('token', response.data.token);
-      
-      // Redirect to dashboard
-      router.push('/merchant/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,10 +92,10 @@ export default function LoginPage() {
           <div>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loginMutation.isPending}
               className="w-full flex justify-center py-2 px-4"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
             </Button>
           </div>
         </form>

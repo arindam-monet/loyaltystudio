@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Label } from '@loyaltystudio/ui';
 import Link from 'next/link';
-import apiClient from '@/lib/api-client';
+import { useMutation } from '@tanstack/react-query';
+import { authApi } from '@/lib/api-client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,39 +15,29 @@ export default function RegisterPage() {
     password: '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const registerMutation = useMutation({
+    mutationFn: () => authApi.register({
+      email: formData.email,
+      password: formData.password,
+      name: formData.name,
+    }),
+    onSuccess: (data) => {
+      // Store the token
+      localStorage.setItem('auth_token', data.token);
+      
+      // Redirect to onboarding wizard
+      router.push('/onboarding');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Registration failed');
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
-
-    try {
-      // First create a tenant
-      const tenantResponse = await apiClient.post('/tenants', {
-        name: formData.name,
-        email: formData.email,
-        subscription: {
-          plan: 'free', // Default to free plan
-          status: 'active',
-        },
-      });
-
-      // Then register the user with the tenant ID
-      await apiClient.post('/auth/register', {
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        tenantId: tenantResponse.data.id,
-      });
-
-      // Redirect to onboarding wizard
-      router.push('/onboarding');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
+    registerMutation.mutate();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,10 +109,10 @@ export default function RegisterPage() {
           <div>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={registerMutation.isPending}
               className="w-full flex justify-center py-2 px-4"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {registerMutation.isPending ? 'Creating account...' : 'Create account'}
             </Button>
           </div>
         </form>

@@ -36,7 +36,9 @@ const PUBLIC_PATHS = [
   '/openapi.json',
   '/docs/static',
   '/docs/static/*',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/auth/register',
+  '/auth/login'
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {

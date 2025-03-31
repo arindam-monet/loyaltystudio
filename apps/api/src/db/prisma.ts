@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../middleware/logger.js';
 
 // Declare global type for prisma instance

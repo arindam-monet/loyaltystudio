@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../db/index.js';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -13,9 +11,36 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string(),
-  tenantId: z.string(),
   roleId: z.string().optional()
 });
+
+// Helper function to create a user session
+async function createUserSession(userId: string, token: string, request: any) {
+  const deviceInfo = {
+    userAgent: request.headers['user-agent'],
+    platform: request.headers['sec-ch-ua-platform'],
+    mobile: request.headers['sec-ch-ua-mobile'],
+    language: request.headers['accept-language']
+  };
+
+  return prisma.userSession.create({
+    data: {
+      userId,
+      token,
+      deviceInfo,
+      ipAddress: request.ip,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+    }
+  });
+}
+
+// Helper function to invalidate user sessions
+async function invalidateUserSessions(userId: string) {
+  return prisma.userSession.updateMany({
+    where: { userId, isActive: true },
+    data: { isActive: false }
+  });
+}
 
 export async function authRoutes(fastify: FastifyInstance) {
   // Login endpoint
@@ -80,6 +105,9 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'User not found in database' });
       }
 
+      // Create a new session
+      await createUserSession(user.id, data.session?.access_token, request);
+
       return {
         token: data.session?.access_token,
         user: {
@@ -98,16 +126,15 @@ export async function authRoutes(fastify: FastifyInstance) {
   // Register endpoint
   fastify.post('/auth/register', {
     schema: {
-      description: 'Register a new user',
+      description: 'Register a new user and create tenant',
       tags: ['auth'],
       body: {
         type: 'object',
-        required: ['email', 'password', 'name', 'tenantId'],
+        required: ['email', 'password', 'name'],
         properties: {
           email: { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 6 },
           name: { type: 'string' },
-          tenantId: { type: 'string' },
           roleId: { type: 'string' }
         }
       },
@@ -115,6 +142,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         201: {
           type: 'object',
           properties: {
+            token: { type: 'string' },
             user: {
               type: 'object',
               properties: {
@@ -137,9 +165,9 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request, reply) => {
-    const { email, password, name, tenantId, roleId } = registerSchema.parse(request.body);
-    
     try {
+      const { email, password, name, roleId } = registerSchema.parse(request.body);
+      
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
         where: { email }
@@ -150,13 +178,46 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       // Get default role (USER) if no role is specified
-      const finalRoleId = roleId || await prisma.role.findFirst({
-        where: { name: 'USER' },
-      }).then(role => role?.id);
+      const defaultRole = await prisma.role.findFirst({
+        where: { name: 'USER' }
+      });
 
-      if (!finalRoleId) {
-        return reply.code(500).send({ error: 'Default role not found' });
+      if (!defaultRole) {
+        console.error('Default USER role not found in database');
+        return reply.code(500).send({ error: 'System configuration error: Default role not found' });
       }
+
+      const finalRoleId = roleId || defaultRole.id;
+
+      // Create tenant first with a unique domain
+      const baseDomain = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      let domain = `${baseDomain}.loyaltystudio.ai`;
+      let counter = 1;
+
+      // Keep trying until we find a unique domain
+      while (true) {
+        const existingTenant = await prisma.tenant.findUnique({
+          where: { domain }
+        });
+
+        if (!existingTenant) {
+          break;
+        }
+
+        domain = `${baseDomain}-${counter}.loyaltystudio.ai`;
+        counter++;
+      }
+
+      // Create tenant
+      const tenant = await prisma.tenant.create({
+        data: {
+          name: `${name}'s Organization`,
+          domain
+        }
+      }).catch(error => {
+        console.error('Failed to create tenant:', error);
+        throw new Error('Failed to create tenant');
+      });
 
       // Create user in Supabase
       const { data: supabaseUser, error: supabaseError } = await fastify.supabase.auth.signUp({
@@ -164,31 +225,58 @@ export async function authRoutes(fastify: FastifyInstance) {
         password,
         options: {
           data: {
-            tenant_id: tenantId,
+            tenant_id: tenant.id,
             role: 'user'
           }
         }
       });
 
       if (supabaseError) {
+        // Rollback tenant creation if user creation fails
+        await prisma.tenant.delete({ where: { id: tenant.id } });
+        console.error('Supabase user creation failed:', supabaseError);
         return reply.code(400).send({ error: supabaseError.message });
+      }
+
+      if (!supabaseUser.user?.id) {
+        // Rollback tenant creation if no user ID returned
+        await prisma.tenant.delete({ where: { id: tenant.id } });
+        console.error('No user ID returned from Supabase');
+        return reply.code(500).send({ error: 'Failed to create user account' });
       }
 
       // Create user in our database
       const user = await prisma.user.create({
         data: {
-          id: supabaseUser.user?.id,
+          id: supabaseUser.user.id,
           email,
           name,
-          tenantId,
+          tenantId: tenant.id,
           roleId: finalRoleId
         },
         include: {
           role: true
         }
+      }).catch(async (error) => {
+        console.error('Failed to create user in database:', error);
+        // Rollback tenant creation
+        await prisma.tenant.delete({ where: { id: tenant.id } });
+        throw new Error('Failed to create user in database');
       });
 
+      // Get the session token
+      const { data: sessionData, error: sessionError } = await fastify.supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session?.access_token) {
+        console.error('Failed to get session:', sessionError);
+        return reply.code(500).send({ error: 'Failed to create session' });
+      }
+
+      // Create a new session
+      await createUserSession(user.id, sessionData.session.access_token, request);
+
       return reply.code(201).send({
+        token: sessionData.session.access_token,
         user: {
           id: user.id,
           email: user.email,
@@ -199,7 +287,10 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       console.error('Registration error:', error);
-      return reply.code(500).send({ error: 'Registration failed' });
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ error: 'Invalid input data', details: error.errors });
+      }
+      return reply.code(500).send({ error: 'Registration failed', message: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -220,14 +311,32 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     try {
-      const { error } = await fastify.supabase.auth.signOut();
+      const token = request.headers.authorization?.replace('Bearer ', '');
       
-      if (error) {
-        return reply.code(500).send({ error: error.message });
+      if (!token) {
+        return reply.code(401).send({ error: 'No token provided' });
+      }
+
+      // Get the user from the token
+      const { data: { user }, error: userError } = await fastify.supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        return reply.code(401).send({ error: 'Invalid token' });
+      }
+
+      // Invalidate all sessions for the user
+      await invalidateUserSessions(user.id);
+
+      // Sign out from Supabase
+      const { error: signOutError } = await fastify.supabase.auth.signOut();
+      
+      if (signOutError) {
+        return reply.code(500).send({ error: signOutError.message });
       }
 
       return { message: 'Logged out successfully' };
     } catch (error) {
+      console.error('Logout error:', error);
       return reply.code(500).send({ error: 'Logout failed' });
     }
   });
