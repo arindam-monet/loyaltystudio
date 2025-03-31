@@ -1,276 +1,157 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
-import { generateSubdomain, validateSubdomain, isSubdomainAvailable } from '../utils/subdomain.js';
+import { DNSProviderFactory } from '../services/dns/index.js';
+import { generateSubdomain, isValidSubdomain, isReservedSubdomain, getMerchantDomain } from '../utils/subdomain.js';
+import { env } from '../config/env.js';
 
 const prisma = new PrismaClient();
+const dnsProvider = DNSProviderFactory.createProvider();
 
 const merchantSchema = z.object({
-  name: z.string(),
-  subdomain: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  name: z.string().min(3).max(100),
+  subdomain: z.string().min(3).max(63).optional(),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  zipCode: z.string().optional(),
+  tenantId: z.string().uuid(),
 });
 
-export async function merchantRoutes(fastify: FastifyInstance) {
-  // Create merchant
-  fastify.post('/merchants', {
-    schema: {
-      description: 'Create a new merchant',
-      tags: ['merchants'],
-      security: [{ bearerAuth: [] }],
-      body: {
-        type: 'object',
-        required: ['name'],
-        properties: {
-          name: { type: 'string' },
-          subdomain: { type: 'string' },
-          metadata: { type: 'object', additionalProperties: true }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            subdomain: { type: 'string' },
-            metadata: { type: 'object' },
-            createdAt: { type: 'string' },
-            updatedAt: { type: 'string' },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const data = merchantSchema.parse(request.body);
-        const tenantId = request.user.tenantId; // From auth middleware
+export default async function merchantRoutes(app: FastifyInstance) {
+  // Create a new merchant
+  app.post('/merchants', async (request, reply) => {
+    const data = merchantSchema.parse(request.body);
+    let subdomain = data.subdomain || generateSubdomain(data.name);
 
-        // Get tenant to access domain
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: tenantId },
-        });
+    // Validate subdomain format
+    if (!isValidSubdomain(subdomain)) {
+      return reply.code(400).send({
+        error: 'Invalid subdomain format. Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
+      });
+    }
 
-        if (!tenant) {
-          return reply.code(404).send({ error: 'Tenant not found' });
-        }
+    // Check if subdomain is reserved
+    if (isReservedSubdomain(subdomain)) {
+      return reply.code(400).send({
+        error: 'This subdomain is reserved and cannot be used.',
+      });
+    }
 
-        // Generate or validate subdomain
-        let subdomain = data.subdomain || generateSubdomain(data.name);
-        
-        // Validate subdomain format
-        if (!validateSubdomain(subdomain)) {
-          return reply.code(400).send({
-            error: 'Invalid subdomain format',
-            message: 'Subdomain must be 3-63 characters long, start and end with a letter or number, and can only contain letters, numbers, and hyphens.'
-          });
-        }
+    // Check if subdomain is already taken
+    const existingMerchant = await prisma.merchant.findFirst({
+      where: { subdomain },
+    });
 
-        // Check if subdomain is available
-        const isAvailable = await isSubdomainAvailable(subdomain, tenantId);
-        if (!isAvailable) {
-          return reply.code(400).send({
-            error: 'Subdomain already taken',
-            message: `The subdomain "${subdomain}" is already in use. Please choose a different one.`
-          });
-        }
+    if (existingMerchant) {
+      return reply.code(409).send({
+        error: 'This subdomain is already taken.',
+      });
+    }
 
-        // Create merchant with subdomain
-        const merchant = await prisma.merchant.create({
+    try {
+      // Start a transaction to create merchant and DNS record
+      const merchant = await prisma.$transaction(async (tx) => {
+        // Create merchant
+        const newMerchant = await tx.merchant.create({
           data: {
-            name: data.name,
+            ...data,
             subdomain,
-            tenantId,
-            metadata: data.metadata,
           },
         });
 
-        return reply.code(201).send(merchant);
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to create merchant' });
-      }
-    },
-  });
-
-  // Get all merchants for tenant
-  fastify.get('/merchants', {
-    schema: {
-      description: 'Get all merchants for the current tenant',
-      tags: ['merchants'],
-      security: [{ bearerAuth: [] }],
-      response: {
-        200: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              name: { type: 'string' },
-              domain: { type: 'string' },
-              metadata: { type: 'object' },
-              createdAt: { type: 'string' },
-              updatedAt: { type: 'string' },
-            },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const tenantId = request.user.tenantId; // From auth middleware
-
-        const merchants = await prisma.merchant.findMany({
-          where: { tenantId },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        return merchants;
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to fetch merchants' });
-      }
-    },
-  });
-
-  // Get merchant by ID
-  fastify.get('/merchants/:id', {
-    schema: {
-      description: 'Get merchant by ID',
-      tags: ['merchants'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        required: ['id'],
-        properties: {
-          id: { type: 'string' },
-        },
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            domain: { type: 'string' },
-            metadata: { type: 'object' },
-            createdAt: { type: 'string' },
-            updatedAt: { type: 'string' },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const { id } = request.params as { id: string };
-        const tenantId = request.user.tenantId; // From auth middleware
-
-        const merchant = await prisma.merchant.findFirst({
-          where: { id, tenantId },
-        });
-
-        if (!merchant) {
-          return reply.code(404).send({ error: 'Merchant not found' });
+        // Create DNS record if DNS provider is configured
+        try {
+          await dnsProvider.createSubdomain(subdomain);
+        } catch (error) {
+          // Log the error but don't fail the transaction
+          console.error('Failed to create DNS record:', error);
         }
 
-        return merchant;
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to fetch merchant' });
-      }
-    },
+        return newMerchant;
+      });
+
+      return reply.code(201).send(merchant);
+    } catch (error) {
+      console.error('Failed to create merchant:', error);
+      return reply.code(500).send({
+        error: 'Failed to create merchant.',
+      });
+    }
   });
 
-  // Update merchant
-  fastify.put('/merchants/:id', {
-    schema: {
-      description: 'Update merchant',
-      tags: ['merchants'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        required: ['id'],
-        properties: {
-          id: { type: 'string' },
-        },
-      },
-      body: {
-        type: 'object',
-        properties: {
-          name: { type: 'string' },
-          domain: { type: 'string' },
-          metadata: { type: 'object', additionalProperties: true }
+  // Delete a merchant
+  app.delete('/merchants/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      const merchant = await prisma.merchant.findUnique({
+        where: { id },
+      });
+
+      if (!merchant) {
+        return reply.code(404).send({
+          error: 'Merchant not found.',
+        });
+      }
+
+      // Delete merchant and DNS record in a transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.merchant.delete({
+          where: { id },
+        });
+
+        // Delete DNS record if merchant has a subdomain
+        if (merchant.subdomain) {
+          try {
+            await dnsProvider.deleteSubdomain(merchant.subdomain);
+          } catch (error) {
+            // Log the error but don't fail the transaction
+            console.error('Failed to delete DNS record:', error);
+          }
         }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            domain: { type: 'string' },
-            metadata: { type: 'object' },
-            createdAt: { type: 'string' },
-            updatedAt: { type: 'string' },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const { id } = request.params as { id: string };
-        const tenantId = request.user.tenantId; // From auth middleware
-        const data = merchantSchema.partial().parse(request.body);
+      });
 
-        const merchant = await prisma.merchant.update({
-          where: { id, tenantId },
-          data,
-        });
-
-        return merchant;
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to update merchant' });
-      }
-    },
+      return reply.code(204).send();
+    } catch (error) {
+      console.error('Failed to delete merchant:', error);
+      return reply.code(500).send({
+        error: 'Failed to delete merchant.',
+      });
+    }
   });
 
-  // Delete merchant
-  fastify.delete('/merchants/:id', {
-    schema: {
-      description: 'Delete merchant',
-      tags: ['merchants'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        required: ['id'],
-        properties: {
-          id: { type: 'string' },
-        },
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const { id } = request.params as { id: string };
-        const tenantId = request.user.tenantId; // From auth middleware
+  // Check subdomain availability
+  app.get('/merchants/check-subdomain/:subdomain', async (request, reply) => {
+    const { subdomain } = request.params as { subdomain: string };
 
-        await prisma.merchant.delete({
-          where: { id, tenantId },
-        });
+    // Validate subdomain format
+    if (!isValidSubdomain(subdomain)) {
+      return reply.code(400).send({
+        available: false,
+        error: 'Invalid subdomain format.',
+      });
+    }
 
-        return { message: 'Merchant deleted successfully' };
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to delete merchant' });
-      }
-    },
+    // Check if subdomain is reserved
+    if (isReservedSubdomain(subdomain)) {
+      return reply.code(400).send({
+        available: false,
+        error: 'This subdomain is reserved.',
+      });
+    }
+
+    // Check if subdomain is already taken
+    const existingMerchant = await prisma.merchant.findFirst({
+      where: { subdomain },
+    });
+
+    return reply.send({
+      available: !existingMerchant,
+      domain: getMerchantDomain(subdomain),
+    });
   });
 } 

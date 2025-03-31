@@ -14,7 +14,7 @@ import { roleRoutes } from './routes/roles.js';
 import { userRoutes } from './routes/users.js';
 import { pointsRoutes } from './routes/points.js';
 import { rewardsRoutes } from './routes/rewards.js';
-import { merchantRoutes } from './routes/merchants.js';
+import merchantRoutes from './routes/merchants.js';
 import { env } from './config/env.js';
 
 const app = fastify({

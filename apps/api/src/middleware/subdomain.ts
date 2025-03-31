@@ -45,9 +45,14 @@ export const subdomainPlugin: FastifyPluginAsync = async (fastify) => {
       },
     });
 
-    if (merchant) {
+    if (merchant && merchant.subdomain) {
       // This is a merchant-specific request
-      request.merchant = merchant;
+      request.merchant = {
+        id: merchant.id,
+        name: merchant.name,
+        subdomain: merchant.subdomain,
+        tenantId: merchant.tenantId,
+      };
       request.tenant = tenant;
       return;
     }

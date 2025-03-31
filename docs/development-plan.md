@@ -490,45 +490,55 @@
 
 ### 2.2 Merchant Onboarding Flow
 - [x] Build subdomain provisioning system
-  - [x] Implement DNS management
-  - [x] Set up SSL certificates
-  - [x] Configure routing
+  - [x] Add subdomain field to Merchant model
+  - [x] Implement subdomain generation and validation
+  - [x] Create subdomain middleware for routing
+  - [x] Set up tenant-merchant domain relationship
+  - [x] Create Cloudflare service for DNS management
+  - [ ] Implement DNS record creation and validation
+  - [ ] Set up SSL certificate provisioning
+  - [ ] Add subdomain management UI
+  - [ ] Implement testing & monitoring
 - [x] Implement merchant registration and verification
   - [x] Create registration form
   - [x] Set up verification process
   - [x] Implement email notifications
+  - [x] Add subdomain selection/generation
 - [x] Create merchant profile management
   - [x] Design profile schema
   - [x] Implement CRUD operations
   - [x] Create profile UI
+  - [x] Add subdomain management
 - [ ] Develop onboarding wizard UI
   - [ ] Design wizard flow
+    - [ ] Basic merchant information
+    - [ ] Subdomain selection
+    - [ ] Branding setup
+    - [ ] Integration configuration
   - [ ] Implement progress tracking
   - [ ] Create validation rules
-- [ ] Implement merchant settings and configuration
-  - [ ] Create settings schema
-  - [ ] Build settings UI
-  - [ ] Add validation rules
-- [ ] Build merchant analytics dashboard
-  - [ ] Design dashboard layout
-  - [ ] Implement data visualization
-  - [ ] Add real-time updates
-- [ ] Create merchant API key management
-  - [ ] Implement key generation
-  - [ ] Add key rotation
-  - [ ] Set up usage tracking
-- [ ] Set up merchant webhook configuration
-  - [ ] Create webhook schema
-  - [ ] Implement webhook delivery
-  - [ ] Add retry logic
-- [ ] Develop merchant integration guides
-  - [ ] Create documentation
-  - [ ] Add code examples
-  - [ ] Include best practices
-- [ ] Build merchant support system
-  - [ ] Create support ticket system
-  - [ ] Implement chat support
-  - [ ] Add knowledge base
+
+### Next Steps for Subdomain Implementation
+1. [ ] DNS Management Integration
+   - [ ] Create Cloudflare API client
+   - [ ] Implement DNS record creation
+   - [ ] Add record validation
+   - [ ] Set up record cleanup
+2. [ ] SSL Certificate Provisioning
+   - [ ] Integrate with Let's Encrypt
+   - [ ] Implement certificate generation
+   - [ ] Add certificate renewal
+   - [ ] Set up validation
+3. [ ] Subdomain Management UI
+   - [ ] Create availability checker
+   - [ ] Add subdomain editor
+   - [ ] Implement validation
+   - [ ] Add preview functionality
+4. [ ] Testing & Monitoring
+   - [ ] Add DNS health checks
+   - [ ] Create SSL monitoring
+   - [ ] Implement domain validation
+   - [ ] Set up alerts
 
 ### 2.3 Loyalty Program Core
 - [x] Implement points/rewards calculation engine

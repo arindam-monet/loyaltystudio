@@ -1,48 +1,73 @@
 import { config } from 'dotenv';
 import { join } from 'path';
+import { z } from 'zod';
 
 // Load environment variables based on NODE_ENV
 const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
 config({ path: join(process.cwd(), envFile) });
 
-// Environment variables with type checking
-export const env = {
+const envSchema = z.object({
   // Server Configuration
-  PORT: process.env.PORT || '3001',
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.string().default('3001'),
+  API_HOST: z.string().default('0.0.0.0'),
+  API_URL: z.string().default('http://localhost:3001'),
   
   // Database Configuration
-  DATABASE_URL: process.env.DATABASE_URL!,
-  DIRECT_URL: process.env.DIRECT_URL!,
+  DATABASE_URL: z.string(),
+  DIRECT_URL: z.string(),
   
   // CORS Configuration
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  CORS_ORIGIN: z.string().default('*'),
   
   // Logging Configuration
-  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  LOG_LEVEL: z.string().default('info'),
   
-  // API Configuration
-  API_HOST: process.env.API_HOST || 'localhost',
-  API_URL: process.env.API_URL || 'http://localhost:3001',
+  // Domain Configuration
+  BASE_DOMAIN: z.string().default('loyaltystudio.local'),
+  ALLOWED_SUBDOMAINS: z.string().default('admin,merchant,api').transform(s => s.split(',')),
   
-  // Subdomain Configuration
-  BASE_DOMAIN: process.env.BASE_DOMAIN || 'loyaltystudio.local',
-  ALLOWED_SUBDOMAINS: (process.env.ALLOWED_SUBDOMAINS || 'admin,merchant,api').split(','),
+  // DNS Provider Configuration
+  DNS_PROVIDER: z.enum(['cloudflare', 'godaddy', 'namecheap']).default('cloudflare'),
+  
+  // Cloudflare Configuration
+  CLOUDFLARE_API_TOKEN: z.string().optional(),
+  CLOUDFLARE_ZONE_ID: z.string().optional(),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  
+  // GoDaddy Configuration
+  GODADDY_API_KEY: z.string().optional(),
+  GODADDY_API_SECRET: z.string().optional(),
+  GODADDY_DOMAIN: z.string().optional(),
+  
+  // Namecheap Configuration
+  NAMECHEAP_API_USER: z.string().optional(),
+  NAMECHEAP_API_KEY: z.string().optional(),
+  NAMECHEAP_DOMAIN: z.string().optional(),
   
   // Supabase Configuration
-  SUPABASE_URL: process.env.SUPABASE_URL!,
-  SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY!,
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY!,
+  SUPABASE_URL: z.string(),
+  SUPABASE_SERVICE_KEY: z.string(),
+  SUPABASE_ANON_KEY: z.string(),
   
   // Redis Configuration
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
-  REDIS_TLS: process.env.REDIS_TLS === 'true',
-
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_TLS: z.string().default('false').transform(s => s === 'true'),
+  
   // Trigger.dev Configuration
-  TRIGGER_API_KEY: process.env.TRIGGER_API_KEY || 'development-key',
-  TRIGGER_API_URL: process.env.TRIGGER_API_URL || 'https://api.trigger.dev',
-} as const;
+  TRIGGER_API_KEY: z.string().default('development-key'),
+  TRIGGER_API_URL: z.string().default('https://api.trigger.dev'),
+});
+
+const _env = envSchema.safeParse(process.env);
+
+if (!_env.success) {
+  console.error('❌ Invalid environment variables:', _env.error.format());
+  throw new Error('Invalid environment variables');
+}
+
+export const env = _env.data;
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -53,8 +78,8 @@ const requiredEnvVars = [
   'SUPABASE_ANON_KEY',
 ] as const;
 
-for (const envVar of requiredEnvVars) {
-  if (!env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+for (const key of requiredEnvVars) {
+  if (!env[key]) {
+    throw new Error(`Missing required environment variable: ${key}`);
   }
 } 
