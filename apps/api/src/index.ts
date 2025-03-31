@@ -16,6 +16,8 @@ import { pointsRoutes } from './routes/points.js';
 import { rewardsRoutes } from './routes/rewards.js';
 import merchantRoutes from './routes/merchants.js';
 import { env } from './config/env.js';
+import { apiKeyPlugin } from './middleware/api-key.js';
+import apiKeyRoutes from './routes/api-keys.js';
 
 const app = fastify({
   logger: {
@@ -88,9 +90,13 @@ app.register(userRoutes);
 app.register(pointsRoutes);
 app.register(rewardsRoutes);
 app.register(merchantRoutes);
+app.register(apiKeyRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
+
+// Register API key middleware
+app.register(apiKeyPlugin);
 
 // Health check endpoint
 app.get('/health', async () => {

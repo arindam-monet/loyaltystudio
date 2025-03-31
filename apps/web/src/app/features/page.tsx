@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from '@loyaltystudio/ui';
 import { ArrowRight, CheckCircle2, Zap, Code, BarChart, Shield, Settings } from 'lucide-react';
 
 export default function FeaturesPage() {

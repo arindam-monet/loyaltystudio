@@ -216,7 +216,13 @@
   - [ ] Merchant profile management
   - [ ] Merchant settings and configuration
   - [ ] Merchant analytics dashboard
-  - [ ] Merchant API key management
+  - [x] Merchant API key management
+    - [x] API key generation
+    - [x] Key validation
+    - [x] Usage tracking
+    - [x] Rate limiting
+    - [ ] Key management UI
+    - [ ] Key analytics dashboard
   - [ ] Merchant webhook configuration
   - [ ] Merchant integration guides
   - [ ] Merchant support system
@@ -483,10 +489,29 @@
   - [x] Implement data isolation
   - [x] Set up tenant routing
   - [x] Configure tenant-specific settings
-- [ ] Implement API key management system
-  - [ ] Create key generation service
-  - [ ] Implement key rotation
-  - [ ] Set up usage tracking
+- [x] Implement API key management system
+  - [x] Create key generation service
+    - [x] Secure key generation with crypto
+    - [x] Key storage in database
+    - [x] Key naming and organization
+  - [x] Implement key validation and rate limiting
+    - [x] Key validation middleware
+    - [x] Rate limit configuration
+    - [x] Usage tracking
+  - [x] Set up usage tracking and analytics
+    - [x] Request logging
+    - [x] Usage statistics
+    - [x] Performance metrics
+  - [x] Create API key management endpoints
+    - [x] Key generation
+    - [x] Key revocation
+    - [x] Usage statistics
+  - [ ] Additional features
+    - [ ] Key rotation
+    - [ ] Key expiration
+    - [ ] Key permissions
+    - [ ] Key usage alerts
+    - [ ] Key analytics dashboard
 
 ### 2.2 Merchant Onboarding Flow
 - [x] Build subdomain provisioning system
@@ -982,6 +1007,29 @@
   - [ ] Implement rate limiting
   - [ ] Add monitoring
   - [ ] Create documentation
+- [x] Implement API key generation
+  - [x] Create key generation service
+    - [x] Secure key generation with crypto
+    - [x] Key storage in database
+    - [x] Key naming and organization
+  - [x] Implement key validation and rate limiting
+    - [x] Key validation middleware
+    - [x] Rate limit configuration
+    - [x] Usage tracking
+  - [x] Set up usage tracking and analytics
+    - [x] Request logging
+    - [x] Usage statistics
+    - [x] Performance metrics
+  - [x] Create API key management endpoints
+    - [x] Key generation
+    - [x] Key revocation
+    - [x] Usage statistics
+  - [ ] Additional features
+    - [ ] Key rotation
+    - [ ] Key expiration
+    - [ ] Key permissions
+    - [ ] Key usage alerts
+    - [ ] Key analytics dashboard
 
 ### 6. Webhook System
 - [ ] Build webhook management

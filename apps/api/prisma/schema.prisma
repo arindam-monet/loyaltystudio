@@ -57,6 +57,7 @@ model Merchant {
   loyaltyPrograms LoyaltyProgram[]
   pointsBalances  PointsBalance[]
   pointsCalculations PointsCalculation[]
+  apiKeys         ApiKey[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -223,4 +224,54 @@ model PointsCalculation {
   @@index([merchantId])
   @@index([userId])
   @@index([status])
+}
+
+// API Key model for merchant API access
+model ApiKey {
+  id          String       @id @default(cuid())
+  key         String       @unique
+  name        String
+  merchantId  String
+  merchant    Merchant     @relation(fields: [merchantId], references: [id])
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  usageLogs   ApiKeyUsageLog[]
+  rateLimits  ApiKeyRateLimit[]
+
+  @@index([merchantId])
+  @@index([key])
+}
+
+// API Key Usage Log for tracking usage
+model ApiKeyUsageLog {
+  id        String   @id @default(cuid())
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
+  endpoint  String
+  method    String
+  status    Int      // HTTP status code
+  duration  Int      // Request duration in ms
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([apiKeyId])
+  @@index([createdAt])
+}
+
+// API Key Rate Limit configuration
+model ApiKeyRateLimit {
+  id        String   @id @default(cuid())
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
+  window    Int      // Time window in seconds
+  limit     Int      // Request limit per window
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([apiKeyId, window])
+  @@index([apiKeyId])
 } 
