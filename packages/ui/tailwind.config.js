@@ -1,10 +1,8 @@
 /** @type {import('tailwindcss').Config} */
-
-const plugin = require('tailwindcss/plugin');
-
 module.exports = {
+  darkMode: ["class"],
   content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
+    './src/**/*.{ts,tsx}',
   ],
   theme: {
     container: {
@@ -57,12 +55,12 @@ module.exports = {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
+          from: { height: 0 },
           to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          to: { height: 0 },
         },
       },
       animation: {
@@ -71,8 +69,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
-  corePlugins: {
-    preflight: false, // Disable Tailwind's reset to prevent conflicts with consuming apps
-  },
+  plugins: [require("tailwindcss-animate")],
 } 
