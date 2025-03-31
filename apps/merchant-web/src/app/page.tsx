@@ -22,7 +22,7 @@ export default function Home() {
               Create and manage powerful loyalty programs that drive customer engagement and boost revenue. Perfect for businesses of all sizes.
             </p>
             <div className="mt-8 flex items-center gap-x-6">
-              <Link href="/merchant/onboarding">
+              <Link href="/register">
                 <Button size="lg" className="gap-2">
                   Get Started <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -118,7 +118,7 @@ export default function Home() {
             Join businesses like Lloyds Banking Group in transforming their customer loyalty programs.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Link href="/merchant/onboarding">
+            <Link href="/register">
               <Button size="lg" className="gap-2">
                 Start Your Journey <ArrowRight className="h-4 w-4" />
               </Button>

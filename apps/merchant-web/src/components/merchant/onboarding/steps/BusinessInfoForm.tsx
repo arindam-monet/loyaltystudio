@@ -38,7 +38,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">Business Name</Label>
           <Input
@@ -46,6 +46,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.name || ''}
             onChange={(e) => handleChange('name', e.target.value)}
             placeholder="Enter your business name"
+            className="w-full"
           />
         </div>
 
@@ -57,6 +58,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.email || ''}
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="Enter your business email"
+            className="w-full"
           />
         </div>
 
@@ -68,6 +70,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.phone || ''}
             onChange={(e) => handleChange('phone', e.target.value)}
             placeholder="Enter your phone number"
+            className="w-full"
           />
         </div>
 
@@ -77,7 +80,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.industry}
             onValueChange={(value) => handleChange('industry', value)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select your industry" />
             </SelectTrigger>
             <SelectContent>
@@ -96,7 +99,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.size}
             onValueChange={(value) => handleChange('size', value)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select your business size" />
             </SelectTrigger>
             <SelectContent>
@@ -116,6 +119,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.address || ''}
             onChange={(e) => handleChange('address', e.target.value)}
             placeholder="Enter your street address"
+            className="w-full"
           />
         </div>
 
@@ -126,6 +130,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.city || ''}
             onChange={(e) => handleChange('city', e.target.value)}
             placeholder="Enter your city"
+            className="w-full"
           />
         </div>
 
@@ -136,6 +141,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.state || ''}
             onChange={(e) => handleChange('state', e.target.value)}
             placeholder="Enter your state/province"
+            className="w-full"
           />
         </div>
 
@@ -146,6 +152,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.country || ''}
             onChange={(e) => handleChange('country', e.target.value)}
             placeholder="Enter your country"
+            className="w-full"
           />
         </div>
 
@@ -156,6 +163,7 @@ export function BusinessInfoForm({ data, onChange }: BusinessInfoFormProps) {
             value={data.postalCode || ''}
             onChange={(e) => handleChange('postalCode', e.target.value)}
             placeholder="Enter your postal code"
+            className="w-full"
           />
         </div>
       </div>

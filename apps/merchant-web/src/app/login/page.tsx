@@ -6,10 +6,9 @@ import { Button, Input, Label } from '@loyaltystudio/ui';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
   });
@@ -22,28 +21,18 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // First create a tenant
-      const tenantResponse = await apiClient.post('/tenants', {
-        name: formData.name,
-        email: formData.email,
-        subscription: {
-          plan: 'free', // Default to free plan
-          status: 'active',
-        },
-      });
-
-      // Then register the user with the tenant ID
-      await apiClient.post('/auth/register', {
+      const response = await apiClient.post('/auth/login', {
         email: formData.email,
         password: formData.password,
-        name: formData.name,
-        tenantId: tenantResponse.data.id,
       });
 
-      // Redirect to onboarding wizard
-      router.push('/onboarding');
+      // Store the token
+      localStorage.setItem('token', response.data.token);
+      
+      // Redirect to dashboard
+      router.push('/merchant/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(err.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -61,12 +50,12 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign in
+            Don't have an account?{' '}
+            <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Create one
             </Link>
           </p>
         </div>
@@ -77,18 +66,6 @@ export default function RegisterPage() {
             </div>
           )}
           <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-              />
-            </div>
             <div>
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -110,7 +87,7 @@ export default function RegisterPage() {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Create a password"
+                placeholder="Enter your password"
               />
             </div>
           </div>
@@ -121,7 +98,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </div>
         </form>
