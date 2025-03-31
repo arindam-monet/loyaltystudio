@@ -1,12 +1,13 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { generateSubdomain, validateSubdomain, isSubdomainAvailable } from '../utils/subdomain.js';
 
 const prisma = new PrismaClient();
 
 const merchantSchema = z.object({
   name: z.string(),
-  domain: z.string().optional(),
+  subdomain: z.string().optional(),
   metadata: z.record(z.any()).optional(),
 });
 
@@ -22,7 +23,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
         required: ['name'],
         properties: {
           name: { type: 'string' },
-          domain: { type: 'string' },
+          subdomain: { type: 'string' },
           metadata: { type: 'object', additionalProperties: true }
         }
       },
@@ -32,7 +33,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           properties: {
             id: { type: 'string' },
             name: { type: 'string' },
-            domain: { type: 'string' },
+            subdomain: { type: 'string' },
             metadata: { type: 'object' },
             createdAt: { type: 'string' },
             updatedAt: { type: 'string' },
@@ -45,10 +46,42 @@ export async function merchantRoutes(fastify: FastifyInstance) {
         const data = merchantSchema.parse(request.body);
         const tenantId = request.user.tenantId; // From auth middleware
 
+        // Get tenant to access domain
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+        });
+
+        if (!tenant) {
+          return reply.code(404).send({ error: 'Tenant not found' });
+        }
+
+        // Generate or validate subdomain
+        let subdomain = data.subdomain || generateSubdomain(data.name);
+        
+        // Validate subdomain format
+        if (!validateSubdomain(subdomain)) {
+          return reply.code(400).send({
+            error: 'Invalid subdomain format',
+            message: 'Subdomain must be 3-63 characters long, start and end with a letter or number, and can only contain letters, numbers, and hyphens.'
+          });
+        }
+
+        // Check if subdomain is available
+        const isAvailable = await isSubdomainAvailable(subdomain, tenantId);
+        if (!isAvailable) {
+          return reply.code(400).send({
+            error: 'Subdomain already taken',
+            message: `The subdomain "${subdomain}" is already in use. Please choose a different one.`
+          });
+        }
+
+        // Create merchant with subdomain
         const merchant = await prisma.merchant.create({
           data: {
-            ...data,
+            name: data.name,
+            subdomain,
             tenantId,
+            metadata: data.metadata,
           },
         });
 

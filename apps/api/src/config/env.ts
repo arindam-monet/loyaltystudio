@@ -25,6 +25,10 @@ export const env = {
   API_HOST: process.env.API_HOST || 'localhost',
   API_URL: process.env.API_URL || 'http://localhost:3001',
   
+  // Subdomain Configuration
+  BASE_DOMAIN: process.env.BASE_DOMAIN || 'loyaltystudio.local',
+  ALLOWED_SUBDOMAINS: (process.env.ALLOWED_SUBDOMAINS || 'admin,merchant,api').split(','),
+  
   // Supabase Configuration
   SUPABASE_URL: process.env.SUPABASE_URL!,
   SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY!,
@@ -36,7 +40,7 @@ export const env = {
   REDIS_TLS: process.env.REDIS_TLS === 'true',
 
   // Trigger.dev Configuration
-  TRIGGER_API_KEY: process.env.TRIGGER_API_KEY!,
+  TRIGGER_API_KEY: process.env.TRIGGER_API_KEY || 'development-key',
   TRIGGER_API_URL: process.env.TRIGGER_API_URL || 'https://api.trigger.dev',
 } as const;
 
@@ -47,7 +51,6 @@ const requiredEnvVars = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_KEY',
   'SUPABASE_ANON_KEY',
-  'TRIGGER_API_KEY',
 ] as const;
 
 for (const envVar of requiredEnvVars) {

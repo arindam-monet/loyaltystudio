@@ -44,6 +44,7 @@ model User {
 model Merchant {
   id              String         @id @default(cuid())
   name            String
+  subdomain       String?        @unique  // Optional unique subdomain
   tenantId        String
   tenant          Tenant        @relation(fields: [tenantId], references: [id])
   loyaltyPrograms LoyaltyProgram[]
@@ -51,6 +52,8 @@ model Merchant {
   pointsCalculations PointsCalculation[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  @@index([subdomain])
 }
 
 // Permission model for granular access control

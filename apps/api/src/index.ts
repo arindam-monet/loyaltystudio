@@ -7,6 +7,7 @@ import { authRoutes } from './auth/routes.js';
 import { dbPlugin } from './db/index.js';
 import { loggerPlugin } from './middleware/logger.js';
 import { rbacPlugin } from './middleware/rbac.js';
+import { subdomainPlugin } from './middleware/subdomain.js';
 import { cachePlugin } from './plugins/cache.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { roleRoutes } from './routes/roles.js';
@@ -30,6 +31,9 @@ app.register(cors, {
 
 // Register custom logger first
 app.register(loggerPlugin);
+
+// Register subdomain plugin
+app.register(subdomainPlugin);
 
 // Register cache plugin
 app.register(cachePlugin);
