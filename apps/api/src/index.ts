@@ -15,8 +15,6 @@ import { pointsRoutes } from './routes/points.js';
 import { rewardsRoutes } from './routes/rewards.js';
 import { merchantRoutes } from './routes/merchants.js';
 import { env } from './config/env.js';
-import { trigger } from './config/trigger.js';
-import { registerJobs } from './jobs/index.js';
 
 const app = fastify({
   logger: {
@@ -126,9 +124,6 @@ const start = async () => {
   try {
     console.log('Starting server...');
     
-    // Initialize Trigger.dev and register jobs
-    await trigger.initialize();
-    await registerJobs();
     
     await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
     console.log(`Server is running on ${env.API_URL}`);

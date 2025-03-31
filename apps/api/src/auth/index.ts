@@ -106,6 +106,11 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
         return reply.code(401).send({ error: 'User data not found' });
       }
 
+      if (!userData.role) {
+        console.log('User role not found for:', request.url);
+        return reply.code(401).send({ error: 'User role not found' });
+      }
+
       // Add user to request with additional data
       request.user = {
         id: user.id,
