@@ -150,4 +150,29 @@ export class ApiKeyService {
       endpoints: endpointCounts,
     };
   }
+}
+
+export function generateApiKey(): string {
+  // Generate a random 32-byte buffer and convert it to a base64 string
+  const buffer = crypto.randomBytes(32);
+  return buffer.toString('base64url');
+}
+
+export function validateApiKey(key: string): boolean {
+  // Check if the key is a valid base64url string
+  try {
+    // Convert the key back to a buffer to validate it
+    Buffer.from(key, 'base64url');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hashApiKey(key: string): string {
+  // Hash the API key for storage
+  return crypto
+    .createHash('sha256')
+    .update(key)
+    .digest('hex');
 } 

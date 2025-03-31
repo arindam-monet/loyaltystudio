@@ -60,6 +60,7 @@ model Merchant {
   apiKeys         ApiKey[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  branding        Json?         @default("{}")
 
   @@index([subdomain])
   @@index([tenantId])

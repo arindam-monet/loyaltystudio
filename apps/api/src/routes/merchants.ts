@@ -21,137 +21,279 @@ const merchantSchema = z.object({
   tenantId: z.string().uuid(),
 });
 
-export default async function merchantRoutes(app: FastifyInstance) {
+const brandingSchema = z.object({
+  logo: z.string().url().optional(),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+});
+
+export async function merchantRoutes(fastify: FastifyInstance) {
   // Create a new merchant
-  app.post('/merchants', async (request, reply) => {
-    const data = merchantSchema.parse(request.body);
-    let subdomain = data.subdomain || generateSubdomain(data.name);
+  fastify.post('/merchants', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Create a new merchant',
+      body: {
+        type: 'object',
+        required: ['name', 'email', 'tenantId'],
+        properties: {
+          name: { type: 'string', minLength: 3, maxLength: 100 },
+          subdomain: { type: 'string', minLength: 3, maxLength: 63 },
+          email: { type: 'string', format: 'email' },
+          phone: { type: 'string' },
+          address: { type: 'string' },
+          city: { type: 'string' },
+          state: { type: 'string' },
+          country: { type: 'string' },
+          zipCode: { type: 'string' },
+          tenantId: { type: 'string', format: 'uuid' }
+        }
+      },
+      response: {
+        201: {
+          description: 'Merchant created successfully',
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            name: { type: 'string' },
+            subdomain: { type: 'string' },
+            email: { type: 'string' }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const data = merchantSchema.parse(request.body);
+      const generatedSubdomain = data.subdomain || generateSubdomain(data.name);
 
-    // Validate subdomain format
-    if (!isValidSubdomain(subdomain)) {
-      return reply.code(400).send({
-        error: 'Invalid subdomain format. Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
+      // Validate subdomain format
+      if (!isValidSubdomain(generatedSubdomain)) {
+        return reply.code(400).send({
+          error: 'Invalid subdomain format. Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
+        });
+      }
+
+      // Check if subdomain is reserved
+      if (isReservedSubdomain(generatedSubdomain)) {
+        return reply.code(400).send({
+          error: 'This subdomain is reserved and cannot be used.',
+        });
+      }
+
+      // Check if subdomain is already taken
+      const existingMerchant = await prisma.merchant.findFirst({
+        where: { subdomain: generatedSubdomain },
       });
+
+      if (existingMerchant) {
+        return reply.code(409).send({
+          error: 'This subdomain is already taken.',
+        });
+      }
+
+      try {
+        // Start a transaction to create merchant and DNS record
+        const merchant = await prisma.$transaction(async (tx) => {
+          // Create merchant
+          const newMerchant = await tx.merchant.create({
+            data: {
+              ...data,
+              subdomain: generatedSubdomain,
+            },
+          });
+
+          // Create DNS record if DNS provider is configured
+          try {
+            await dnsProvider.createSubdomain(generatedSubdomain);
+          } catch (error) {
+            // Log the error but don't fail the transaction
+            console.error('Failed to create DNS record:', error);
+          }
+
+          return newMerchant;
+        });
+
+        return reply.code(201).send(merchant);
+      } catch (error) {
+        console.error('Failed to create merchant:', error);
+        return reply.code(500).send({
+          error: 'Failed to create merchant.',
+        });
+      }
     }
+  });
 
-    // Check if subdomain is reserved
-    if (isReservedSubdomain(subdomain)) {
-      return reply.code(400).send({
-        error: 'This subdomain is reserved and cannot be used.',
-      });
-    }
+  // Update merchant branding
+  fastify.patch('/merchants/current', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Update merchant branding',
+      body: {
+        type: 'object',
+        properties: {
+          logo: { type: 'string', format: 'uri' },
+          primaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+          secondaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' }
+        }
+      },
+      response: {
+        200: {
+          description: 'Merchant branding updated successfully',
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            branding: {
+              type: 'object',
+              properties: {
+                logo: { type: 'string' },
+                primaryColor: { type: 'string' },
+                secondaryColor: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const data = brandingSchema.parse(request.body);
+      const merchantId = request.merchantId;
 
-    // Check if subdomain is already taken
-    const existingMerchant = await prisma.merchant.findFirst({
-      where: { subdomain },
-    });
+      if (!merchantId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Merchant ID not found',
+        });
+      }
 
-    if (existingMerchant) {
-      return reply.code(409).send({
-        error: 'This subdomain is already taken.',
-      });
-    }
-
-    try {
-      // Start a transaction to create merchant and DNS record
-      const merchant = await prisma.$transaction(async (tx) => {
-        // Create merchant
-        const newMerchant = await tx.merchant.create({
+      try {
+        const merchant = await prisma.merchant.update({
+          where: { id: merchantId },
           data: {
-            ...data,
-            subdomain,
+            branding: data,
           },
         });
 
-        // Create DNS record if DNS provider is configured
-        try {
-          await dnsProvider.createSubdomain(subdomain);
-        } catch (error) {
-          // Log the error but don't fail the transaction
-          console.error('Failed to create DNS record:', error);
-        }
-
-        return newMerchant;
-      });
-
-      return reply.code(201).send(merchant);
-    } catch (error) {
-      console.error('Failed to create merchant:', error);
-      return reply.code(500).send({
-        error: 'Failed to create merchant.',
-      });
+        return reply.send(merchant);
+      } catch (error) {
+        console.error('Failed to update merchant branding:', error);
+        return reply.code(500).send({
+          error: 'Failed to update merchant branding.',
+        });
+      }
     }
   });
 
   // Delete a merchant
-  app.delete('/merchants/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-
-    try {
-      const merchant = await prisma.merchant.findUnique({
-        where: { id },
-      });
-
-      if (!merchant) {
-        return reply.code(404).send({
-          error: 'Merchant not found.',
-        });
+  fastify.delete('/merchants/:id', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Delete a merchant',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', format: 'uuid' }
+        }
+      },
+      response: {
+        204: {
+          description: 'Merchant deleted successfully',
+          type: 'null'
+        }
       }
+    },
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
 
-      // Delete merchant and DNS record in a transaction
-      await prisma.$transaction(async (tx) => {
-        await tx.merchant.delete({
+      try {
+        const merchant = await prisma.merchant.findUnique({
           where: { id },
         });
 
-        // Delete DNS record if merchant has a subdomain
-        if (merchant.subdomain) {
-          try {
-            await dnsProvider.deleteSubdomain(merchant.subdomain);
-          } catch (error) {
-            // Log the error but don't fail the transaction
-            console.error('Failed to delete DNS record:', error);
-          }
+        if (!merchant) {
+          return reply.code(404).send({
+            error: 'Merchant not found.',
+          });
         }
-      });
 
-      return reply.code(204).send();
-    } catch (error) {
-      console.error('Failed to delete merchant:', error);
-      return reply.code(500).send({
-        error: 'Failed to delete merchant.',
-      });
+        // Delete merchant and DNS record in a transaction
+        await prisma.$transaction(async (tx) => {
+          await tx.merchant.delete({
+            where: { id },
+          });
+
+          // Delete DNS record if merchant has a subdomain
+          if (merchant.subdomain) {
+            try {
+              await dnsProvider.deleteSubdomain(merchant.subdomain);
+            } catch (error) {
+              // Log the error but don't fail the transaction
+              console.error('Failed to delete DNS record:', error);
+            }
+          }
+        });
+
+        return reply.code(204).send();
+      } catch (error) {
+        console.error('Failed to delete merchant:', error);
+        return reply.code(500).send({
+          error: 'Failed to delete merchant.',
+        });
+      }
     }
   });
 
   // Check subdomain availability
-  app.get('/merchants/check-subdomain/:subdomain', async (request, reply) => {
-    const { subdomain } = request.params as { subdomain: string };
+  fastify.get('/merchants/check-subdomain/:subdomain', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Check subdomain availability',
+      params: {
+        type: 'object',
+        required: ['subdomain'],
+        properties: {
+          subdomain: { type: 'string', minLength: 3, maxLength: 63 }
+        }
+      },
+      response: {
+        200: {
+          description: 'Subdomain availability status',
+          type: 'object',
+          properties: {
+            available: { type: 'boolean' },
+            domain: { type: 'string' }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const { subdomain } = request.params as { subdomain: string };
 
-    // Validate subdomain format
-    if (!isValidSubdomain(subdomain)) {
-      return reply.code(400).send({
-        available: false,
-        error: 'Invalid subdomain format.',
+      // Validate subdomain format
+      if (!isValidSubdomain(subdomain)) {
+        return reply.code(400).send({
+          available: false,
+          error: 'Invalid subdomain format.',
+        });
+      }
+
+      // Check if subdomain is reserved
+      if (isReservedSubdomain(subdomain)) {
+        return reply.code(400).send({
+          available: false,
+          error: 'This subdomain is reserved.',
+        });
+      }
+
+      // Check if subdomain is already taken
+      const existingMerchant = await prisma.merchant.findFirst({
+        where: { subdomain },
+      });
+
+      return reply.send({
+        available: !existingMerchant,
+        domain: getMerchantDomain(subdomain),
       });
     }
-
-    // Check if subdomain is reserved
-    if (isReservedSubdomain(subdomain)) {
-      return reply.code(400).send({
-        available: false,
-        error: 'This subdomain is reserved.',
-      });
-    }
-
-    // Check if subdomain is already taken
-    const existingMerchant = await prisma.merchant.findFirst({
-      where: { subdomain },
-    });
-
-    return reply.send({
-      available: !existingMerchant,
-      domain: getMerchantDomain(subdomain),
-    });
   });
 } 

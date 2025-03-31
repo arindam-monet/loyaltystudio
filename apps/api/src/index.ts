@@ -14,10 +14,10 @@ import { roleRoutes } from './routes/roles.js';
 import { userRoutes } from './routes/users.js';
 import { pointsRoutes } from './routes/points.js';
 import { rewardsRoutes } from './routes/rewards.js';
-import merchantRoutes from './routes/merchants.js';
+import { merchantRoutes } from './routes/merchants.js';
 import { env } from './config/env.js';
 import { apiKeyPlugin } from './middleware/api-key.js';
-import apiKeyRoutes from './routes/api-keys.js';
+import { apiKeyRoutes } from './routes/api-keys.js';
 
 const app = fastify({
   logger: {

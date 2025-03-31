@@ -312,4 +312,49 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
       }
     }
   });
+
+  // Launch loyalty program
+  fastify.post('/loyalty-programs/launch', {
+    schema: {
+      description: 'Launch a loyalty program',
+      tags: ['loyalty-programs'],
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['programId'],
+        properties: {
+          programId: { type: 'string' }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      try {
+        const { programId } = request.body as { programId: string };
+        const merchantId = request.user.merchantId;
+
+        // Find the program
+        const program = await prisma.loyaltyProgram.findFirst({
+          where: {
+            id: programId,
+            merchantId,
+          },
+        });
+
+        if (!program) {
+          return reply.code(404).send({ error: 'Loyalty program not found' });
+        }
+
+        // Update program status
+        const updatedProgram = await prisma.loyaltyProgram.update({
+          where: { id: programId },
+          data: { isActive: true },
+        });
+
+        return reply.send(updatedProgram);
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to launch loyalty program' });
+      }
+    }
+  });
 } 
