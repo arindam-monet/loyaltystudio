@@ -296,4 +296,93 @@ export async function merchantRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Get merchant metrics
+  fastify.get('/merchants/metrics', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Get merchant metrics',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            totalMembers: { type: 'number' },
+            activeRewards: { type: 'number' },
+            monthlyTransactions: { type: 'number' },
+            monthlyPointsIssued: { type: 'number' }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const merchantId = request.merchantId;
+
+      if (!merchantId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Merchant ID not found',
+        });
+      }
+
+      try {
+        // Get total members with points balances for this merchant
+        const totalMembers = await prisma.pointsBalance.count({
+          where: {
+            merchantId,
+          },
+        });
+
+        // Get active rewards across all loyalty programs for this merchant
+        const activeRewards = await prisma.reward.count({
+          where: {
+            loyaltyProgram: {
+              merchantId,
+            },
+            isActive: true,
+          },
+        });
+
+        // Get monthly points calculations
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const monthlyCalculations = await prisma.pointsCalculation.count({
+          where: {
+            merchantId,
+            createdAt: {
+              gte: startOfMonth,
+            },
+            status: 'COMPLETED',
+          },
+        });
+
+        // Get monthly points issued
+        const monthlyPointsSum = await prisma.pointsCalculation.aggregate({
+          where: {
+            merchantId,
+            createdAt: {
+              gte: startOfMonth,
+            },
+            status: 'COMPLETED',
+          },
+          _sum: {
+            points: true,
+          },
+        });
+
+        return reply.send({
+          totalMembers,
+          activeRewards,
+          monthlyTransactions: monthlyCalculations,
+          monthlyPointsIssued: monthlyPointsSum._sum.points || 0,
+        });
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({
+          error: 'Failed to fetch merchant metrics',
+        });
+      }
+    },
+  });
 } 

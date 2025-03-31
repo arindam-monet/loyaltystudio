@@ -291,11 +291,12 @@ export default function OnboardingPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {steps[currentStep].title}
+              {steps[currentStep]?.title}
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              {steps[currentStep].description}
+              {steps[currentStep]?.description}
             </p>
+          </div>
           </div>
 
           {error && (
@@ -327,6 +328,5 @@ export default function OnboardingPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 } 

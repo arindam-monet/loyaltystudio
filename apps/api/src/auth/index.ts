@@ -1,11 +1,9 @@
 import fp from 'fastify-plugin';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma.js';
 
-const prisma = new PrismaClient();
-
-interface User {
+interface AuthUser {
   id: string;
   email: string;
   tenantId: string;
@@ -21,7 +19,7 @@ declare module 'fastify' {
     supabase: SupabaseClient<any, 'public', any>;
   }
   interface FastifyRequest {
-    user: User;
+    user: AuthUser;
   }
 }
 

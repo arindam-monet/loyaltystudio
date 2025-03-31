@@ -1,0 +1,1 @@
+export { default } from "@loyaltystudio/ui/postcss.config";
