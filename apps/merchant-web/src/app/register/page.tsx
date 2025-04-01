@@ -1,58 +1,65 @@
 'use client';
 
-import { useState, ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useRegister } from '@/hooks/use-auth';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { useApiAuth } from '@/hooks/use-api-auth';
+import { apiClient } from '@/lib/api-client';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@loyaltystudio/ui';
+import { PasswordInput } from '@loyaltystudio/ui';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-  const [error, setError] = useState<string>('');
-  
-  const register = useRegister();
+  const { setAuth } = useAuthStore();
+  const { verifySession } = useApiAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if user is already authenticated
+    verifySession().then(isAuthenticated => {
+      if (isAuthenticated) {
+        router.push('/dashboard');
+      }
+    });
+  }, [verifySession, router]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setError(null);
+    setIsLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const name = formData.get('name') as string;
 
     try {
-      await register.mutateAsync({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      });
-      
-      // Redirect to verification page with email parameter
-      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
-    } catch (error) {
-      setError('Failed to create account. Please try again.');
-    }
-  };
+      const response = await apiClient.post('/auth/register', { email, password, name });
+      const { token, user } = response.data;
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+      // Set auth state
+      setAuth(token, user);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Registration failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to register');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
+          <CardTitle>Create Account</CardTitle>
           <CardDescription>
-            Enter your details below to create your account
+            Enter your details to create your account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -61,10 +68,9 @@ export default function RegisterPage() {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
+                name="name"
                 type="text"
                 placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
                 required
               />
             </div>
@@ -73,33 +79,20 @@ export default function RegisterPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="john@example.com"
-                value={formData.email}
-                onChange={handleChange}
                 required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
+                name="password"
                 required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
+                placeholder="Create a password"
               />
             </div>
 
@@ -112,9 +105,9 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={register.isPending}
+              disabled={isLoading}
             >
-              {register.isPending ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...
@@ -124,12 +117,11 @@ export default function RegisterPage() {
               )}
             </Button>
 
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-primary hover:underline">
-                Log in
+            <div className="text-center">
+              <Link href="/login" className="text-sm text-primary hover:underline">
+                Already have an account? Log in
               </Link>
-            </p>
+            </div>
           </form>
         </CardContent>
       </Card>
