@@ -32,7 +32,7 @@ model User {
   tenant            Tenant              @relation(fields: [tenantId], references: [id])
   roleId            String?
   role              Role?               @relation(fields: [roleId], references: [id])
-  sessions          UserSession[]       // Add relation to UserSession
+  devices           UserDevice[]        // Replace sessions with devices
   pointsTransactions PointsTransaction[]
   rewardRedemptions RewardRedemption[]
   pointsBalances    PointsBalance[]
@@ -105,23 +105,21 @@ model RolePermission {
   @@unique([roleId, permissionId])
 }
 
-// Add UserSession model before PointsTransaction
-model UserSession {
+// Replace UserSession model with UserDevice model
+model UserDevice {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id])
-  token         String   @unique
-  deviceInfo    Json?    // Store device information
+  deviceId      String   // Unique device identifier
+  deviceInfo    Json     // Device information
   ipAddress     String?
   lastActiveAt  DateTime @default(now())
-  expiresAt     DateTime
-  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  @@unique([userId, deviceId])
   @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
+  @@index([deviceId])
 }
 
 model PointsTransaction {

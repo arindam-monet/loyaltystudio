@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db/index.js';
+import { createHash } from 'crypto';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -14,8 +15,21 @@ const registerSchema = z.object({
   roleId: z.string().optional()
 });
 
-// Helper function to create a user session
-async function createUserSession(userId: string, token: string, request: any) {
+// Helper function to generate a unique device ID
+function generateDeviceId(request: any): string {
+  const userAgent = request.headers['user-agent'] || '';
+  const ip = request.ip || '';
+  const platform = request.headers['sec-ch-ua-platform'] || '';
+  const mobile = request.headers['sec-ch-ua-mobile'] || '';
+  
+  // Create a unique hash based on device characteristics
+  const deviceString = `${userAgent}-${ip}-${platform}-${mobile}`;
+  return createHash('sha256').update(deviceString).digest('hex');
+}
+
+// Helper function to track user device
+async function trackUserDevice(userId: string, request: any) {
+  const deviceId = generateDeviceId(request);
   const deviceInfo = {
     userAgent: request.headers['user-agent'],
     platform: request.headers['sec-ch-ua-platform'],
@@ -23,22 +37,24 @@ async function createUserSession(userId: string, token: string, request: any) {
     language: request.headers['accept-language']
   };
 
-  return prisma.userSession.create({
-    data: {
+  return prisma.userDevice.upsert({
+    where: {
+      userId_deviceId: {
+        userId,
+        deviceId
+      }
+    },
+    create: {
       userId,
-      token,
+      deviceId,
       deviceInfo,
-      ipAddress: request.ip,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      ipAddress: request.ip
+    },
+    update: {
+      lastActiveAt: new Date(),
+      deviceInfo,
+      ipAddress: request.ip
     }
-  });
-}
-
-// Helper function to invalidate user sessions
-async function invalidateUserSessions(userId: string) {
-  return prisma.userSession.updateMany({
-    where: { userId, isActive: true },
-    data: { isActive: false }
   });
 }
 
@@ -105,8 +121,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'User not found in database' });
       }
 
-      // Create a new session
-      await createUserSession(user.id, data.session?.access_token, request);
+      // Track the user's device
+      await trackUserDevice(user.id, request);
 
       return {
         token: data.session?.access_token,
@@ -272,8 +288,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(500).send({ error: 'Failed to create session' });
       }
 
-      // Create a new session
-      await createUserSession(user.id, sessionData.session.access_token, request);
+      // Track the user's device
+      await trackUserDevice(user.id, request);
 
       return reply.code(201).send({
         token: sessionData.session.access_token,
@@ -311,28 +327,20 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     try {
-      const token = request.headers.authorization?.replace('Bearer ', '');
-      
-      if (!token) {
-        return reply.code(401).send({ error: 'No token provided' });
+      const authHeader = request.headers.authorization;
+      if (!authHeader) {
+        return reply.code(401).send({ error: 'No authorization header' });
       }
 
-      // Get the user from the token
-      const { data: { user }, error: userError } = await fastify.supabase.auth.getUser(token);
-      
-      if (userError || !user) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error } = await fastify.supabase.auth.getUser(token);
+
+      if (error || !user) {
         return reply.code(401).send({ error: 'Invalid token' });
       }
 
-      // Invalidate all sessions for the user
-      await invalidateUserSessions(user.id);
-
       // Sign out from Supabase
-      const { error: signOutError } = await fastify.supabase.auth.signOut();
-      
-      if (signOutError) {
-        return reply.code(500).send({ error: signOutError.message });
-      }
+      await fastify.supabase.auth.signOut();
 
       return { message: 'Logged out successfully' };
     } catch (error) {
