@@ -38,7 +38,11 @@ const PUBLIC_PATHS = [
   '/docs/static/*',
   '/favicon.ico',
   '/auth/register',
-  '/auth/login'
+  '/auth/login',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+  '/auth/forgot-password',
+  '/auth/reset-password'
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {

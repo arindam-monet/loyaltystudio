@@ -15,6 +15,23 @@ const registerSchema = z.object({
   roleId: z.string().optional()
 });
 
+const verifyEmailSchema = z.object({
+  token: z.string()
+});
+
+const resendVerificationSchema = z.object({
+  email: z.string().email()
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(6)
+});
+
 // Helper function to generate a unique device ID
 function generateDeviceId(request: any): string {
   const userAgent = request.headers['user-agent'] || '';
@@ -84,6 +101,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                 email: { type: 'string' },
                 name: { type: 'string' },
                 tenantId: { type: 'string' },
+                emailVerified: { type: 'boolean' },
                 role: {
                   type: 'object',
                   properties: {
@@ -121,6 +139,29 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'User not found in database' });
       }
 
+      // Check if email is verified
+      const { data: supabaseUser } = await fastify.supabase.auth.getUser(data.session?.access_token);
+      if (!supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
+        return reply.code(403).send({ 
+          error: 'Email not verified',
+          message: 'Please verify your email before logging in.',
+          user: {
+            id: user.id,
+            email: user.email,
+            emailVerified: false
+          }
+        });
+      }
+
+      // If Supabase shows email is verified but our DB doesn't, update our DB
+      if (supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { emailVerified: true }
+        });
+        user.emailVerified = true;
+      }
+
       // Track the user's device
       await trackUserDevice(user.id, request);
 
@@ -131,6 +172,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           email: user.email,
           name: user.name,
           tenantId: user.tenantId,
+          emailVerified: user.emailVerified,
           role: user.role
         }
       };
@@ -243,7 +285,8 @@ export async function authRoutes(fastify: FastifyInstance) {
           data: {
             tenant_id: tenant.id,
             role: 'user'
-          }
+          },
+          emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/verify-email`
         }
       });
 
@@ -268,7 +311,8 @@ export async function authRoutes(fastify: FastifyInstance) {
           email,
           name,
           tenantId: tenant.id,
-          roleId: finalRoleId
+          roleId: finalRoleId,
+          emailVerified: false // Set initial email verification status
         },
         include: {
           role: true
@@ -280,24 +324,15 @@ export async function authRoutes(fastify: FastifyInstance) {
         throw new Error('Failed to create user in database');
       });
 
-      // Get the session token
-      const { data: sessionData, error: sessionError } = await fastify.supabase.auth.getSession();
-      
-      if (sessionError || !sessionData.session?.access_token) {
-        console.error('Failed to get session:', sessionError);
-        return reply.code(500).send({ error: 'Failed to create session' });
-      }
-
-      // Track the user's device
-      await trackUserDevice(user.id, request);
-
+      // Return success response with user data
       return reply.code(201).send({
-        token: sessionData.session.access_token,
+        message: 'Registration successful! Please check your email to verify your account.',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
           tenantId: user.tenantId,
+          emailVerified: false,
           role: user.role
         }
       });
@@ -346,6 +381,194 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error('Logout error:', error);
       return reply.code(500).send({ error: 'Logout failed' });
+    }
+  });
+
+  // Verify email endpoint
+  fastify.post('/auth/verify-email', {
+    schema: {
+      description: 'Verify user email address',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: { type: 'string' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                emailVerified: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { token } = verifyEmailSchema.parse(request.body);
+      
+      const { data, error } = await fastify.supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'email'
+      });
+
+      if (error) {
+        return reply.code(400).send({ error: error.message });
+      }
+
+      if (!data.user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      // Update user's email verification status in our database
+      const user = await prisma.user.update({
+        where: { id: data.user.id },
+        data: { emailVerified: true }
+      });
+
+      return {
+        message: 'Email verified successfully',
+        user: {
+          id: user.id,
+          email: user.email,
+          emailVerified: user.emailVerified
+        }
+      };
+    } catch (error) {
+      console.error('Email verification error:', error);
+      return reply.code(500).send({ error: 'Email verification failed' });
+    }
+  });
+
+  // Resend verification email endpoint
+  fastify.post('/auth/resend-verification', {
+    schema: {
+      description: 'Resend email verification link',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { email } = resendVerificationSchema.parse(request.body);
+      
+      const { error } = await fastify.supabase.auth.resend({
+        type: 'signup',
+        email
+      });
+
+      if (error) {
+        return reply.code(400).send({ error: error.message });
+      }
+
+      return { message: 'Verification email sent successfully' };
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      return reply.code(500).send({ error: 'Failed to resend verification email' });
+    }
+  });
+
+  // Forgot password endpoint
+  fastify.post('/auth/forgot-password', {
+    schema: {
+      description: 'Send password reset email',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { email } = forgotPasswordSchema.parse(request.body);
+      
+      const { error } = await fastify.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.MERCHANT_WEB_URL}/reset-password`
+      });
+
+      if (error) {
+        return reply.code(400).send({ error: error.message });
+      }
+
+      return { message: 'Password reset email sent successfully' };
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return reply.code(500).send({ error: 'Failed to send password reset email' });
+    }
+  });
+
+  // Reset password endpoint
+  fastify.post('/auth/reset-password', {
+    schema: {
+      description: 'Reset user password',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['token', 'password'],
+        properties: {
+          token: { type: 'string' },
+          password: { type: 'string', minLength: 6 }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { token, password } = resetPasswordSchema.parse(request.body);
+      
+      const { error } = await fastify.supabase.auth.updateUser({
+        password
+      });
+
+      if (error) {
+        return reply.code(400).send({ error: error.message });
+      }
+
+      return { message: 'Password reset successfully' };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return reply.code(500).send({ error: 'Failed to reset password' });
     }
   });
 } 

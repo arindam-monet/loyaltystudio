@@ -1,4 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 export interface ApiError {
   error: string;
@@ -31,26 +32,20 @@ export interface LoginRequest {
 }
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable sending cookies with requests
 });
 
-// Request interceptor
+// Request interceptor to add auth token
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('auth_token');
-    const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID;
-
+  (config) => {
+    const token = Cookies.get('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    if (merchantId) {
-      config.headers['X-Merchant-ID'] = merchantId;
-    }
-
     return config;
   },
   (error) => {
@@ -58,15 +53,46 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor to handle errors and token refresh
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Clear token and redirect to login
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If the error is 401 and we haven't tried to refresh the token yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Attempt to refresh the token
+        const refreshToken = Cookies.get('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const { token, user } = response.data;
+        
+        // Update cookies
+        Cookies.set('token', token, { secure: true, sameSite: 'strict' });
+        Cookies.set('user', JSON.stringify(user), { secure: true, sameSite: 'strict' });
+
+        // Retry the original request with the new token
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        // If refresh fails, clear cookies and redirect to login
+        Cookies.remove('token');
+        Cookies.remove('refreshToken');
+        Cookies.remove('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
     }
+
     return Promise.reject(error);
   }
 );
@@ -84,7 +110,9 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
-    localStorage.removeItem('auth_token');
+    Cookies.remove('token');
+    Cookies.remove('refreshToken');
+    Cookies.remove('user');
   },
 };
 

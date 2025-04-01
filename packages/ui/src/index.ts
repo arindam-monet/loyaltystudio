@@ -14,3 +14,4 @@ export * from './lib/utils';
 export * from './components/toast';
 export * from './hooks/use-toast';
 export * from './components/toaster';
+export * from './components/alert';

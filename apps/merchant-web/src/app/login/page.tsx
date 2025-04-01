@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Label } from '@loyaltystudio/ui';
 import Link from 'next/link';
-import { useMutation } from '@tanstack/react-query';
-import { authApi } from '@/lib/api-client';
+import { useLogin } from '@/hooks/use-auth';
+import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@loyaltystudio/ui';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,93 +13,106 @@ export default function LoginPage() {
     email: '',
     password: '',
   });
-  const [error, setError] = useState('');
-
-  const loginMutation = useMutation({
-    mutationFn: () => authApi.login(formData),
-    onSuccess: (data) => {
-      // Store the token
-      localStorage.setItem('auth_token', data.token);
-      
-      // Redirect to dashboard
-      router.push('/merchant/dashboard');
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.error || 'Login failed');
-    },
-  });
+  const [error, setError] = useState<string>('');
+  
+  const login = useLogin();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    loginMutation.mutate();
+
+    try {
+      const response = await login.mutateAsync(formData);
+      
+      // Check if email is verified
+      if (!response.user.emailVerified) {
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+        return;
+      }
+
+      // If email is verified, redirect to dashboard
+      router.push('/merchant/dashboard');
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        setError('Invalid email or password');
+      } else if (error.response?.status === 403) {
+        setError('Please verify your email before logging in');
+      } else {
+        setError('Failed to log in. Please try again.');
+      }
+    }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Create one
-            </Link>
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
-          )}
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <Label htmlFor="email">Email address</Label>
+    <div className="container flex items-center justify-center min-h-screen py-12">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Welcome Back</CardTitle>
+          <CardDescription>
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
-                required
+                placeholder="john@example.com"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter your email"
+                required
               />
             </div>
-            <div>
+
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                name="password"
                 type="password"
-                required
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter your password"
+                required
               />
             </div>
-          </div>
 
-          <div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
             <Button
               type="submit"
-              disabled={loginMutation.isPending}
-              className="w-full flex justify-center py-2 px-4"
+              className="w-full"
+              disabled={login.isPending}
             >
-              {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+              {login.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                'Log In'
+              )}
             </Button>
-          </div>
-        </form>
-      </div>
+
+            <div className="flex items-center justify-between">
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Forgot password?
+              </Link>
+              <Link href="/register" className="text-sm text-primary hover:underline">
+                Create account
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 } 
