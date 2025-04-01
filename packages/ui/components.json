@@ -14,7 +14,7 @@
     "components": "@/components",
     "utils": "@/lib/utils",
     "hooks": "@/hooks",
-    "ui": "@/registry/new-york-v4/ui",
+    "ui": "@/components",
     "lib": "@/lib"
   }
 }

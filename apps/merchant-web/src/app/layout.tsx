@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import MerchantNavbar from '@/components/layout/Navbar';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -20,7 +19,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <MerchantNavbar />
           <main className="min-h-screen bg-gray-50">
             {children}
           </main>
