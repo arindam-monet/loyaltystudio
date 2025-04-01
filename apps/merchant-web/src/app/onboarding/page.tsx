@@ -2,331 +2,347 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Label } from '@loyaltystudio/ui';
-import apiClient from '@/lib/api-client';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription } from '@loyaltystudio/ui';
+import { Loader2, Building2, Settings, Palette, CheckCircle2 } from 'lucide-react';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import React from 'react';
+
+type OnboardingData = {
+  business: {
+    name: string;
+    description: string;
+    industry: string;
+    website: string;
+  };
+  program: {
+    name: string;
+    description: string;
+    pointsRate: number;
+    minimumPoints: number;
+    pointsExpiry: number;
+  };
+  branding: {
+    logo?: File;
+    primaryColor: string;
+    secondaryColor: string;
+  };
+};
+
+const INITIAL_DATA: OnboardingData = {
+  business: {
+    name: '',
+    description: '',
+    industry: '',
+    website: '',
+  },
+  program: {
+    name: '',
+    description: '',
+    pointsRate: 1,
+    minimumPoints: 100,
+    pointsExpiry: 365,
+  },
+  branding: {
+    primaryColor: '#4F46E5',
+    secondaryColor: '#818CF8',
+  },
+};
 
 const steps = [
   {
-    id: 'program',
-    title: 'Loyalty Program Setup',
-    description: 'Configure your loyalty program settings',
+    id: 'business',
+    title: 'Business Information',
+    description: 'Tell us about your business',
+    icon: Building2,
   },
   {
-    id: 'integration',
-    title: 'Integration Setup',
-    description: 'Set up your e-commerce platform integration',
+    id: 'program',
+    title: 'Loyalty Program',
+    description: 'Set up your loyalty program',
+    icon: Settings,
   },
   {
     id: 'branding',
     title: 'Branding',
-    description: 'Customize your program appearance',
+    description: 'Customize your brand',
+    icon: Palette,
   },
   {
     id: 'review',
-    title: 'Review & Launch',
-    description: 'Review your settings and launch your program',
+    title: 'Review',
+    description: 'Review and launch',
+    icon: CheckCircle2,
   },
 ];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({
-    programName: '',
-    programDescription: '',
-    defaultPoints: 0,
-    platform: '',
-    apiKey: '',
-    webhookUrl: '',
-    logo: '',
-    primaryColor: '#000000',
-    secondaryColor: '#ffffff',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleNext = async () => {
-    setError('');
-    setLoading(true);
+  const onboarding = useOnboarding();
+
+  const updateFields = (fields: Partial<OnboardingData>) => {
+    setData(prev => ({ ...prev, ...fields }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+      return;
+    }
 
     try {
-      switch (currentStep) {
-        case 0: // Program Setup
-          await apiClient.post('/loyalty-programs', {
-            name: formData.programName,
-            description: formData.programDescription,
-            defaultRules: [
-              {
-                name: 'Default Points',
-                description: 'Default points awarded for actions',
-                conditions: [],
-                points: formData.defaultPoints,
-              },
-            ],
-          });
-          break;
-        case 1: // Integration Setup
-          // Generate API key
-          const apiKeyResponse = await apiClient.post('/api-keys', {
-            name: 'Default Integration Key',
-          });
-          setFormData({
-            ...formData,
-            apiKey: apiKeyResponse.data.data.key,
-          });
-          break;
-        case 2: // Branding
-          // Update merchant branding
-          await apiClient.patch('/merchants/current', {
-            branding: {
-              logo: formData.logo,
-              primaryColor: formData.primaryColor,
-              secondaryColor: formData.secondaryColor,
-            },
-          });
-          break;
-        case 3: // Review & Launch
-          // Launch the program
-          await apiClient.post('/loyalty-programs/launch', {
-            programId: 'current',
-          });
-          break;
-      }
-
-      if (currentStep < steps.length - 1) {
-        setCurrentStep(currentStep + 1);
-      } else {
-        router.push('/merchant/dashboard');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Setup failed');
-    } finally {
-      setLoading(false);
+      await onboarding.mutateAsync(data);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const renderStepContent = () => {
+  const renderStep = () => {
     switch (currentStep) {
       case 0:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="programName">Program Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business Name</Label>
               <Input
-                id="programName"
-                name="programName"
-                type="text"
+                id="businessName"
+                value={data.business.name}
+                onChange={(e) => updateFields({ business: { ...data.business, name: e.target.value } })}
                 required
-                value={formData.programName}
-                onChange={handleChange}
               />
             </div>
-            <div>
-              <Label htmlFor="programDescription">Program Description</Label>
-              <Input
-                id="programDescription"
-                name="programDescription"
-                type="text"
+            <div className="space-y-2">
+              <Label htmlFor="businessDescription">Business Description</Label>
+              <Textarea
+                id="businessDescription"
+                value={data.business.description}
+                onChange={(e) => updateFields({ business: { ...data.business, description: e.target.value } })}
                 required
-                value={formData.programDescription}
-                onChange={handleChange}
               />
             </div>
-            <div>
-              <Label htmlFor="defaultPoints">Default Points</Label>
+            <div className="space-y-2">
+              <Label htmlFor="industry">Industry</Label>
               <Input
-                id="defaultPoints"
-                name="defaultPoints"
-                type="number"
+                id="industry"
+                value={data.business.industry}
+                onChange={(e) => updateFields({ business: { ...data.business, industry: e.target.value } })}
                 required
-                value={formData.defaultPoints}
-                onChange={handleChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                type="url"
+                value={data.business.website}
+                onChange={(e) => updateFields({ business: { ...data.business, website: e.target.value } })}
+                required
               />
             </div>
           </div>
         );
+
       case 1:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="platform">E-commerce Platform</Label>
+            <div className="space-y-2">
+              <Label htmlFor="programName">Program Name</Label>
               <Input
-                id="platform"
-                name="platform"
-                type="text"
+                id="programName"
+                value={data.program.name}
+                onChange={(e) => updateFields({ program: { ...data.program, name: e.target.value } })}
                 required
-                value={formData.platform}
-                onChange={handleChange}
               />
             </div>
-            {formData.apiKey && (
-              <div>
-                <Label>API Key</Label>
-                <div className="mt-1 p-2 bg-gray-100 rounded">
-                  <code>{formData.apiKey}</code>
-                </div>
-              </div>
-            )}
-            <div>
-              <Label htmlFor="webhookUrl">Webhook URL</Label>
+            <div className="space-y-2">
+              <Label htmlFor="programDescription">Program Description</Label>
+              <Textarea
+                id="programDescription"
+                value={data.program.description}
+                onChange={(e) => updateFields({ program: { ...data.program, description: e.target.value } })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pointsRate">Points Rate (per $1)</Label>
               <Input
-                id="webhookUrl"
-                name="webhookUrl"
-                type="text"
-                value={formData.webhookUrl}
-                onChange={handleChange}
+                id="pointsRate"
+                type="number"
+                min="0"
+                step="0.1"
+                value={data.program.pointsRate}
+                onChange={(e) => updateFields({ program: { ...data.program, pointsRate: parseFloat(e.target.value) } })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="minimumPoints">Minimum Points for Redemption</Label>
+              <Input
+                id="minimumPoints"
+                type="number"
+                min="0"
+                value={data.program.minimumPoints}
+                onChange={(e) => updateFields({ program: { ...data.program, minimumPoints: parseInt(e.target.value) } })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pointsExpiry">Points Expiry (days)</Label>
+              <Input
+                id="pointsExpiry"
+                type="number"
+                min="0"
+                value={data.program.pointsExpiry}
+                onChange={(e) => updateFields({ program: { ...data.program, pointsExpiry: parseInt(e.target.value) } })}
+                required
               />
             </div>
           </div>
         );
+
       case 2:
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="logo">Logo URL</Label>
+            <div className="space-y-2">
+              <Label htmlFor="logo">Logo</Label>
               <Input
                 id="logo"
-                name="logo"
-                type="text"
-                value={formData.logo}
-                onChange={handleChange}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    updateFields({ branding: { ...data.branding, logo: file } });
+                  }
+                }}
+                required
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="primaryColor">Primary Color</Label>
               <Input
                 id="primaryColor"
-                name="primaryColor"
                 type="color"
-                value={formData.primaryColor}
-                onChange={handleChange}
+                value={data.branding.primaryColor}
+                onChange={(e) => updateFields({ branding: { ...data.branding, primaryColor: e.target.value } })}
+                required
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="secondaryColor">Secondary Color</Label>
               <Input
                 id="secondaryColor"
-                name="secondaryColor"
                 type="color"
-                value={formData.secondaryColor}
-                onChange={handleChange}
+                value={data.branding.secondaryColor}
+                onChange={(e) => updateFields({ branding: { ...data.branding, secondaryColor: e.target.value } })}
+                required
               />
             </div>
           </div>
         );
+
       case 3:
         return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Review Your Setup</h3>
-            <div className="bg-gray-50 p-4 rounded">
-              <h4 className="font-medium">Program Details</h4>
-              <p>Name: {formData.programName}</p>
-              <p>Description: {formData.programDescription}</p>
-              <p>Default Points: {formData.defaultPoints}</p>
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Business Information</h3>
+              <div className="space-y-2">
+                <p><span className="font-medium">Name:</span> {data.business.name}</p>
+                <p><span className="font-medium">Description:</span> {data.business.description}</p>
+                <p><span className="font-medium">Industry:</span> {data.business.industry}</p>
+                <p><span className="font-medium">Website:</span> {data.business.website}</p>
+              </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded">
-              <h4 className="font-medium">Integration</h4>
-              <p>Platform: {formData.platform}</p>
-              <p>Webhook URL: {formData.webhookUrl}</p>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Loyalty Program</h3>
+              <div className="space-y-2">
+                <p><span className="font-medium">Name:</span> {data.program.name}</p>
+                <p><span className="font-medium">Description:</span> {data.program.description}</p>
+                <p><span className="font-medium">Points Rate:</span> {data.program.pointsRate} points per $1</p>
+                <p><span className="font-medium">Minimum Points:</span> {data.program.minimumPoints}</p>
+                <p><span className="font-medium">Points Expiry:</span> {data.program.pointsExpiry} days</p>
+              </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded">
-              <h4 className="font-medium">Branding</h4>
-              <p>Logo: {formData.logo}</p>
-              <p>Primary Color: {formData.primaryColor}</p>
-              <p>Secondary Color: {formData.secondaryColor}</p>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Branding</h3>
+              <div className="space-y-2">
+                <p><span className="font-medium">Logo:</span> {data.branding.logo?.name}</p>
+                <p><span className="font-medium">Primary Color:</span> {data.branding.primaryColor}</p>
+                <p><span className="font-medium">Secondary Color:</span> {data.branding.secondaryColor}</p>
+              </div>
             </div>
           </div>
         );
+
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`flex items-center ${
-                  index < steps.length - 1 ? 'flex-1' : ''
-                }`}
-              >
-                <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                    index <= currentStep
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {index + 1}
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`flex-1 h-1 mx-4 ${
-                      index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {steps[currentStep]?.title}
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {steps[currentStep]?.description}
-            </p>
-          </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
+    <div className="container flex items-center justify-center min-h-screen py-12">
+      <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              {steps[currentStep].icon && React.createElement(steps[currentStep].icon, { className: "h-6 w-6 text-primary" })}
+              <CardTitle className="text-2xl">{steps[currentStep].title}</CardTitle>
             </div>
-          )}
-
-          {renderStepContent()}
-
-          <div className="mt-6 flex justify-between">
-            <Button
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              variant="outline"
-            >
-              Back
-            </Button>
-            <Button
-              onClick={handleNext}
-              disabled={loading}
-            >
-              {loading
-                ? 'Processing...'
-                : currentStep === steps.length - 1
-                ? 'Launch Program'
-                : 'Next'}
-            </Button>
+            <div className="text-sm text-muted-foreground">
+              Step {currentStep + 1} of {steps.length}
+            </div>
           </div>
-        </div>
-      </div>
+          <CardDescription className="text-base">
+            {steps[currentStep].description}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {renderStep()}
+
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentStep(currentStep - 1)}
+                disabled={currentStep === 0 || onboarding.isPending}
+              >
+                Previous
+              </Button>
+              <Button
+                type="submit"
+                disabled={onboarding.isPending}
+              >
+                {onboarding.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {currentStep === steps.length - 1 ? 'Launching...' : 'Next'}
+                  </>
+                ) : (
+                  currentStep === steps.length - 1 ? 'Launch Program' : 'Next'
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 } 

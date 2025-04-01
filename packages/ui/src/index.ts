@@ -15,3 +15,4 @@ export * from './components/toast';
 export * from './hooks/use-toast';
 export * from './components/toaster';
 export * from './components/alert';
+export * from './components/textarea';

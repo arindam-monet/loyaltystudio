@@ -217,25 +217,38 @@
   - ✅ Basic merchant CRUD operations
   - ✅ Tenant-based merchant isolation
   - ✅ Merchant domain management
-  - [ ] Merchant onboarding wizard
-    - [ ] Basic merchant information
-    - [ ] Loyalty program setup
-      - [ ] Program name and description
-      - [ ] Default points rules
-      - [ ] Default rewards
-      - [ ] Program settings
-    - [ ] Integration setup
-      - [ ] E-commerce platform selection
-      - [ ] API key generation
-      - [ ] Webhook configuration
-    - [ ] Branding customization
-      - [ ] Logo upload
-      - [ ] Color scheme
-      - [ ] Email templates
-    - [ ] Review and launch
-  - [ ] Merchant profile management
-  - [ ] Merchant settings and configuration
-  - [ ] Merchant analytics dashboard
+  - [x] Merchant onboarding wizard
+    - [x] Basic merchant information
+    - [x] Loyalty program setup
+      - [x] Program name and description
+      - [x] Default points rules
+      - [x] Default rewards
+      - [x] Program settings
+    - [x] Integration setup
+      - [x] E-commerce platform selection
+      - [x] API key generation
+      - [x] Webhook configuration
+    - [x] Branding customization
+      - [x] Logo upload
+      - [x] Color scheme
+      - [x] Email templates
+    - [x] Review and launch
+  - [x] Merchant profile management
+  - [x] Merchant settings and configuration
+  - [x] Merchant analytics dashboard
+    - [x] Revenue metrics
+    - [x] Order value analytics
+    - [x] Sales tracking
+    - [x] Performance indicators
+    - [ ] Advanced analytics
+      - [ ] Customer insights
+      - [ ] Program performance
+      - [ ] Engagement metrics
+  - [x] Merchant selection and switching
+    - [x] Multi-merchant support
+    - [x] Merchant dropdown
+    - [x] Quick merchant creation
+    - [x] Merchant context
   - ✅ Merchant API key management
     - ✅ API key generation
     - ✅ Key validation
@@ -561,38 +574,36 @@
   - [x] Implement CRUD operations
   - [x] Create profile UI
   - [x] Add subdomain management
-- [ ] Develop onboarding wizard UI
-  - [ ] Design wizard flow
-    - [ ] Basic merchant information
-    - [ ] Subdomain selection
-    - [ ] Branding setup
-    - [ ] Integration configuration
-  - [ ] Implement progress tracking
-  - [ ] Create validation rules
+- [x] Develop onboarding wizard UI
+  - [x] Design wizard flow
+    - [x] Basic merchant information
+    - [x] Subdomain selection
+    - [x] Branding setup
+    - [x] Integration configuration
+  - [x] Implement progress tracking
+  - [x] Create validation rules
 
-### Next Steps for Subdomain Implementation
-1. [ ] DNS Management Integration
-   - [ ] Create Cloudflare API client
-   - [ ] Implement DNS record creation
-   - [ ] Add record validation
-   - [ ] Set up record cleanup
-2. [ ] SSL Certificate Provisioning
-   - [ ] Integrate with Let's Encrypt
-   - [ ] Implement certificate generation
-   - [ ] Add certificate renewal
-   - [ ] Set up validation
-3. [ ] Subdomain Management UI
-   - [ ] Create availability checker
-   - [ ] Add subdomain editor
-   - [ ] Implement validation
-   - [ ] Add preview functionality
-4. [ ] Testing & Monitoring
-   - [ ] Add DNS health checks
-   - [ ] Create SSL monitoring
-   - [ ] Implement domain validation
-   - [ ] Set up alerts
+### 2.3 Team Management
+- [x] Implement team member management
+  - [x] Create team member schema
+  - [x] Add CRUD operations
+  - [x] Implement role-based access
+  - [x] Create team management UI
+  - [x] Add invitation system
+  - [x] Implement member removal
+  - [x] Add status tracking
+- [ ] Set up team permissions
+  - [ ] Define permission levels
+  - [ ] Implement permission checks
+  - [ ] Add permission management UI
+  - [ ] Create permission audit logs
+- [ ] Add team activity tracking
+  - [ ] Track member actions
+  - [ ] Create activity logs
+  - [ ] Add activity dashboard
+  - [ ] Implement notifications
 
-### 2.3 Loyalty Program Core
+### 2.4 Loyalty Program Core
 - [x] Implement points/rewards calculation engine
   - [x] Design calculation rules
   - [x] Implement rule engine
@@ -610,7 +621,7 @@
   - [x] Set up transaction history
   - [x] Create balance UI
 
-### 2.4 API Development
+### 2.5 API Development
 - [x] Design and implement RESTful API endpoints
   - [x] Create API structure
   - [x] Implement endpoints

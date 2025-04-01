@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
-import Cookies from 'js-cookie';
+import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth';
+import type { User } from '@/stores/auth';
 
 interface LoginCredentials {
   email: string;
@@ -33,13 +34,11 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
       const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-      const { token, user } = response.data;
       
-      // Set cookies
-      Cookies.set('token', token, { secure: true, sameSite: 'strict' });
-      Cookies.set('user', JSON.stringify(user), { secure: true, sameSite: 'strict' });
+      // Store auth data in memory
+      useAuthStore.getState().setAuth(response.token, response.user);
       
-      return response.data;
+      return response;
     },
   });
 }
@@ -48,13 +47,11 @@ export function useRegister() {
   return useMutation({
     mutationFn: async (credentials: RegisterCredentials) => {
       const response = await apiClient.post<AuthResponse>('/auth/register', credentials);
-      const { token, user } = response.data;
       
-      // Set cookies
-      Cookies.set('token', token, { secure: true, sameSite: 'strict' });
-      Cookies.set('user', JSON.stringify(user), { secure: true, sameSite: 'strict' });
+      // Store auth data in memory
+      useAuthStore.getState().setAuth(response.token, response.user);
       
-      return response.data;
+      return response;
     },
   });
 }
@@ -62,13 +59,18 @@ export function useRegister() {
 export function useVerifyEmail() {
   return useMutation({
     mutationFn: async (token: string) => {
-      const response = await apiClient.post('/auth/verify-email', { token });
-      const { user } = response.data;
+      const response = await apiClient.post<AuthResponse>('/auth/verify-email', { token });
       
-      // Update user cookie with verified status
-      Cookies.set('user', JSON.stringify(user), { secure: true, sameSite: 'strict' });
+      // Update user data in store
+      const authState = useAuthStore.getState();
+      if (authState.user) {
+        useAuthStore.getState().setAuth(authState.token!, {
+          ...authState.user,
+          emailVerified: true,
+        });
+      }
       
-      return response.data;
+      return response;
     },
   });
 }
@@ -76,8 +78,7 @@ export function useVerifyEmail() {
 export function useResendVerificationEmail() {
   return useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiClient.post('/auth/resend-verification', { email });
-      return response.data;
+      return apiClient.post('/auth/resend-verification', { email });
     },
   });
 }
@@ -85,8 +86,7 @@ export function useResendVerificationEmail() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiClient.post('/auth/forgot-password', { email });
-      return response.data;
+      return apiClient.post('/auth/forgot-password', { email });
     },
   });
 }
@@ -94,8 +94,7 @@ export function useForgotPassword() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: async ({ token, password }: { token: string; password: string }) => {
-      const response = await apiClient.post('/auth/reset-password', { token, password });
-      return response.data;
+      return apiClient.post('/auth/reset-password', { token, password });
     },
   });
 }
@@ -104,26 +103,27 @@ export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      const response = await apiClient.get<AuthResponse['user']>('/auth/me');
-      const user = response.data;
+      const response = await apiClient.get<User>('/auth/me');
       
-      // Update user cookie
-      Cookies.set('user', JSON.stringify(user), { secure: true, sameSite: 'strict' });
+      // Update user data in store
+      const authState = useAuthStore.getState();
+      if (authState.token) {
+        useAuthStore.getState().setAuth(authState.token, response);
+      }
       
-      return user;
+      return response;
     },
-    enabled: false, // Only fetch when explicitly needed
+    enabled: !!useAuthStore.getState().token, // Only fetch if we have a token
   });
 }
 
 export function useLogout() {
+  const { clearAuth } = useAuthStore();
+  
   return useMutation({
     mutationFn: async () => {
       await apiClient.post('/auth/logout');
-      // Clear cookies
-      Cookies.remove('token');
-      Cookies.remove('refreshToken');
-      Cookies.remove('user');
-    },
+      clearAuth();
+    }
   });
 } 

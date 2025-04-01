@@ -56,14 +56,17 @@ So that I can manage loyalty programs for different business units
 - [x] Basic role management
 - [x] Permission system
 - [x] API key management
+- [x] Email verification
+- [x] Password reset flow
+- [x] User invitation system
+- [x] Team member management UI
+- [x] Merchant branding customization UI
 
 #### Pending Implementation
-- [ ] Email verification
-- [ ] Password reset flow
-- [ ] User invitation system
 - [ ] Cross-business permission management
-- [ ] Merchant branding customization UI
-- [ ] Team member management UI
+- [ ] Enhanced device management
+- [ ] Advanced IP tracking
+- [ ] Advanced multi-device support
 
 ### Known Limitations
 1. Email verification not implemented yet
@@ -85,13 +88,17 @@ So that I can manage loyalty programs for different business units
 3. Generate and access via subdomain
 4. Manage team members and permissions
 5. Maintain security boundaries between businesses
+6. Complete email verification process
+7. Reset password when needed
+8. Invite and manage team members
+9. Customize merchant branding
 
 ## Next Steps
 1. Implement missing components:
-   - Email verification system
-   - Password reset functionality
-   - User invitation workflow
-   - Merchant branding UI
+   - Cross-business permission management
+   - Enhanced device management
+   - Advanced IP tracking
+   - Advanced multi-device support
 2. Create test data set
 3. Set up test environment
 4. Document test results

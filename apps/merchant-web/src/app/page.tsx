@@ -1,52 +1,100 @@
 import Link from 'next/link';
-import { Button } from '@loyaltystudio/ui';
+import { Button, Input } from '@loyaltystudio/ui';
 import { ArrowRight, Building2, Users, Award, BarChart } from 'lucide-react';
 import Image from 'next/image';
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      {/* Hero Section */}
-      <div className="relative isolate overflow-hidden max-h-[calc(100vh-80px)]">
-        <div className="mx-auto max-w-7xl px-6 pb-16 pt-10 sm:pb-24 lg:flex lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl flex-shrink-0 lg:mx-0 lg:max-w-xl lg:pt-8">
-            <div className="mt-16 sm:mt-24 lg:mt-8">
-              <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-sm font-semibold leading-6 text-indigo-600 ring-1 ring-inset ring-indigo-500/20">
-                Launching Soon
-              </span>
-            </div>
-            <h1 className="mt-8 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Transform Your Business with Loyalty Studio
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Create and manage powerful loyalty programs that drive customer engagement and boost revenue. Perfect for businesses of all sizes.
-            </p>
-            <div className="mt-8 flex items-center gap-x-6">
-              <Link href="/register">
-                <Button size="lg" className="gap-2">
-                  Get Started <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="#features" className="text-sm font-semibold leading-6 text-gray-900">
-                Learn more <span aria-hidden="true">→</span>
-              </Link>
-            </div>
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
+        <div className="flex items-center space-x-8">
+          <Link href="/" className="text-2xl font-bold">
+            LoyaltyStudio
+          </Link>
+          <div className="hidden md:flex space-x-6">
+            <Link href="#features" className="text-gray-600 hover:text-gray-900">
+              Features
+            </Link>
+            <Link href="#about" className="text-gray-600 hover:text-gray-900">
+              About us
+            </Link>
+            <Link href="#cases" className="text-gray-600 hover:text-gray-900">
+              Cases
+            </Link>
           </div>
-          <div className="mx-auto mt-8 flex max-w-2xl sm:mt-16 lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-32">
-            <div className="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
-              <div className="relative rounded-xl bg-white/5 p-2 ring-1 ring-inset ring-white/10">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 blur-2xl" />
-                <div className="relative rounded-xl bg-white p-4 shadow-2xl">
-                  <Image
-                    src="/dashboard-preview.png"
-                    alt="Loyalty Studio Dashboard Preview"
-                    width={1920}
-                    height={1080}
-                    className="rounded-lg shadow-xl ring-1 ring-gray-900/10"
-                    priority
-                  />
+        </div>
+        <div className="flex items-center space-x-4">
+          <Link href="/login">
+            <Button variant="ghost">Login</Button>
+          </Link>
+          <Link href="/register">
+            <Button>Register</Button>
+          </Link>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-6 py-12 md:py-20">
+        <div className="flex flex-col md:flex-row gap-12">
+          {/* Left Column */}
+          <div className="w-full md:w-1/2 md:pr-12">
+            <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
+              Put people{' '}
+              <span className="relative">
+                first
+                <span className="absolute bottom-2 left-0 w-full border-b-4 border-primary"></span>
+              </span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8">
+              Fast, user-friendly and engaging - turn customer loyalty into 
+              meaningful relationships and streamline your daily operations 
+              with your own branded loyalty program.
+            </p>
+            <div className="flex flex-col space-y-6 max-w-md">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 h-10">
+                <Input
+                  type="email"
+                  placeholder="Enter work email"
+                  className="w-full sm:w-auto flex-1 h-full rounded-lg sm:rounded-r-none border sm:border-r-0 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+                <Button className="w-full sm:w-auto sm:rounded-l-none">
+                  Book a demo
+                </Button>
+              </div>
+              
+              {/* Stats */}
+              <div className="flex flex-col sm:flex-row sm:space-x-12 space-y-6 sm:space-y-0 mt-12">
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold">75.2%</div>
+                  <div className="text-gray-600">Average daily activity</div>
+                </div>
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold">~20k</div>
+                  <div className="text-gray-600">Average daily users</div>
                 </div>
               </div>
+              
+              {/* Rating */}
+              <div className="flex items-center space-x-2">
+                <div className="flex">
+                  {'★★★★☆'.split('').map((star, i) => (
+                    <span key={i} className="text-primary text-xl">
+                      {star}
+                    </span>
+                  ))}
+                </div>
+                <span className="font-semibold">4.5</span>
+                <span className="text-gray-600">Average user rating</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - App Preview */}
+          <div className="w-full md:w-1/2">
+            <div className="relative">
+              <div className="w-full aspect-[4/3] bg-gray-100 rounded-lg shadow-xl transform rotate-3 translate-y-4"></div>
+              <div className="absolute inset-0 w-full aspect-[4/3] bg-white rounded-lg shadow-xl -rotate-3"></div>
             </div>
           </div>
         </div>

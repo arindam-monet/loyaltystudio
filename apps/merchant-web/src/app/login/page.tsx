@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLogin } from '@/hooks/use-auth';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@loyaltystudio/ui';
@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,12 +27,15 @@ export default function LoginPage() {
       
       // Check if email is verified
       if (!response.user.emailVerified) {
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+        router.replace(`/verify-email?email=${encodeURIComponent(formData.email)}`);
         return;
       }
 
-      // If email is verified, redirect to dashboard
-      router.push('/merchant/dashboard');
+      // Get the redirect URL from query params or default to dashboard
+      const redirectTo = searchParams.get('redirect') || '/dashboard';
+      
+      // Use replace instead of push to prevent back button from returning to login
+      router.replace(redirectTo);
     } catch (error: any) {
       if (error.response?.status === 401) {
         setError('Invalid email or password');

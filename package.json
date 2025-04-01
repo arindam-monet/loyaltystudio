@@ -32,5 +32,8 @@
   "packageManager": "pnpm@10.4.1",
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "jose": "^6.0.10"
   }
 }
