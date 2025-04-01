@@ -1,7 +1,8 @@
 'use client';
 
+import { useAuthGuard } from '@/hooks/use-auth-guard';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth';
 import { AppSidebar } from '@/components/app-sidebar';
 import {
   Breadcrumb,
@@ -26,16 +27,16 @@ import {
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { isLoading } = useAuthGuard();
   const merchants = []; // TODO: Replace with API call
+
+  if (isLoading) {
+    return null;
+  }
 
   const handleCreateMerchant = () => {
     router.push('/onboarding');
   };
-
-  if (!user) {
-    router.replace('/login');
-    return null;
-  }
 
   return (
     <SidebarProvider defaultOpen>
@@ -56,6 +57,10 @@ export default function DashboardPage() {
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
+              <p className="text-gray-600">Role: {user?.role.name}</p>
+            </div>
             {merchants.length === 0 ? (
               <>
                 <Card className="border-2 border-dashed">

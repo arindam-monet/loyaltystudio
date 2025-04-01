@@ -1,10 +1,11 @@
-import { useAuthStore } from '@/stores/auth';
+import axios from 'axios';
+import { useAuthStore } from './stores/auth-store';
 
 export interface ApiError {
   error: string;
 }
 
-export interface AuthResponse {
+interface AuthResponse {
   token: string;
   user: {
     id: string;
@@ -31,83 +32,48 @@ export interface LoginRequest {
   password: string;
 }
 
-class ApiClient {
-  private baseUrl: string;
+// Create axios instance with default config
+export const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-  constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Add request interceptor to include auth header
+apiClient.interceptors.request.use((config) => {
+  const authHeader = useAuthStore.getState().getAuthHeader();
+  if (authHeader) {
+    config.headers.Authorization = authHeader;
   }
+  return config;
+});
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const token = useAuthStore.getState().token;
-    const headers = new Headers(options.headers);
-    
-    headers.set('Content-Type', 'application/json');
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
+// Add response interceptor to handle auth errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear auth state on unauthorized response
+      useAuthStore.getState().clearAuth();
+      // Redirect to login page
+      window.location.href = '/login';
     }
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        useAuthStore.getState().clearAuth();
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+    return Promise.reject(error);
   }
-
-  async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'GET' });
-  }
-
-  async post<T>(endpoint: string, data?: any, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async put<T>(endpoint: string, data?: any, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async patch<T>(endpoint: string, data?: any, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async delete<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
-  }
-}
-
-export const apiClient = new ApiClient();
+);
 
 export const authApi = {
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+  register: async (data: { email: string; password: string; name: string }): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/register', data);
-    useAuthStore.getState().setAuth(response.token, response.user);
-    return response;
+    useAuthStore.getState().setAuth(response.data.token, response.data.user);
+    return response.data;
   },
 
-  login: async (data: LoginRequest): Promise<AuthResponse> => {
+  login: async (data: { email: string; password: string }): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', data);
-    useAuthStore.getState().setAuth(response.token, response.user);
-    return response;
+    useAuthStore.getState().setAuth(response.data.token, response.data.user);
+    return response.data;
   },
 
   logout: async (): Promise<void> => {

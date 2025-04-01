@@ -36,9 +36,9 @@ export function useLogin() {
       const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
       
       // Store auth data in memory
-      useAuthStore.getState().setAuth(response.token, response.user);
+      useAuthStore.getState().setAuth(response.data.token, response.data.user);
       
-      return response;
+      return response.data;
     },
   });
 }
@@ -49,7 +49,7 @@ export function useRegister() {
       const response = await apiClient.post<AuthResponse>('/auth/register', credentials);
       
       // Store auth data in memory
-      useAuthStore.getState().setAuth(response.token, response.user);
+      useAuthStore.getState().setAuth(response.data.token, response.data.user);
       
       return response;
     },

@@ -571,4 +571,74 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: 'Failed to reset password' });
     }
   });
+
+  // Verify session endpoint
+  fastify.get('/auth/verify-session', {
+    schema: {
+      description: 'Verify the current session and return user data',
+      tags: ['auth'],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                tenantId: { type: 'string' },
+                emailVerified: { type: 'boolean' },
+                role: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    description: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return reply.code(401).send({ error: 'No valid authorization header' });
+      }
+
+      const token = authHeader.split(' ')[1];
+      const { data: supabaseUser, error } = await fastify.supabase.auth.getUser(token);
+
+      if (error || !supabaseUser.user) {
+        return reply.code(401).send({ error: 'Invalid or expired token' });
+      }
+
+      // Get user from our database to include role information
+      const user = await prisma.user.findUnique({
+        where: { id: supabaseUser.user.id },
+        include: { role: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found in database' });
+      }
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          tenantId: user.tenantId,
+          emailVerified: user.emailVerified,
+          role: user.role
+        }
+      };
+    } catch (error) {
+      return reply.code(500).send({ error: 'Session verification failed' });
+    }
+  });
 } 

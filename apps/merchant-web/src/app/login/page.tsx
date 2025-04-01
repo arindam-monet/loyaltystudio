@@ -1,122 +1,100 @@
 'use client';
 
-import { useState, ChangeEvent } from 'react';
+import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { useLogin } from '@/hooks/use-auth';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { useApiAuth } from '@/hooks/use-api-auth';
+import { apiClient } from '@/lib/api-client';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@loyaltystudio/ui';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [error, setError] = useState<string>('');
-  
-  const login = useLogin();
+  const { setAuth } = useAuthStore();
+  const { verifySession } = useApiAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if user is already authenticated
+    verifySession().then(isAuthenticated => {
+      if (isAuthenticated) {
+        const redirect = searchParams.get('redirect') || '/dashboard';
+        router.push(redirect);
+      }
+    });
+  }, [verifySession, router, searchParams]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
     try {
-      const response = await login.mutateAsync(formData);
-      
-      // Check if email is verified
-      if (!response.user.emailVerified) {
-        router.replace(`/verify-email?email=${encodeURIComponent(formData.email)}`);
-        return;
-      }
+      const response = await apiClient.post('/auth/login', { email, password });
+      const { token, user } = response.data;
 
-      // Get the redirect URL from query params or default to dashboard
-      const redirectTo = searchParams.get('redirect') || '/dashboard';
-      
-      // Use replace instead of push to prevent back button from returning to login
-      router.replace(redirectTo);
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        setError('Invalid email or password');
-      } else if (error.response?.status === 403) {
-        setError('Please verify your email before logging in');
-      } else {
-        setError('Failed to log in. Please try again.');
-      }
+      // Set auth state
+      setAuth(token, user);
+
+      // Redirect to the requested page or dashboard
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
+    } catch (error) {
+      console.error('Login failed:', error);
+      // Handle error (show message to user)
     }
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
-  };
-
   return (
-    <div className="container flex items-center justify-center min-h-screen py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
                 id="email"
+                name="email"
                 type="email"
-                placeholder="john@example.com"
-                value={formData.email}
-                onChange={handleChange}
                 required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
                 id="password"
+                name="password"
                 type="password"
-                value={formData.password}
-                onChange={handleChange}
                 required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
               />
             </div>
+          </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button
+          <div>
+            <button
               type="submit"
-              className="w-full"
-              disabled={login.isPending}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              {login.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging in...
-                </>
-              ) : (
-                'Log In'
-              )}
-            </Button>
-
-            <div className="flex items-center justify-between">
-              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot password?
-              </Link>
-              <Link href="/register" className="text-sm text-primary hover:underline">
-                Create account
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              Sign in
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 } 
