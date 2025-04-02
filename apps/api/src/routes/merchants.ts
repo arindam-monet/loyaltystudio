@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { DNSProviderFactory } from '../services/dns/index.js';
@@ -7,6 +7,20 @@ import { env } from '../config/env.js';
 
 const prisma = new PrismaClient();
 const dnsProvider = DNSProviderFactory.createProvider();
+
+// Add interface for authenticated request
+interface AuthenticatedRequest extends FastifyRequest {
+  user: {
+    id: string;
+    email: string;
+    tenantId: string;
+    role: {
+      id: string;
+      name: string;
+      description?: string;
+    };
+  };
+}
 
 const merchantSchema = z.object({
   name: z.string().min(3).max(100),
@@ -28,6 +42,67 @@ const brandingSchema = z.object({
 });
 
 export async function merchantRoutes(fastify: FastifyInstance) {
+  // Get all merchants for a tenant
+  fastify.get('/merchants', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Get all merchants for the current tenant',
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              description: { type: 'string' },
+              industry: { type: 'string' },
+              website: { type: 'string' },
+              subdomain: { type: 'string' },
+              isDefault: { type: 'boolean' },
+              branding: {
+                type: 'object',
+                properties: {
+                  logo: { type: 'string' },
+                  primaryColor: { type: 'string' },
+                  secondaryColor: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const authenticatedRequest = request as AuthenticatedRequest;
+    const tenantId = authenticatedRequest.user?.tenantId;
+
+    if (!tenantId) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        message: 'Tenant ID not found',
+      });
+    }
+
+    try {
+      const merchants = await prisma.merchant.findMany({
+        where: {
+          tenantId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return reply.send(merchants);
+    } catch (error) {
+      console.error('Failed to fetch merchants:', error);
+      return reply.code(500).send({
+        error: 'Failed to fetch merchants',
+      });
+    }
+  });
+
   // Create a new merchant
   fastify.post('/merchants', {
     schema: {
