@@ -46,14 +46,14 @@ export function AppSidebar() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
-    <Sidebar className="border-r bg-sidebar">
-      <SidebarHeader className="border-b px-6 py-3">
+    <Sidebar className="border-r bg-sidebar h-screen flex flex-col w-64 shrink-0">
+      <SidebarHeader className="border-b px-6 py-3 flex-none">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Loyalty Studio</h1>
+          <h1 className="text-xl font-semibold h-10">Loyalty Studio</h1>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="flex flex-col flex-1">
+      <SidebarContent className="flex-1 overflow-y-auto">
         <div className="space-y-4 px-4 py-2">
           <div className="px-2 py-2">
             <MerchantSwitcher className="w-full" />
@@ -277,7 +277,7 @@ export function AppSidebar() {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t flex-none">
         <UserInfo />
       </SidebarFooter>
     </Sidebar>
