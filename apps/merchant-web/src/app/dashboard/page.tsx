@@ -32,6 +32,8 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { LoadingScreen } from '@/components/loading-screen';
+import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
+import { useState } from 'react';
 
 type ChecklistItem = {
   id: string;
@@ -69,7 +71,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { isLoading: isAuthLoading } = useAuthGuard();
-  const { data: merchants, isLoading: isMerchantsLoading } = useMerchants();
+  const { data: merchants, isLoading: isMerchantsLoading, refetch } = useMerchants();
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   // If not authenticated, the useAuthGuard hook will handle the redirect
   if (!user) {
@@ -77,7 +80,11 @@ export default function DashboardPage() {
   }
 
   const handleCreateMerchant = () => {
-    router.push('/onboarding');
+    setIsOnboardingOpen(true);
+  };
+
+  const handleOnboardingSuccess = () => {
+    refetch();
   };
 
   const renderMerchantsList = () => {
@@ -245,6 +252,11 @@ export default function DashboardPage() {
           </div>
         </SidebarInset>
       </div>
+      <MerchantOnboardingDialog 
+        open={isOnboardingOpen} 
+        onOpenChange={setIsOnboardingOpen}
+        onSuccess={handleOnboardingSuccess}
+      />
     </SidebarProvider>
   );
 } 

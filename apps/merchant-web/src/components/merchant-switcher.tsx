@@ -22,6 +22,7 @@ import {
 } from '@loyaltystudio/ui';
 import { useRouter } from 'next/navigation';
 import { useMerchants } from '@/hooks/use-merchants';
+import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -33,11 +34,12 @@ export default function MerchantSwitcher({
   className,
 }: MerchantSwitcherProps) {
   const router = useRouter();
-  const { data: merchants = [], isLoading } = useMerchants();
+  const { data: merchants = [], isLoading, refetch } = useMerchants();
   const [open, setOpen] = React.useState(false);
   const [selectedMerchant, setSelectedMerchant] = React.useState(
     merchants.find((m) => m.isDefault) || merchants[0]
   );
+  const [isOnboardingOpen, setIsOnboardingOpen] = React.useState(false);
 
   // Update selected merchant when merchants data loads
   React.useEffect(() => {
@@ -52,8 +54,12 @@ export default function MerchantSwitcher({
   };
 
   const handleCreateMerchant = () => {
-    router.push('/onboarding');
+    setIsOnboardingOpen(true);
     setOpen(false);
+  };
+
+  const handleOnboardingSuccess = () => {
+    refetch();
   };
 
   if (isLoading) {
@@ -75,78 +81,85 @@ export default function MerchantSwitcher({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          role="combobox"
-          aria-expanded={open}
-          aria-label="Select a merchant"
-          className={cn('w-full justify-between px-2', className)}
-        >
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              <AvatarImage
-                src={selectedMerchant?.branding?.logo}
-                alt={selectedMerchant?.name}
-              />
-              <AvatarFallback>
-                {selectedMerchant?.name?.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col items-start text-sm">
-              <span className="font-medium">{selectedMerchant?.name}</span>
-              {selectedMerchant?.isDefault && (
-                <span className="text-xs text-muted-foreground">Enterprise</span>
-              )}
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            role="combobox"
+            aria-expanded={open}
+            aria-label="Select a merchant"
+            className={cn('w-full justify-between px-2', className)}
+          >
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarImage
+                  src={selectedMerchant?.branding?.logo}
+                  alt={selectedMerchant?.name}
+                />
+                <AvatarFallback>
+                  {selectedMerchant?.name?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col items-start text-sm">
+                <span className="font-medium">{selectedMerchant?.name}</span>
+                {selectedMerchant?.isDefault && (
+                  <span className="text-xs text-muted-foreground">Enterprise</span>
+                )}
+              </div>
             </div>
-          </div>
-          <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
-        <Command>
-          <CommandList>
-            <CommandGroup>
-              {merchants.map((merchant) => (
-                <CommandItem
-                  key={merchant.id}
-                  onSelect={() => handleMerchantSelect(merchant)}
-                  className="text-sm"
-                >
-                  <Avatar className="mr-2 h-5 w-5">
-                    <AvatarImage
-                      src={merchant.branding?.logo}
-                      alt={merchant.name}
+            <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[200px] p-0">
+          <Command>
+            <CommandList>
+              <CommandGroup>
+                {merchants.map((merchant) => (
+                  <CommandItem
+                    key={merchant.id}
+                    onSelect={() => handleMerchantSelect(merchant)}
+                    className="text-sm"
+                  >
+                    <Avatar className="mr-2 h-5 w-5">
+                      <AvatarImage
+                        src={merchant.branding?.logo}
+                        alt={merchant.name}
+                      />
+                      <AvatarFallback>
+                        {merchant.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {merchant.name}
+                    <CheckIcon
+                      className={cn(
+                        'ml-auto h-4 w-4',
+                        selectedMerchant?.id === merchant.id
+                          ? 'opacity-100'
+                          : 'opacity-0'
+                      )}
                     />
-                    <AvatarFallback>
-                      {merchant.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {merchant.name}
-                  <CheckIcon
-                    className={cn(
-                      'ml-auto h-4 w-4',
-                      selectedMerchant?.id === merchant.id
-                        ? 'opacity-100'
-                        : 'opacity-0'
-                    )}
-                  />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  onSelect={handleCreateMerchant}
+                >
+                  <PlusCircledIcon className="mr-2 h-5 w-5" />
+                  Add Merchant
                 </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandSeparator />
-            <CommandGroup>
-              <CommandItem
-                onSelect={handleCreateMerchant}
-              >
-                <PlusCircledIcon className="mr-2 h-5 w-5" />
-                Add Merchant
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <MerchantOnboardingDialog 
+        open={isOnboardingOpen} 
+        onOpenChange={setIsOnboardingOpen}
+        onSuccess={handleOnboardingSuccess}
+      />
+    </>
   );
 } 

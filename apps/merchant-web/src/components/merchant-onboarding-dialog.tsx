@@ -1,14 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription } from '@loyaltystudio/ui';
-import { Loader2, Building2, Palette, CheckCircle2 } from 'lucide-react';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription, Dialog, DialogContent, DialogHeader, DialogTitle } from '@loyaltystudio/ui';
+import { Loader2, Building2, Palette, CheckCircle2, X } from 'lucide-react';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset, SidebarProvider, SidebarTrigger, Separator, Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@loyaltystudio/ui';
 import React from 'react';
-import { useAuthGuard } from '@/hooks/use-auth-guard';
 
 type OnboardingData = {
   business: {
@@ -58,26 +54,17 @@ const steps = [
   },
 ];
 
-export default function OnboardingPage() {
-  const router = useRouter();
+interface MerchantOnboardingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: MerchantOnboardingDialogProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
   const [error, setError] = useState<string | null>(null);
-  const { isLoading } = useAuthGuard();
-
   const onboarding = useOnboarding();
-
-  // Show loading state while verifying authentication
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading onboarding...</p>
-        </div>
-      </div>
-    );
-  }
 
   const updateFields = (fields: Partial<OnboardingData>) => {
     setData(prev => ({ ...prev, ...fields }));
@@ -94,7 +81,8 @@ export default function OnboardingPage() {
 
     try {
       await onboarding.mutateAsync(data);
-      router.push('/dashboard');
+      onSuccess?.();
+      onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     }
@@ -232,80 +220,60 @@ export default function OnboardingPage() {
   };
 
   return (
-    <SidebarProvider defaultOpen>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-            <div className="flex items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>Create Business</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl backdrop-blur">
+        <DialogHeader>
+          <div className="flex flex-col-reverse lg:flex-row lg:items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              {steps[currentStep].icon && React.createElement(steps[currentStep].icon, { className: "h-6 w-6 text-primary" })}
+              <DialogTitle className="text-2xl">{steps[currentStep].title}</DialogTitle>
             </div>
-          </header>
-          <div className="flex p-4 mx-auto w-full md:w-2/3">
-            <Card className="w-full">
-              <CardHeader>
-                <div className="flex flex-col-reverse lg:flex-row lg:items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    {steps[currentStep].icon && React.createElement(steps[currentStep].icon, { className: "h-6 w-6 text-primary" })}
-                    <CardTitle className="text-2xl">{steps[currentStep].title}</CardTitle>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Step {currentStep + 1} of {steps.length}
-                  </div>
-                </div>
-                <CardDescription className="text-base">
-                  {steps[currentStep].description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="max-w-2xl">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>
-                        {error}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {renderStep()}
-
-                  <div className="flex justify-between pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCurrentStep(currentStep - 1)}
-                      disabled={currentStep === 0 || onboarding.isPending}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={onboarding.isPending}
-                    >
-                      {onboarding.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        currentStep === steps.length - 1 ? 'Create Business' : 'Next'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+            <div className="text-sm text-muted-foreground">
+              Step {currentStep + 1} of {steps.length}
+            </div>
           </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+          <CardDescription className="text-base">
+            {steps[currentStep].description}
+          </CardDescription>
+        </DialogHeader>
+        <div className="mt-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {renderStep()}
+
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentStep(currentStep - 1)}
+                disabled={currentStep === 0 || onboarding.isPending}
+              >
+                Previous
+              </Button>
+              <Button
+                type="submit"
+                disabled={onboarding.isPending}
+              >
+                {onboarding.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  currentStep === steps.length - 1 ? 'Create Business' : 'Next'
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 } 

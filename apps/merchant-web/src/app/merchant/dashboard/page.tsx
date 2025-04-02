@@ -4,6 +4,7 @@ import { Button } from '@loyaltystudio/ui';
 import { Plus, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 
 interface Merchant {
   id: string;
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [currentMerchant, setCurrentMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   useEffect(() => {
     fetchMerchants();
@@ -45,6 +47,11 @@ export default function DashboardPage() {
     }
   };
 
+  const handleOnboardingSuccess = () => {
+    // Refresh the page or update the UI as needed
+    window.location.reload();
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center">
@@ -70,12 +77,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <Link href="/merchant/new">
-            <Button>
-              <Building2 className="h-4 w-4 mr-2" />
-              New Business
-            </Button>
-          </Link>
+          <Button onClick={() => setIsOnboardingOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Business
+          </Button>
         </div>
       </div>
       
@@ -94,6 +99,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <MerchantOnboardingDialog 
+        open={isOnboardingOpen} 
+        onOpenChange={setIsOnboardingOpen}
+        onSuccess={handleOnboardingSuccess}
+      />
     </div>
   );
 } 
