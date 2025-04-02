@@ -10,8 +10,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Badge,
 } from '@loyaltystudio/ui';
-import { ChevronUp, LogOut, Settings, User } from 'lucide-react';
+import { ChevronUp, LogOut, Settings, User, Shield } from 'lucide-react';
 import { useLogout } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 
@@ -40,7 +41,13 @@ export function UserInfo() {
               <AvatarFallback>{user.name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col items-start text-sm">
-              <span className="font-medium">{user.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{user.name}</span>
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  <Shield className="h-2 w-2" />
+                  {user.role.name}
+                </Badge>
+              </div>
               <span className="text-xs text-muted-foreground">{user.email}</span>
             </div>
             <ChevronUp className="ml-auto h-4 w-4" />

@@ -27,4 +27,5 @@ export * from './components/tabs';
 export * from './components/skeleton';
 export * from './components/dropdown-menu';
 export * from './components/collapsible';
+export * from './components/badge';
 export { PasswordInput } from './components/password-input';

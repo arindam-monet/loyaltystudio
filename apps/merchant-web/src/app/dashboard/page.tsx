@@ -190,7 +190,6 @@ export default function DashboardPage() {
           <div className="flex flex-1 flex-col gap-4 p-4">
             <div className="mb-8">
               <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
-              <p className="text-gray-600">Role: {user?.role.name}</p>
             </div>
 
             {renderMerchantsList()}
