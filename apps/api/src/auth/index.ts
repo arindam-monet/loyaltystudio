@@ -42,7 +42,8 @@ const PUBLIC_PATHS = [
   '/auth/verify-email',
   '/auth/resend-verification',
   '/auth/forgot-password',
-  '/auth/reset-password'
+  '/auth/reset-password',
+  '/auth/verify-session'
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {

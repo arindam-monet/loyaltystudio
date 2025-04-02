@@ -9,6 +9,7 @@ import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, C
 import { PasswordInput } from '@loyaltystudio/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { AxiosError } from 'axios';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,12 +21,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Check if user is already authenticated
-    verifySession().then(isAuthenticated => {
-      if (isAuthenticated) {
-        const redirect = searchParams.get('redirect') || '/dashboard';
-        router.push(redirect);
+    const checkAuth = async () => {
+      try {
+        const isAuthenticated = await verifySession();
+        if (isAuthenticated) {
+          const redirect = searchParams.get('redirect') || '/dashboard';
+          router.push(redirect);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
       }
-    });
+    };
+
+    checkAuth();
   }, [verifySession, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,6 +49,10 @@ export default function LoginPage() {
       const response = await apiClient.post('/auth/login', { email, password });
       const { token, user } = response.data;
 
+      if (!token || !user) {
+        throw new Error('Invalid response from login endpoint');
+      }
+
       // Set auth state
       setAuth(token, user);
 
@@ -49,7 +61,24 @@ export default function LoginPage() {
       router.push(redirect);
     } catch (error) {
       console.error('Login failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to login');
+      
+      // Handle API errors
+      if (error instanceof AxiosError) {
+        const response = error.response?.data;
+        
+        // Handle email verification case (403 status)
+        if (error.response?.status === 403 && response?.requiresVerification) {
+          router.push(`/verify-email?email=${encodeURIComponent(response.user.email)}`);
+          return;
+        }
+
+        // Handle other API errors
+        const errorMessage = response?.error || response?.message || 'Invalid email or password';
+        setError(errorMessage);
+      } else {
+        // Handle other errors
+        setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

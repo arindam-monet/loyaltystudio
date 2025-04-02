@@ -3,9 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription } from '@loyaltystudio/ui';
-import { Loader2, Building2, Settings, Palette, CheckCircle2 } from 'lucide-react';
+import { Loader2, Building2, Palette, CheckCircle2 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger, Separator, Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@loyaltystudio/ui';
 import React from 'react';
+import { useAuthGuard } from '@/hooks/use-auth-guard';
 
 type OnboardingData = {
   business: {
@@ -13,13 +16,6 @@ type OnboardingData = {
     description: string;
     industry: string;
     website: string;
-  };
-  program: {
-    name: string;
-    description: string;
-    pointsRate: number;
-    minimumPoints: number;
-    pointsExpiry: number;
   };
   branding: {
     logo?: File;
@@ -35,13 +31,6 @@ const INITIAL_DATA: OnboardingData = {
     industry: '',
     website: '',
   },
-  program: {
-    name: '',
-    description: '',
-    pointsRate: 1,
-    minimumPoints: 100,
-    pointsExpiry: 365,
-  },
   branding: {
     primaryColor: '#4F46E5',
     secondaryColor: '#818CF8',
@@ -56,12 +45,6 @@ const steps = [
     icon: Building2,
   },
   {
-    id: 'program',
-    title: 'Loyalty Program',
-    description: 'Set up your loyalty program',
-    icon: Settings,
-  },
-  {
     id: 'branding',
     title: 'Branding',
     description: 'Customize your brand',
@@ -70,7 +53,7 @@ const steps = [
   {
     id: 'review',
     title: 'Review',
-    description: 'Review and launch',
+    description: 'Review your business details',
     icon: CheckCircle2,
   },
 ];
@@ -80,8 +63,21 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
   const [error, setError] = useState<string | null>(null);
+  const { isLoading } = useAuthGuard();
 
   const onboarding = useOnboarding();
+
+  // Show loading state while verifying authentication
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading onboarding...</p>
+        </div>
+      </div>
+    );
+  }
 
   const updateFields = (fields: Partial<OnboardingData>) => {
     setData(prev => ({ ...prev, ...fields }));
@@ -110,7 +106,7 @@ export default function OnboardingPage() {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="businessName">Business Name</Label>
+              <Label htmlFor="businessName">Business Name *</Label>
               <Input
                 id="businessName"
                 value={data.business.name}
@@ -119,7 +115,7 @@ export default function OnboardingPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="businessDescription">Business Description</Label>
+              <Label htmlFor="businessDescription">Business Description *</Label>
               <Textarea
                 id="businessDescription"
                 value={data.business.description}
@@ -133,7 +129,6 @@ export default function OnboardingPage() {
                 id="industry"
                 value={data.business.industry}
                 onChange={(e) => updateFields({ business: { ...data.business, industry: e.target.value } })}
-                required
               />
             </div>
             <div className="space-y-2">
@@ -143,71 +138,12 @@ export default function OnboardingPage() {
                 type="url"
                 value={data.business.website}
                 onChange={(e) => updateFields({ business: { ...data.business, website: e.target.value } })}
-                required
               />
             </div>
           </div>
         );
 
       case 1:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="programName">Program Name</Label>
-              <Input
-                id="programName"
-                value={data.program.name}
-                onChange={(e) => updateFields({ program: { ...data.program, name: e.target.value } })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="programDescription">Program Description</Label>
-              <Textarea
-                id="programDescription"
-                value={data.program.description}
-                onChange={(e) => updateFields({ program: { ...data.program, description: e.target.value } })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pointsRate">Points Rate (per $1)</Label>
-              <Input
-                id="pointsRate"
-                type="number"
-                min="0"
-                step="0.1"
-                value={data.program.pointsRate}
-                onChange={(e) => updateFields({ program: { ...data.program, pointsRate: parseFloat(e.target.value) } })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minimumPoints">Minimum Points for Redemption</Label>
-              <Input
-                id="minimumPoints"
-                type="number"
-                min="0"
-                value={data.program.minimumPoints}
-                onChange={(e) => updateFields({ program: { ...data.program, minimumPoints: parseInt(e.target.value) } })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pointsExpiry">Points Expiry (days)</Label>
-              <Input
-                id="pointsExpiry"
-                type="number"
-                min="0"
-                value={data.program.pointsExpiry}
-                onChange={(e) => updateFields({ program: { ...data.program, pointsExpiry: parseInt(e.target.value) } })}
-                required
-              />
-            </div>
-          </div>
-        );
-
-      case 2:
         return (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -222,11 +158,10 @@ export default function OnboardingPage() {
                     updateFields({ branding: { ...data.branding, logo: file } });
                   }
                 }}
-                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="primaryColor">Primary Color</Label>
+              <Label htmlFor="primaryColor">Primary Color *</Label>
               <Input
                 id="primaryColor"
                 type="color"
@@ -236,7 +171,7 @@ export default function OnboardingPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="secondaryColor">Secondary Color</Label>
+              <Label htmlFor="secondaryColor">Secondary Color *</Label>
               <Input
                 id="secondaryColor"
                 type="color"
@@ -248,7 +183,7 @@ export default function OnboardingPage() {
           </div>
         );
 
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
             <div className="space-y-4">
@@ -256,28 +191,36 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <p><span className="font-medium">Name:</span> {data.business.name}</p>
                 <p><span className="font-medium">Description:</span> {data.business.description}</p>
-                <p><span className="font-medium">Industry:</span> {data.business.industry}</p>
-                <p><span className="font-medium">Website:</span> {data.business.website}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Loyalty Program</h3>
-              <div className="space-y-2">
-                <p><span className="font-medium">Name:</span> {data.program.name}</p>
-                <p><span className="font-medium">Description:</span> {data.program.description}</p>
-                <p><span className="font-medium">Points Rate:</span> {data.program.pointsRate} points per $1</p>
-                <p><span className="font-medium">Minimum Points:</span> {data.program.minimumPoints}</p>
-                <p><span className="font-medium">Points Expiry:</span> {data.program.pointsExpiry} days</p>
+                {data.business.industry && (
+                  <p><span className="font-medium">Industry:</span> {data.business.industry}</p>
+                )}
+                {data.business.website && (
+                  <p><span className="font-medium">Website:</span> {data.business.website}</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Branding</h3>
               <div className="space-y-2">
-                <p><span className="font-medium">Logo:</span> {data.branding.logo?.name}</p>
-                <p><span className="font-medium">Primary Color:</span> {data.branding.primaryColor}</p>
-                <p><span className="font-medium">Secondary Color:</span> {data.branding.secondaryColor}</p>
+                {data.branding.logo && (
+                  <p><span className="font-medium">Logo:</span> {data.branding.logo.name}</p>
+                )}
+                <div className="flex items-center gap-4">
+                  <span className="font-medium">Colors:</span>
+                  <div className="flex gap-2">
+                    <div 
+                      className="w-8 h-8 rounded-full border" 
+                      style={{ backgroundColor: data.branding.primaryColor }}
+                      title={`Primary: ${data.branding.primaryColor}`}
+                    />
+                    <div 
+                      className="w-8 h-8 rounded-full border" 
+                      style={{ backgroundColor: data.branding.secondaryColor }}
+                      title={`Secondary: ${data.branding.secondaryColor}`}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -289,60 +232,80 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="container flex items-center justify-center min-h-screen py-12">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              {steps[currentStep].icon && React.createElement(steps[currentStep].icon, { className: "h-6 w-6 text-primary" })}
-              <CardTitle className="text-2xl">{steps[currentStep].title}</CardTitle>
+    <SidebarProvider defaultOpen>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Create Business</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Step {currentStep + 1} of {steps.length}
-            </div>
+          </header>
+          <div className="flex p-4 mx-auto w-full md:w-2/3">
+            <Card className="w-full">
+              <CardHeader>
+                <div className="flex flex-col-reverse lg:flex-row lg:items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    {steps[currentStep].icon && React.createElement(steps[currentStep].icon, { className: "h-6 w-6 text-primary" })}
+                    <CardTitle className="text-2xl">{steps[currentStep].title}</CardTitle>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Step {currentStep + 1} of {steps.length}
+                  </div>
+                </div>
+                <CardDescription className="text-base">
+                  {steps[currentStep].description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="max-w-2xl">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        {error}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {renderStep()}
+
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                      disabled={currentStep === 0 || onboarding.isPending}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={onboarding.isPending}
+                    >
+                      {onboarding.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        currentStep === steps.length - 1 ? 'Create Business' : 'Next'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           </div>
-          <CardDescription className="text-base">
-            {steps[currentStep].description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {renderStep()}
-
-            <div className="flex justify-between pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCurrentStep(currentStep - 1)}
-                disabled={currentStep === 0 || onboarding.isPending}
-              >
-                Previous
-              </Button>
-              <Button
-                type="submit"
-                disabled={onboarding.isPending}
-              >
-                {onboarding.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {currentStep === steps.length - 1 ? 'Launching...' : 'Next'}
-                  </>
-                ) : (
-                  currentStep === steps.length - 1 ? 'Launch Program' : 'Next'
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 } 

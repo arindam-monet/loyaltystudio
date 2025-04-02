@@ -1,7 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db/index.js';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { GenerateLinkParams } from '@supabase/supabase-js';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -113,6 +114,22 @@ export async function authRoutes(fastify: FastifyInstance) {
               }
             }
           }
+        },
+        403: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                emailVerified: { type: 'boolean' }
+              }
+            },
+            requiresVerification: { type: 'boolean' }
+          }
         }
       }
     }
@@ -126,17 +143,119 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (error) {
-        return reply.code(401).send({ error: error.message });
+        // Check if the error is due to unconfirmed email
+        if (error.message === 'Email not confirmed') {
+          // Get user from our database first
+          let user = await prisma.user.findUnique({
+            where: { email },
+            include: { role: true }
+          });
+
+          if (!user) {
+            // Get default role
+            const defaultRole = await prisma.role.findFirst({ 
+              where: { name: 'USER' } 
+            });
+
+            if (!defaultRole) {
+              throw new Error('Default USER role not found');
+            }
+
+            // Create new user
+            user = await prisma.user.create({
+              data: {
+                email,
+                name: email.split('@')[0], // Use email prefix as name
+                tenantId: '',
+                roleId: defaultRole.id,
+                emailVerified: false
+              },
+              include: { role: true }
+            });
+          }
+
+          return reply.code(403).send({ 
+            error: 'Email not verified',
+            message: 'Please verify your email before logging in. Check your inbox for the verification link.',
+            user: {
+              id: user.id,
+              email: user.email,
+              emailVerified: false
+            },
+            requiresVerification: true
+          });
+        }
+
+        // Map other Supabase errors to user-friendly messages
+        const errorMessage = error.message === 'Invalid login credentials'
+          ? 'Invalid email or password'
+          : error.message;
+        return reply.code(401).send({ error: errorMessage });
       }
 
       // Get user from our database to include role information
-      const user = await prisma.user.findUnique({
+      let user = await prisma.user.findUnique({
         where: { id: data.user?.id },
         include: { role: true }
       });
 
       if (!user) {
-        return reply.code(404).send({ error: 'User not found in database' });
+        // If user exists in Supabase but not in our database, try to create them
+        const { data: supabaseUser } = await fastify.supabase.auth.getUser(data.session?.access_token);
+        if (supabaseUser.user) {
+          try {
+            // First check if user exists by email to avoid unique constraint violation
+            const existingUser = await prisma.user.findUnique({
+              where: { email: supabaseUser.user.email! },
+              include: { role: true }
+            });
+
+            if (existingUser) {
+              // If user exists by email, use that user
+              user = existingUser;
+            } else {
+              // Get default role
+              const defaultRole = await prisma.role.findFirst({ 
+                where: { name: 'USER' } 
+              });
+
+              if (!defaultRole) {
+                throw new Error('Default USER role not found');
+              }
+
+              // Create new user only if they don't exist
+              user = await prisma.user.create({
+                data: {
+                  id: supabaseUser.user.id,
+                  email: supabaseUser.user.email!,
+                  name: supabaseUser.user.user_metadata?.name || 'User',
+                  tenantId: supabaseUser.user.user_metadata?.tenant_id || '',
+                  roleId: defaultRole.id,
+                  emailVerified: !!supabaseUser.user.email_confirmed_at
+                },
+                include: { role: true }
+              });
+            }
+          } catch (error) {
+            console.error('Failed to create/find user in database:', error);
+            return reply.code(500).send({ 
+              error: 'Authentication failed',
+              message: 'Failed to process user data. Please try again.'
+            });
+          }
+        } else {
+          return reply.code(404).send({ 
+            error: 'Account not found',
+            message: 'Please register first or check your email for verification'
+          });
+        }
+      }
+
+      if (!user) {
+        return reply.code(404).send({ 
+          error: 'User not found',
+          message: 'Failed to retrieve user data. Please try again.'
+        });
       }
 
       // Check if email is verified
@@ -144,12 +263,13 @@ export async function authRoutes(fastify: FastifyInstance) {
       if (!supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
         return reply.code(403).send({ 
           error: 'Email not verified',
-          message: 'Please verify your email before logging in.',
+          message: 'Please verify your email before logging in. Check your inbox for the verification link.',
           user: {
             id: user.id,
             email: user.email,
             emailVerified: false
-          }
+          },
+          requiresVerification: true
         });
       }
 
@@ -177,7 +297,11 @@ export async function authRoutes(fastify: FastifyInstance) {
         }
       };
     } catch (error) {
-      return reply.code(500).send({ error: 'Authentication failed' });
+      console.error('Login error:', error);
+      return reply.code(500).send({ 
+        error: 'Authentication failed',
+        message: 'An unexpected error occurred. Please try again later.'
+      });
     }
   });
 
@@ -208,6 +332,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                 email: { type: 'string' },
                 name: { type: 'string' },
                 tenantId: { type: 'string' },
+                emailVerified: { type: 'boolean' },
                 role: {
                   type: 'object',
                   properties: {
@@ -217,7 +342,8 @@ export async function authRoutes(fastify: FastifyInstance) {
                   }
                 }
               }
-            }
+            },
+            requiresVerification: { type: 'boolean' }
           }
         }
       }
@@ -266,7 +392,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         counter++;
       }
 
-      // Create tenant
+      // Create tenant with UUID
       const tenant = await prisma.tenant.create({
         data: {
           name: `${name}'s Organization`,
@@ -286,7 +412,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             tenant_id: tenant.id,
             role: 'user'
           },
-          emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/verify-email`
+          emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/`
         }
       });
 
@@ -324,9 +450,32 @@ export async function authRoutes(fastify: FastifyInstance) {
         throw new Error('Failed to create user in database');
       });
 
-      // Return success response with user data
+      // Sign in the user immediately after registration
+      const { data: signInData, error: signInError } = await fastify.supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Failed to sign in after registration:', signInError);
+        return reply.code(201).send({
+          message: 'Registration successful! Please check your email to verify your account.',
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            tenantId: user.tenantId,
+            emailVerified: false,
+            role: user.role
+          },
+          requiresVerification: true
+        });
+      }
+
+      // Return success response with user data and token
       return reply.code(201).send({
         message: 'Registration successful! Please check your email to verify your account.',
+        token: signInData.session?.access_token,
         user: {
           id: user.id,
           email: user.email,
@@ -334,7 +483,8 @@ export async function authRoutes(fastify: FastifyInstance) {
           tenantId: user.tenantId,
           emailVerified: false,
           role: user.role
-        }
+        },
+        requiresVerification: true
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -436,14 +586,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         data: { emailVerified: true }
       });
 
-      return {
-        message: 'Email verified successfully',
-        user: {
-          id: user.id,
-          email: user.email,
-          emailVerified: user.emailVerified
-        }
-      };
+      // Redirect to success page with email
+      return reply.redirect(`${process.env.MERCHANT_WEB_URL}/verify-email-success?email=${encodeURIComponent(user.email)}`);
     } catch (error) {
       console.error('Email verification error:', error);
       return reply.code(500).send({ error: 'Email verification failed' });
@@ -607,24 +751,84 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       const authHeader = request.headers.authorization;
       if (!authHeader?.startsWith('Bearer ')) {
-        return reply.code(401).send({ error: 'No valid authorization header' });
+        return reply.code(401).send({ 
+          error: 'No valid authorization header',
+          message: 'Please log in again'
+        });
       }
 
       const token = authHeader.split(' ')[1];
       const { data: supabaseUser, error } = await fastify.supabase.auth.getUser(token);
 
       if (error || !supabaseUser.user) {
-        return reply.code(401).send({ error: 'Invalid or expired token' });
+        return reply.code(401).send({ 
+          error: 'Invalid or expired token',
+          message: 'Your session has expired. Please log in again.'
+        });
       }
 
       // Get user from our database to include role information
-      const user = await prisma.user.findUnique({
+      let user = await prisma.user.findUnique({
         where: { id: supabaseUser.user.id },
         include: { role: true }
       });
 
+      // If user doesn't exist in our database, try to create them
+      if (!user && supabaseUser.user) {
+        try {
+          // First check if user exists by email to avoid unique constraint violation
+          const existingUser = await prisma.user.findUnique({
+            where: { email: supabaseUser.user.email! },
+            include: { role: true }
+          });
+
+          if (existingUser) {
+            // If user exists by email, use that user
+            user = existingUser;
+          } else {
+            // Get default role
+            const defaultRole = await prisma.role.findFirst({ 
+              where: { name: 'USER' } 
+            });
+
+            if (!defaultRole) {
+              throw new Error('Default USER role not found');
+            }
+
+            // Create new user
+            user = await prisma.user.create({
+              data: {
+                id: supabaseUser.user.id,
+                email: supabaseUser.user.email!,
+                name: supabaseUser.user.user_metadata?.name || 'User',
+                tenantId: supabaseUser.user.user_metadata?.tenant_id || '',
+                roleId: defaultRole.id,
+                emailVerified: !!supabaseUser.user.email_confirmed_at
+              },
+              include: { role: true }
+            });
+          }
+        } catch (error) {
+          console.error('Failed to create/find user in database:', error);
+          return reply.code(500).send({ 
+            error: 'Session verification failed',
+            message: 'Failed to process user data. Please try again.'
+          });
+        }
+      }
+
       if (!user) {
-        return reply.code(404).send({ error: 'User not found in database' });
+        return reply.code(404).send({ 
+          error: 'User not found',
+          message: 'User data not found. Please try logging in again.'
+        });
+      }
+
+      if (!user.role) {
+        return reply.code(403).send({ 
+          error: 'User role not found',
+          message: 'User role not found. Please contact support.'
+        });
       }
 
       return {
@@ -638,7 +842,84 @@ export async function authRoutes(fastify: FastifyInstance) {
         }
       };
     } catch (error) {
-      return reply.code(500).send({ error: 'Session verification failed' });
+      console.error('Session verification error:', error);
+      return reply.code(500).send({ 
+        error: 'Session verification failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+  });
+
+  // Add resend verification endpoint
+  fastify.post('/resend-verification', async (request, reply) => {
+    try {
+      const { email } = request.body as { email: string };
+
+      if (!email) {
+        return reply.status(400).send({
+          error: 'Email is required'
+        });
+      }
+
+      // Get user from Supabase
+      const { data: user, error: userError } = await fastify.supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (userError || !user) {
+        return reply.status(404).send({
+          error: 'User not found'
+        });
+      }
+
+      // Check if email is already verified
+      if (user.email_confirmed_at) {
+        return reply.status(400).send({
+          error: 'Email is already verified'
+        });
+      }
+
+      // Generate new verification token
+      const { data: tokenData, error: tokenError } = await fastify.supabase.auth.admin.generateLink({
+        type: 'signup',
+        email,
+        options: {
+          redirectTo: `${process.env.MERCHANT_WEB_URL}/verify-email-success`,
+          data: {
+            email
+          }
+        }
+      } as GenerateLinkParams);
+
+      if (tokenError) {
+        console.error('Error generating verification link:', tokenError);
+        return reply.status(500).send({
+          error: 'Failed to generate verification link'
+        });
+      }
+
+      // Send verification email
+      const { error: emailError } = await fastify.supabase.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${process.env.MERCHANT_WEB_URL}/verify-email-success`
+      });
+
+      if (emailError) {
+        console.error('Error sending verification email:', emailError);
+        return reply.status(500).send({
+          error: 'Failed to send verification email'
+        });
+      }
+
+      return reply.send({
+        message: 'Verification email sent successfully'
+      });
+    } catch (error) {
+      console.error('Error in resend verification:', error);
+      return reply.status(500).send({
+        error: 'Internal server error'
+      });
     }
   });
 } 

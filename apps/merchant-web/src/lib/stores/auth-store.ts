@@ -12,6 +12,14 @@ interface User {
     name: string;
     description: string;
   };
+  user_metadata?: {
+    tenant_id: string;
+    email: string;
+    email_verified: boolean;
+    phone_verified: boolean;
+    role: string;
+    sub: string;
+  };
 }
 
 interface AuthState {

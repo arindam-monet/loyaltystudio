@@ -7,6 +7,14 @@ export interface User {
   emailVerified: boolean;
   tenantId: string;
   role: string;
+  user_metadata?: {
+    tenant_id: string;
+    email: string;
+    email_verified: boolean;
+    phone_verified: boolean;
+    role: string;
+    sub: string;
+  };
 }
 
 interface AuthState {
@@ -28,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       emailVerified: userData.user_metadata?.email_verified || userData.emailVerified,
       tenantId: userData.user_metadata?.tenant_id || userData.tenantId,
       role: userData.user_metadata?.role || (userData.role?.name || userData.role),
+      user_metadata: userData.user_metadata,
     };
     set({ token, user });
   },

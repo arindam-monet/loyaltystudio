@@ -18,7 +18,7 @@ const merchantSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   zipCode: z.string().optional(),
-  tenantId: z.string().uuid(),
+  tenantId: z.string().cuid(),
 });
 
 const brandingSchema = z.object({
@@ -46,7 +46,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           state: { type: 'string' },
           country: { type: 'string' },
           zipCode: { type: 'string' },
-          tenantId: { type: 'string', format: 'uuid' }
+          tenantId: { type: 'string', minLength: 25, maxLength: 25 }
         }
       },
       response: {
@@ -54,7 +54,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           description: 'Merchant created successfully',
           type: 'object',
           properties: {
-            id: { type: 'string', format: 'uuid' },
+            id: { type: 'string', minLength: 25, maxLength: 25 },
             name: { type: 'string' },
             subdomain: { type: 'string' },
             email: { type: 'string' }

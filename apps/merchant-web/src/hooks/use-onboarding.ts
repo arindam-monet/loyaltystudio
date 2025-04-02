@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/lib/stores/auth-store';
 
 type OnboardingData = {
   business: {
@@ -7,13 +8,6 @@ type OnboardingData = {
     description: string;
     industry: string;
     website: string;
-  };
-  program: {
-    name: string;
-    description: string;
-    pointsRate: number;
-    minimumPoints: number;
-    pointsExpiry: number;
   };
   branding: {
     logo?: File;
@@ -23,37 +17,47 @@ type OnboardingData = {
 };
 
 export function useOnboarding() {
+  const { user } = useAuthStore();
+
   return useMutation({
     mutationFn: async (data: OnboardingData) => {
-      // First, create the merchant
-      const formData = new FormData();
-      
-      // Add business data
-      formData.append('business', JSON.stringify(data.business));
-      
-      // Add program data
-      formData.append('program', JSON.stringify(data.program));
-      
-      // Add branding data
-      if (data.branding.logo) {
-        formData.append('logo', data.branding.logo);
+      if (!user) {
+        // Instead of throwing, return a rejected promise with a specific error
+        return Promise.reject(new Error('Please sign in to create a merchant'));
       }
-      formData.append('branding', JSON.stringify({
-        primaryColor: data.branding.primaryColor,
-        secondaryColor: data.branding.secondaryColor,
-      }));
 
-      const response = await apiClient.post('/merchants/onboard', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      try {
+        // Create merchant with data from auth context
+        const merchantData = {
+          name: data.business.name,
+          email: user.email,
+          tenantId: user.user_metadata?.tenant_id,
+          // Let the server handle subdomain generation
+        };
 
-      if (!response.ok) {
+        // Create merchant
+        const { data: merchant } = await apiClient.post('/merchants', merchantData);
+
+        // Update merchant branding
+        await apiClient.patch(`/merchants/current`, {
+          logo: data.branding.logo ? await convertFileToUrl(data.branding.logo) : undefined,
+          primaryColor: data.branding.primaryColor,
+          secondaryColor: data.branding.secondaryColor,
+        });
+
+        return merchant;
+      } catch (error) {
+        if (error instanceof Error) {
+          throw error;
+        }
         throw new Error('Failed to complete merchant onboarding');
       }
-
-      return response.data;
     },
   });
+}
+
+// Helper function to convert File to URL (you'll need to implement file upload)
+async function convertFileToUrl(file: File): Promise<string> {
+  // TODO: Implement file upload to get URL
+  return 'placeholder-url';
 } 

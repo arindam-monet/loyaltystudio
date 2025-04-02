@@ -50,6 +50,12 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        sidebar: {
+          DEFAULT: "hsl(var(--bg-sidebar))",
+          foreground: "hsl(var(--text-sidebar))",
+          hover: "hsl(var(--bg-sidebar-hover))",
+          text: "hsl(var(--text-sidebar))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

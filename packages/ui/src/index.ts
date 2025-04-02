@@ -24,4 +24,5 @@ export * from './components/icons';
 export * from './components/breadcrumb';
 export * from './components/separator';
 export * from './components/tabs';
+export * from './components/skeleton';
 export { PasswordInput } from './components/password-input';

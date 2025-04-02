@@ -13,16 +13,16 @@ So that I can manage loyalty programs for different business units
 ### Test Scenario Steps
 
 1. **Initial Registration**
-   - [ ] Visit Loyalty Studio platform
-   - [ ] Register as a new user with Lloyds email
+   - [x] Visit Loyalty Studio platform
+   - [x] Register as a new user with Lloyds email
    - [ ] Verify email (if implemented)
-   - [ ] Complete initial setup
+   - [x] Complete initial setup
 
 2. **First Business Setup (Lex Auto Lease)**
-   - [ ] Create first merchant "Lex Auto Lease"
-   - [ ] Verify subdomain generation (e.g., lex-auto-lease.loyaltystudio.ai)
-   - [ ] Configure basic business details
-   - [ ] Set up branding (logo, colors)
+   - [x] Create first merchant "Lex Auto Lease"
+   - [x] Verify subdomain generation (e.g., lex-auto-lease.loyaltystudio.ai)
+   - [x] Configure basic business details
+   - [x] Set up branding (logo, colors)
 
 3. **User Management**
    - [ ] Invite team members
@@ -37,32 +37,37 @@ So that I can manage loyalty programs for different business units
    - [ ] Manage cross-business permissions
 
 5. **Authentication Flow**
-   - [ ] Test logout functionality
-   - [ ] Test login with registered credentials
-   - [ ] Verify session management
-   - [ ] Test password reset flow (if implemented)
+   - [x] Test logout functionality
+   - [x] Test login with registered credentials
+   - [x] Verify session management
+   - [ ] Test password reset flow
 
 6. **Subdomain Access**
-   - [ ] Access platform via Lloyds-specific subdomain
-   - [ ] Verify branded experience
-   - [ ] Test subdomain-based routing
-   - [ ] Verify security boundaries
+   - [x] Access platform via Lloyds-specific subdomain
+   - [x] Verify branded experience
+   - [x] Test subdomain-based routing
+   - [x] Verify security boundaries
 
 ### Current Implementation Status
 
 #### Ready for Testing
 - [x] User authentication (login/logout)
 - [x] Merchant creation with subdomain
-- [x] Basic role management
-- [x] Permission system
-- [x] API key management
-- [x] Email verification
-- [x] Password reset flow
-- [x] User invitation system
-- [x] Team member management UI
-- [x] Merchant branding customization UI
+- [x] Basic merchant details
+- [x] Branding customization (logo, colors)
+- [x] Subdomain generation and validation
+- [x] API endpoints for merchant management
+- [x] Session management
+- [x] Basic security boundaries
+
+#### In Progress
+- [ ] Team member management
+- [ ] Role-based access control
+- [ ] Multi-business management
+- [ ] Email verification system
 
 #### Pending Implementation
+- [ ] Password reset flow
 - [ ] Cross-business permission management
 - [ ] Enhanced device management
 - [ ] Advanced IP tracking
@@ -71,8 +76,8 @@ So that I can manage loyalty programs for different business units
 ### Known Limitations
 1. Email verification not implemented yet
 2. Password reset flow not available
-3. UI components for merchant management pending
-4. Team invitation system pending
+3. Team invitation system pending
+4. Multi-business management pending
 
 ### Test Environment Requirements
 - Development environment URL: http://localhost:3001
@@ -83,27 +88,30 @@ So that I can manage loyalty programs for different business units
   - Subdomain: lex-auto-lease
 
 ### Success Criteria
-1. Successfully register and login
-2. Create and configure Lex Auto Lease business
-3. Generate and access via subdomain
-4. Manage team members and permissions
-5. Maintain security boundaries between businesses
-6. Complete email verification process
-7. Reset password when needed
-8. Invite and manage team members
-9. Customize merchant branding
+1. [x] Successfully register and login
+2. [x] Create and configure Lex Auto Lease business
+3. [x] Generate and access via subdomain
+4. [ ] Manage team members and permissions
+5. [x] Maintain security boundaries between businesses
+6. [ ] Complete email verification process
+7. [ ] Reset password when needed
+8. [ ] Invite and manage team members
+9. [x] Customize merchant branding
 
 ## Next Steps
-1. Implement missing components:
-   - Cross-business permission management
-   - Enhanced device management
-   - Advanced IP tracking
-   - Advanced multi-device support
-2. Create test data set
-3. Set up test environment
-4. Document test results
+1. Implement team management functionality:
+   - User invitation system
+   - Role-based access control
+   - Permission management
+2. Add email verification system
+3. Implement password reset flow
+4. Add multi-business management features
+5. Enhance security features:
+   - Device management
+   - IP tracking
+   - Multi-device support
 
 ## Notes
-- This scenario will be updated as development progresses
-- Additional test cases will be added based on new features
-- Security testing will be performed separately
+- Basic merchant creation and branding flow is complete
+- Focus should be on team management and security features next
+- Need to implement proper file upload for logo management

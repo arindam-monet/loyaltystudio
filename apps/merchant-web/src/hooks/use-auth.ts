@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth';
 import type { User } from '@/stores/auth';
+import { useRouter } from 'next/navigation';
 
 interface LoginCredentials {
   email: string;
@@ -118,12 +119,27 @@ export function useUser() {
 }
 
 export function useLogout() {
-  const { clearAuth } = useAuthStore();
+  const router = useRouter();
   
   return useMutation({
     mutationFn: async () => {
-      await apiClient.post('/auth/logout');
-      clearAuth();
-    }
+      try {
+        // Call the logout endpoint
+        await apiClient.post('/auth/logout');
+      } catch (error) {
+        console.error('Logout API call failed:', error);
+        // Continue with local logout even if API call fails
+      } finally {
+        // Clear the auth store
+        useAuthStore.getState().clearAuth();
+        
+        // Clear any cached data
+        await apiClient.clearCache();
+        
+        // Use Next.js router for navigation
+        router.push('/login');
+        router.refresh(); // Force a refresh of the current route
+      }
+    },
   });
 } 

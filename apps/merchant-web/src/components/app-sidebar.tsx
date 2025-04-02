@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   Search,
+  Loader2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,6 +35,7 @@ export function AppSidebar() {
       await logout.mutateAsync();
     } catch (error) {
       console.error('Logout failed:', error);
+      // You might want to show a toast notification here
     }
   };
 
@@ -130,9 +132,19 @@ export function AppSidebar() {
           variant="ghost" 
           className="w-full justify-start" 
           onClick={handleLogout}
+          disabled={logout.isPending}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
+          {logout.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Logging out...
+            </>
+          ) : (
+            <>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </>
+          )}
         </Button>
       </SidebarFooter>
     </Sidebar>

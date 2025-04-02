@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { apiClient } from '@/lib/api-client';
+import { AxiosError } from 'axios';
 
 export function useApiAuth() {
   const { token, setAuth, clearAuth } = useAuthStore();
@@ -9,6 +10,11 @@ export function useApiAuth() {
     // Set up axios interceptor to add auth header
     const interceptor = apiClient.interceptors.request.use(
       (config) => {
+        // Skip auth header for login and register endpoints
+        if (config.url?.includes('/auth/login') || config.url?.includes('/auth/register')) {
+          return config;
+        }
+
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -30,14 +36,22 @@ export function useApiAuth() {
 
     try {
       const response = await apiClient.get('/auth/verify-session');
+      if (!response.data || !response.data.user) {
+        console.error('Invalid response from verify-session:', response);
+        return false;
+      }
+      
       const { user } = response.data;
       
       // Update auth store with fresh user data
       setAuth(token, user);
       return true;
     } catch (error) {
-      // Clear auth state on verification failure
-      clearAuth();
+      console.error('Session verification failed:', error);
+      // Only clear auth state if we get a 401 or 403 error
+      if (error instanceof AxiosError && (error.response?.status === 401 || error.response?.status === 403)) {
+        clearAuth();
+      }
       return false;
     }
   };

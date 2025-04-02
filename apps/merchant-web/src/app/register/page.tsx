@@ -1,30 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth-store';
-import { useApiAuth } from '@/hooks/use-api-auth';
 import { apiClient } from '@/lib/api-client';
 import { Button, Input, Label, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@loyaltystudio/ui';
 import { PasswordInput } from '@loyaltystudio/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { AxiosError } from 'axios';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
-  const { verifySession } = useApiAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Check if user is already authenticated
-    verifySession().then(isAuthenticated => {
-      if (isAuthenticated) {
-        router.push('/dashboard');
-      }
-    });
-  }, [verifySession, router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,16 +28,36 @@ export default function RegisterPage() {
 
     try {
       const response = await apiClient.post('/auth/register', { email, password, name });
-      const { token, user } = response.data;
+      const { token, user, requiresVerification } = response.data;
 
-      // Set auth state
-      setAuth(token, user);
+      if (!user) {
+        throw new Error('Invalid response from registration endpoint');
+      }
 
-      // Redirect to dashboard
+      // Set auth state if we have a token
+      if (token) {
+        setAuth(token, user);
+      }
+
+      // Redirect to email verification if required
+      if (requiresVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
+      // Otherwise, redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
       console.error('Registration failed:', error);
-      setError(error instanceof Error ? error.message : 'Failed to register');
+      
+      // Handle API errors
+      if (error instanceof AxiosError) {
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Registration failed';
+        setError(errorMessage);
+      } else {
+        // Handle other errors
+        setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +67,7 @@ export default function RegisterPage() {
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Create Account</CardTitle>
+          <CardTitle>Create an Account</CardTitle>
           <CardDescription>
             Enter your details to create your account
           </CardDescription>
@@ -117,9 +127,10 @@ export default function RegisterPage() {
               )}
             </Button>
 
-            <div className="text-center">
-              <Link href="/login" className="text-sm text-primary hover:underline">
-                Already have an account? Log in
+            <div className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary hover:underline">
+                Log in
               </Link>
             </div>
           </form>
