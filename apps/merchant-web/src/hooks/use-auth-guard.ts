@@ -19,6 +19,7 @@ export function useAuthGuard({
   const { verifySession } = useApiAuth();
   const hasVerified = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
     const protectRoute = async () => {
@@ -28,10 +29,9 @@ export function useAuthGuard({
         return;
       }
 
-      // If not authenticated, redirect to login
+      // If not authenticated, prepare for redirect but don't do it immediately
       if (!isAuthenticated) {
-        const currentPath = window.location.pathname;
-        router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+        setShouldRedirect(true);
         setIsLoading(false);
         return;
       }
@@ -44,8 +44,8 @@ export function useAuthGuard({
           const isValid = await verifySession();
           if (!isValid) {
             hasVerified.current = false;
-            const currentPath = window.location.pathname;
-            router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+            setShouldRedirect(true);
+            setIsLoading(false);
             return;
           }
 
@@ -56,8 +56,9 @@ export function useAuthGuard({
         } catch (error) {
           console.error('Session verification failed:', error);
           hasVerified.current = false;
-          const currentPath = window.location.pathname;
-          router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+          setShouldRedirect(true);
+          setIsLoading(false);
+          return;
         }
       }
       
@@ -66,6 +67,14 @@ export function useAuthGuard({
 
     protectRoute();
   }, [isAuthenticated, router, redirectTo, requireEmailVerification, allowUnverifiedAccess, user, verifySession]);
+
+  // Handle redirect in a separate effect to prevent flashing
+  useEffect(() => {
+    if (shouldRedirect && !isLoading) {
+      const currentPath = window.location.pathname;
+      router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+    }
+  }, [shouldRedirect, isLoading, router, redirectTo]);
 
   return {
     isAuthenticated,

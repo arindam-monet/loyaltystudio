@@ -31,6 +31,7 @@ import {
   Globe,
   Briefcase,
 } from 'lucide-react';
+import { LoadingScreen } from '@/components/loading-screen';
 
 type ChecklistItem = {
   id: string;
@@ -69,18 +70,6 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { data: merchants, isLoading: isMerchantsLoading } = useMerchants();
-
-  // Show loading state while verifying authentication
-  if (isAuthLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   // If not authenticated, the useAuthGuard hook will handle the redirect
   if (!user) {

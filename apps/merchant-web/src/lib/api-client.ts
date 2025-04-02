@@ -17,20 +17,10 @@ interface AuthResponse {
     id: string;
     email: string;
     name: string;
-    tenantId: string;
     emailVerified: boolean;
     role: {
       id: string;
       name: string;
-      description: string;
-    };
-    user_metadata?: {
-      tenant_id: string;
-      email: string;
-      email_verified: boolean;
-      phone_verified: boolean;
-      role: string;
-      sub: string;
     };
   };
 }
@@ -61,9 +51,9 @@ apiClient.interceptors.request.use((config) => {
     return config;
   }
 
-  const authHeader = useAuthStore.getState().getAuthHeader();
-  if (authHeader) {
-    config.headers.Authorization = authHeader;
+  const token = useAuthStore.getState().token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -71,7 +61,7 @@ apiClient.interceptors.request.use((config) => {
 // Add response interceptor to handle auth errors
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Handle 401 errors
     if (error.response?.status === 401) {
       // Only clear auth and redirect if we're not already on the login page
@@ -79,15 +69,10 @@ apiClient.interceptors.response.use(
         // Clear auth state on unauthorized response
         useAuthStore.getState().clearAuth();
         // Clear any cached data
-        apiClient.clearCache();
-        // Redirect to login page using window.location
+        await apiClient.clearCache();
+        // Redirect to login page
         window.location.href = '/login';
       }
-    }
-
-    // Handle other errors
-    if (error.response?.data?.error) {
-      console.error('API Error:', error.response.data.error);
     }
 
     return Promise.reject(error);
@@ -98,18 +83,16 @@ apiClient.interceptors.response.use(
 apiClient.clearCache = async () => {
   // Clear any cached data in the API client
   apiClient.defaults.headers.common = {};
-  // Clear any cached data in the auth store
-  useAuthStore.getState().clearAuth();
 };
 
 export const authApi = {
-  register: async (data: { email: string; password: string; name: string }): Promise<AuthResponse> => {
+  register: async (data: RegisterRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/register', data);
     useAuthStore.getState().setAuth(response.data.token, response.data.user);
     return response.data;
   },
 
-  login: async (data: { email: string; password: string }): Promise<AuthResponse> => {
+  login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post<AuthResponse>('/auth/login', data);
       if (!response.data.token || !response.data.user) {
@@ -131,6 +114,28 @@ export const authApi = {
       // Continue with local logout even if API call fails
     } finally {
       await apiClient.clearCache();
+      useAuthStore.getState().clearAuth();
+    }
+  },
+
+  verifySession: async (): Promise<boolean> => {
+    try {
+      const response = await apiClient.get('/auth/verify-session');
+      if (!response.data || !response.data.user) {
+        return false;
+      }
+      
+      const { user } = response.data;
+      const token = useAuthStore.getState().token;
+      
+      if (token) {
+        useAuthStore.getState().setAuth(token, user);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Session verification failed:', error);
+      return false;
     }
   },
 }; 
