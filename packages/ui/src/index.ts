@@ -29,3 +29,4 @@ export * from './components/dropdown-menu';
 export * from './components/collapsible';
 export * from './components/badge';
 export { PasswordInput } from './components/password-input';
+export * from './components/area-chart';
