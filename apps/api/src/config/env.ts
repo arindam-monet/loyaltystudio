@@ -25,7 +25,13 @@ const envSchema = z.object({
   
   // Domain Configuration
   BASE_DOMAIN: z.string().default('loyaltystudio.local'),
-  ALLOWED_SUBDOMAINS: z.string().default('admin,merchant,api').transform(s => s.split(',')),
+  ALLOWED_SUBDOMAINS: z.string().optional().transform(s => {
+    console.log('Raw ALLOWED_SUBDOMAINS:', s);
+    if (!s) return ['admin', 'merchant', 'api'];
+    const result = s.split(',').map(s => s.trim());
+    console.log('Transformed ALLOWED_SUBDOMAINS:', result);
+    return result;
+  }),
   
   // DNS Provider Configuration
   DNS_PROVIDER: z.enum(['cloudflare', 'godaddy', 'namecheap']).default('cloudflare'),

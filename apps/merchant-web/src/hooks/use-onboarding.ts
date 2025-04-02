@@ -22,28 +22,45 @@ export function useOnboarding() {
   return useMutation({
     mutationFn: async (data: OnboardingData) => {
       if (!user) {
-        // Instead of throwing, return a rejected promise with a specific error
         return Promise.reject(new Error('Please sign in to create a merchant'));
+      }
+
+      if (!user.tenantId) {
+        return Promise.reject(new Error('No tenant ID found. Please contact support.'));
+      }
+
+      if (!user.email) {
+        return Promise.reject(new Error('No email found. Please contact support.'));
       }
 
       try {
         // Create merchant with data from auth context
         const merchantData = {
           name: data.business.name,
+          description: data.business.description,
+          industry: data.business.industry,
+          website: data.business.website,
           email: user.email,
-          tenantId: user.user_metadata?.tenant_id,
-          // Let the server handle subdomain generation
+          tenantId: user.tenantId,
+          branding: {
+            primaryColor: data.branding.primaryColor,
+            secondaryColor: data.branding.secondaryColor,
+          }
         };
 
         // Create merchant
         const { data: merchant } = await apiClient.post('/merchants', merchantData);
 
-        // Update merchant branding
-        await apiClient.patch(`/merchants/current`, {
-          logo: data.branding.logo ? await convertFileToUrl(data.branding.logo) : undefined,
-          primaryColor: data.branding.primaryColor,
-          secondaryColor: data.branding.secondaryColor,
-        });
+        // Update merchant branding if logo is provided
+        if (data.branding.logo) {
+          const logoUrl = await convertFileToUrl(data.branding.logo);
+          await apiClient.patch(`/merchants/${merchant.id}`, {
+            branding: {
+              ...merchantData.branding,
+              logo: logoUrl
+            }
+          });
+        }
 
         return merchant;
       } catch (error) {

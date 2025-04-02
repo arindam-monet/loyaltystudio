@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { apiClient } from '@/lib/api-client';
+import { Card, CardContent, CardHeader, CardTitle } from '@loyaltystudio/ui';
+import { Button } from '@loyaltystudio/ui';
+import { useToast } from '@loyaltystudio/ui';
+import { useMerchants } from '@/hooks/use-merchants';
+import { useRouter } from 'next/navigation';
+import { AxiosError } from 'axios';
 import {
   Users,
   Gift,
@@ -23,6 +25,7 @@ interface DashboardMetrics {
 
 export default function DashboardPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalMembers: 0,
     activeRewards: 0,
@@ -30,22 +33,24 @@ export default function DashboardPage() {
     monthlyPointsIssued: 0,
   });
 
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const response = await apiClient.get('/merchants/metrics');
-        setMetrics(response.data);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load dashboard metrics',
-          variant: 'destructive',
-        });
-      }
-    };
+  const { data: merchants, error, isLoading } = useMerchants();
 
-    fetchMetrics();
-  }, [toast]);
+  useEffect(() => {
+    if (error) {
+      const axiosError = error as AxiosError;
+      // Check if it's a 401 error
+      if (axiosError.response?.status === 401) {
+        router.push('/login');
+        return;
+      }
+      
+      toast({
+        title: 'Error',
+        description: 'Failed to load dashboard metrics',
+        variant: 'destructive',
+      });
+    }
+  }, [error, router, toast]);
 
   const quickActions = [
     {
@@ -67,6 +72,18 @@ export default function DashboardPage() {
       href: './share',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+        {/* Add loading skeletons here if needed */}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -57,7 +57,7 @@ export function isReservedSubdomain(subdomain: string): boolean {
     'status',
     'test',
     'demo',
-    ...env.ALLOWED_SUBDOMAINS.split(','),
+    ...env.ALLOWED_SUBDOMAINS,
   ];
   return reservedSubdomains.includes(subdomain.toLowerCase());
 }
