@@ -14,13 +14,6 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -37,18 +30,24 @@ interface MerchantSwitcherProps extends PopoverTriggerProps {
     id: string;
     name: string;
     logo?: string;
+    isDefault?: boolean;
   }[];
   className?: string;
 }
 
 export default function MerchantSwitcher({ 
   className,
-  merchants = [],
+  merchants = [
+    { id: '1', name: 'Acme Inc', isDefault: true },
+    { id: '2', name: 'Acme Corp.' },
+    { id: '3', name: 'Evil Corp.' },
+  ],
 }: MerchantSwitcherProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [showNewMerchantDialog, setShowNewMerchantDialog] = React.useState(false);
-  const [selectedMerchant, setSelectedMerchant] = React.useState(merchants[0]);
+  const [selectedMerchant, setSelectedMerchant] = React.useState(
+    merchants.find((m) => m.isDefault) || merchants[0]
+  );
 
   const handleMerchantSelect = (merchant: typeof merchants[0]) => {
     setSelectedMerchant(merchant);
@@ -56,108 +55,85 @@ export default function MerchantSwitcher({
   };
 
   const handleCreateMerchant = () => {
-    setShowNewMerchantDialog(false);
     router.push('/onboarding');
+    setOpen(false);
   };
 
   return (
-    <Dialog open={showNewMerchantDialog} onOpenChange={setShowNewMerchantDialog}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            aria-label="Select a merchant"
-            className={cn('w-[200px] justify-between', className)}
-          >
-            {selectedMerchant ? (
-              <>
-                <Avatar className="mr-2 h-5 w-5">
-                  <AvatarImage
-                    src={selectedMerchant.logo}
-                    alt={selectedMerchant.name}
-                  />
-                  <AvatarFallback>
-                    {selectedMerchant.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                {selectedMerchant.name}
-              </>
-            ) : (
-              'Select merchant...'
-            )}
-            <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0">
-          <Command>
-            <CommandList>
-              <CommandInput placeholder="Search merchant..." />
-              <CommandEmpty>No merchant found.</CommandEmpty>
-              {merchants.length > 0 ? (
-                <CommandGroup heading="Merchants">
-                  {merchants.map((merchant) => (
-                    <CommandItem
-                      key={merchant.id}
-                      onSelect={() => handleMerchantSelect(merchant)}
-                      className="text-sm"
-                    >
-                      <Avatar className="mr-2 h-5 w-5">
-                        <AvatarImage
-                          src={merchant.logo}
-                          alt={merchant.name}
-                        />
-                        <AvatarFallback>
-                          {merchant.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {merchant.name}
-                      <CheckIcon
-                        className={cn(
-                          'ml-auto h-4 w-4',
-                          selectedMerchant?.id === merchant.id
-                            ? 'opacity-100'
-                            : 'opacity-0'
-                        )}
-                      />
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : null}
-            </CommandList>
-            <CommandSeparator />
-            <CommandList>
-              <CommandGroup>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Select a merchant"
+          className={cn('w-full justify-between px-2', className)}
+        >
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarImage
+                src={selectedMerchant.logo}
+                alt={selectedMerchant.name}
+              />
+              <AvatarFallback>
+                {selectedMerchant.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col items-start text-sm">
+              <span className="font-medium">{selectedMerchant.name}</span>
+              {selectedMerchant.isDefault && (
+                <span className="text-xs text-muted-foreground">Enterprise</span>
+              )}
+            </div>
+          </div>
+          <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0">
+        <Command>
+          <CommandList>
+            <CommandInput placeholder="Search team..." />
+            <CommandEmpty>No team found.</CommandEmpty>
+            <CommandGroup>
+              {merchants.map((merchant) => (
                 <CommandItem
-                  onSelect={() => setShowNewMerchantDialog(true)}
+                  key={merchant.id}
+                  onSelect={() => handleMerchantSelect(merchant)}
+                  className="text-sm"
                 >
-                  <PlusCircledIcon className="mr-2 h-5 w-5" />
-                  Create New Merchant
+                  <Avatar className="mr-2 h-5 w-5">
+                    <AvatarImage
+                      src={merchant.logo}
+                      alt={merchant.name}
+                    />
+                    <AvatarFallback>
+                      {merchant.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {merchant.name}
+                  <CheckIcon
+                    className={cn(
+                      'ml-auto h-4 w-4',
+                      selectedMerchant?.id === merchant.id
+                        ? 'opacity-100'
+                        : 'opacity-0'
+                    )}
+                  />
                 </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create merchant</DialogTitle>
-          <DialogDescription>
-            Add a new merchant to start managing their loyalty program.
-          </DialogDescription>
-        </DialogHeader>
-        <div>
-          <Button onClick={handleCreateMerchant}>
-            Continue
-          </Button>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowNewMerchantDialog(false)}>
-            Cancel
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                onSelect={handleCreateMerchant}
+              >
+                <PlusCircledIcon className="mr-2 h-5 w-5" />
+                Add team
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 } 

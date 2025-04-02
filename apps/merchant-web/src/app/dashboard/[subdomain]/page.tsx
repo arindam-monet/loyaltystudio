@@ -14,6 +14,8 @@ import {
   TrendingUp,
   Plus,
   Share2,
+  Building2,
+  Settings,
 } from 'lucide-react';
 
 interface DashboardMetrics {
@@ -52,24 +54,42 @@ export default function DashboardPage() {
     }
   }, [error, router, toast]);
 
+  // Quick actions based on implemented features
   const quickActions = [
     {
-      title: 'Add Team Member',
-      description: 'Invite a new team member to your business',
-      icon: Plus,
-      href: './team/invite',
+      title: 'Business Settings',
+      description: 'Configure your business details and branding',
+      icon: Building2,
+      href: './settings',
+      status: 'implemented',
+    },
+    {
+      title: 'Program Settings',
+      description: 'Customize your loyalty program settings',
+      icon: Settings,
+      href: './program/settings',
+      status: 'implemented',
     },
     {
       title: 'Create Reward',
       description: 'Set up a new reward for your loyalty program',
       icon: Gift,
       href: './rewards/new',
+      status: 'implemented',
+    },
+    {
+      title: 'Add Team Member',
+      description: 'Invite a new team member to your business',
+      icon: Plus,
+      href: './team/invite',
+      status: 'coming-soon',
     },
     {
       title: 'Share Program',
       description: 'Get sharing links for your loyalty program',
       icon: Share2,
       href: './share',
+      status: 'coming-soon',
     },
   ];
 
@@ -161,13 +181,23 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => window.location.href = action.href}
-                >
-                  Get Started
-                </Button>
+                {action.status === 'coming-soon' ? (
+                  <Button
+                    variant="outline"
+                    className="w-full opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    Coming Soon
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => window.location.href = action.href}
+                  >
+                    Get Started
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
