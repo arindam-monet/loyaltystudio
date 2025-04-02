@@ -26,4 +26,5 @@ export * from './components/separator';
 export * from './components/tabs';
 export * from './components/skeleton';
 export * from './components/dropdown-menu';
+export * from './components/collapsible';
 export { PasswordInput } from './components/password-input';

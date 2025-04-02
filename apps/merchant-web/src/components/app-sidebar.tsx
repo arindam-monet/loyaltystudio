@@ -12,6 +12,16 @@ import {
   FileText,
   BookOpen,
   MoreHorizontal,
+  CreditCard,
+  Users2,
+  BarChart3,
+  Wallet,
+  Receipt,
+  Bell,
+  Mail,
+  HelpCircle,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -23,12 +33,17 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
 } from '@loyaltystudio/ui';
 import MerchantSwitcher from './merchant-switcher';
 import { UserInfo } from './user-info';
+import { useState } from 'react';
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <Sidebar className="border-r bg-sidebar">
@@ -46,54 +61,66 @@ export function AppSidebar() {
           <SidebarSeparator />
           <div className="px-2 py-2">
             <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Platform
+              Main
             </h2>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/playground'}
-                  tooltip="Playground"
+                  isActive={pathname === '/dashboard'}
+                  tooltip="Dashboard"
                 >
-                  <Link href="/playground">
+                  <Link href="/dashboard">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Playground
+                    Dashboard
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/models'}
-                  tooltip="Models"
+                  isActive={pathname === '/customers'}
+                  tooltip="Customers"
                 >
-                  <Link href="/models">
-                    <Building2 className="mr-2 h-4 w-4" />
-                    Models
+                  <Link href="/customers">
+                    <Users className="mr-2 h-4 w-4" />
+                    Customers
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/documentation'}
-                  tooltip="Documentation"
+                  isActive={pathname === '/rewards'}
+                  tooltip="Rewards"
                 >
-                  <Link href="/documentation">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Documentation
+                  <Link href="/rewards">
+                    <Gift className="mr-2 h-4 w-4" />
+                    Rewards
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/settings'}
-                  tooltip="Settings"
+                  isActive={pathname === '/analytics'}
+                  tooltip="Analytics"
                 >
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                  <Link href="/analytics">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Analytics
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild
+                  isActive={pathname === '/transactions'}
+                  tooltip="Transactions"
+                >
+                  <Link href="/transactions">
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Transactions
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -102,54 +129,146 @@ export function AppSidebar() {
           <SidebarSeparator />
           <div className="px-2 py-2">
             <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Projects
+              Management
             </h2>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/design-engineering'}
-                  tooltip="Design Engineering"
+                  isActive={pathname === '/campaigns'}
+                  tooltip="Campaigns"
                 >
-                  <Link href="/design-engineering">
+                  <Link href="/campaigns">
+                    <Bell className="mr-2 h-4 w-4" />
+                    Campaigns
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild
+                  isActive={pathname === '/notifications'}
+                  tooltip="Notifications"
+                >
+                  <Link href="/notifications">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Notifications
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild
+                  isActive={pathname === '/integrations'}
+                  tooltip="Integrations"
+                >
+                  <Link href="/integrations">
                     <Building2 className="mr-2 h-4 w-4" />
-                    Design Engineering
+                    Integrations
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </div>
+          <SidebarSeparator />
+          <div className="px-2 py-2">
+            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+              Settings
+            </h2>
+            <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton 
+                  className="w-full justify-between"
+                  isActive={pathname.startsWith('/settings')}
+                >
+                  <div className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </div>
+                  {isSettingsOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-1">
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={pathname === '/settings/general'}
+                      tooltip="General Settings"
+                    >
+                      <Link href="/settings/general">
+                        General
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={pathname === '/settings/team'}
+                      tooltip="Team Settings"
+                    >
+                      <Link href="/settings/team">
+                        Team
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={pathname === '/settings/billing'}
+                      tooltip="Billing Settings"
+                    >
+                      <Link href="/settings/billing">
+                        Billing
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={pathname === '/settings/limits'}
+                      tooltip="Usage Limits"
+                    >
+                      <Link href="/settings/limits">
+                        Limits
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          <SidebarSeparator />
+          <div className="px-2 py-2">
+            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+              Support
+            </h2>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild
+                  isActive={pathname === '/help'}
+                  tooltip="Help Center"
+                >
+                  <Link href="/help">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Help Center
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild
-                  isActive={pathname === '/sales-marketing'}
-                  tooltip="Sales & Marketing"
+                  isActive={pathname === '/api-docs'}
+                  tooltip="API Documentation"
                 >
-                  <Link href="/sales-marketing">
-                    <Users className="mr-2 h-4 w-4" />
-                    Sales & Marketing
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/travel'}
-                  tooltip="Travel"
-                >
-                  <Link href="/travel">
-                    <Gift className="mr-2 h-4 w-4" />
-                    Travel
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/more'}
-                  tooltip="More"
-                >
-                  <Link href="/more">
-                    <MoreHorizontal className="mr-2 h-4 w-4" />
-                    More
+                  <Link href="/api-docs">
+                    <FileText className="mr-2 h-4 w-4" />
+                    API Docs
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
