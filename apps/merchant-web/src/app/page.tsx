@@ -146,7 +146,7 @@ export default function HomePage() {
               <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">50M+</div>
               <div className="text-sm font-medium text-muted-foreground">API Requests/Day</div>
             </div>
-            <div className="text-center">
+      <div className="text-center">
               <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">800M+</div>
               <div className="text-sm font-medium text-muted-foreground">Loyalty Events/Year</div>
             </div>
@@ -375,7 +375,7 @@ export default function HomePage() {
           <div className="mt-16 pt-8 border-t text-center">
             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} LoyaltyStudio. All rights reserved.</p>
           </div>
-        </div>
+      </div>
       </footer>
     </div>
   );

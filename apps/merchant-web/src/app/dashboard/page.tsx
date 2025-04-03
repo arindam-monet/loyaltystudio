@@ -42,7 +42,6 @@ import {
 } from 'lucide-react';
 import { LoadingScreen } from '@/components/loading-screen';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
-import { LoyaltyProgramDialog } from '@/components/loyalty-program-dialog';
 import { useState, useEffect } from 'react';
 
 type ChecklistItem = {
@@ -77,7 +76,7 @@ const CHECKLIST_CONFIG = [
     icon: <Gift className="w-4 h-4" />,
     action: {
       label: 'Create Program',
-      href: '/programs/new',
+      href: '/loyalty-programs',
     },
     required: true,
   },
@@ -247,7 +246,15 @@ export default function DashboardPage() {
                             <ChevronRight className="w-4 h-4 ml-1" />
                           </Button>
                         ) : item.id === 'program' ? (
-                          <LoyaltyProgramDialog onSuccess={handleLoyaltyProgramSuccess} />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            onClick={() => router.push('/loyalty-programs')}
+                          >
+                            {item.action.label}
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
                         ) : (
                           <Button
                             variant="ghost"
@@ -393,7 +400,15 @@ export default function DashboardPage() {
                               <ChevronRight className="w-4 h-4 ml-1" />
                             </Button>
                           ) : item.id === 'program' ? (
-                            <LoyaltyProgramDialog onSuccess={handleLoyaltyProgramSuccess} />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7"
+                              onClick={() => router.push('/loyalty-programs')}
+                            >
+                              {item.action.label}
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
                           ) : (
                             <Button
                               variant="ghost"
