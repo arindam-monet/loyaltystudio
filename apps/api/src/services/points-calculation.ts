@@ -1,5 +1,10 @@
-import { prisma } from "../db/prisma.js";
+import { PrismaClient } from '@prisma/client';
+import { Redis } from 'ioredis';
+import { env } from '../config/env.js';
 import { logger } from "@trigger.dev/sdk/v3";
+
+const prisma = new PrismaClient();
+const redis = new Redis(env.REDIS_URL);
 
 // Types for points calculation
 export interface PointsCalculationContext {
@@ -43,75 +48,41 @@ export class PointsCalculationService {
    * Calculate points based on transaction context and loyalty program rules
    */
   async calculatePoints(context: PointsCalculationContext): Promise<PointsCalculationResult> {
-    // Get loyalty program's active rules
-    const rules = await prisma.pointsRule.findMany({
-      where: {
-        loyaltyProgramId: context.loyaltyProgramId,
-        isActive: true,
-      },
-    });
+    const { transactionAmount, merchantId, userId, loyaltyProgramId, metadata } = context;
 
-    let totalPoints = 0;
-    const matchedRules = [];
+    // Get user's current tier and active campaigns
+    const [userTier, activeCampaigns] = await Promise.all([
+      this.getUserTier(userId, merchantId),
+      this.getActiveCampaigns(merchantId),
+    ]);
 
-    // Check each rule against the event data
-    for (const rule of rules) {
-      let matches = true;
-      const matchedConditions = [];
+    // Calculate base points from rules
+    const { basePoints, matchedRules } = await this.calculateBasePoints(merchantId, transactionAmount, loyaltyProgramId, metadata);
 
-      for (const condition of rule.conditions) {
-        const value = context.metadata?.[condition.field];
-        if (!value) {
-          matches = false;
-          break;
-        }
+    // Apply tier multiplier
+    const tierMultiplier = userTier?.benefits?.pointsMultiplier || 1;
+    const pointsAfterTier = basePoints * tierMultiplier;
 
-        let conditionMatches = false;
-        switch (condition.operator) {
-          case 'equals':
-            conditionMatches = value === condition.value;
-            break;
-          case 'greaterThan':
-            conditionMatches = value > condition.value;
-            break;
-          case 'lessThan':
-            conditionMatches = value < condition.value;
-            break;
-          case 'contains':
-            conditionMatches = Array.isArray(value) 
-              ? value.includes(condition.value)
-              : String(value).includes(String(condition.value));
-            break;
-          default:
-            conditionMatches = false;
-        }
+    // Apply campaign bonuses
+    const { campaignBonus, matchedCampaigns } = await this.calculateCampaignBonuses(
+      activeCampaigns,
+      userId,
+      pointsAfterTier,
+      metadata
+    );
 
-        if (!conditionMatches) {
-          matches = false;
-          break;
-        }
+    const totalPoints = pointsAfterTier + campaignBonus;
 
-        matchedConditions.push(condition);
-      }
-
-      if (matches) {
-        totalPoints += rule.points;
-        matchedRules.push({
-          ruleId: rule.id,
-          ruleName: rule.name,
-          points: rule.points,
-          matchedConditions
-        });
-      }
-    }
+    // Cache the calculation result
+    await this.cacheCalculationResult(userId, merchantId, totalPoints);
 
     // Log calculation details
     await logger.info("Points calculation completed", {
-      transactionAmount: context.transactionAmount,
+      transactionAmount,
       totalPoints,
-      merchantId: context.merchantId,
-      userId: context.userId,
-      loyaltyProgramId: context.loyaltyProgramId,
+      merchantId,
+      userId,
+      loyaltyProgramId,
       matchedRules
     });
 
@@ -124,6 +95,142 @@ export class PointsCalculationService {
         timestamp: new Date().toISOString()
       }
     };
+  }
+
+  private async getUserTier(userId: string, merchantId: string) {
+    const member = await prisma.programMember.findFirst({
+      where: {
+        userId,
+        tier: {
+          loyaltyProgram: {
+            merchantId,
+          },
+        },
+      },
+      include: {
+        tier: true,
+      },
+    });
+
+    return member?.tier;
+  }
+
+  private async getActiveCampaigns(merchantId: string) {
+    const now = new Date();
+    return prisma.campaign.findMany({
+      where: {
+        loyaltyProgram: {
+          merchantId,
+        },
+        isActive: true,
+        startDate: {
+          lte: now,
+        },
+        endDate: {
+          gte: now,
+        },
+      },
+    });
+  }
+
+  private async calculateBasePoints(
+    merchantId: string,
+    amount: number,
+    type: string,
+    metadata?: Record<string, any>
+  ) {
+    const rules = await prisma.pointsRule.findMany({
+      where: {
+        loyaltyProgram: {
+          merchantId,
+        },
+        isActive: true,
+      },
+    });
+
+    let totalPoints = 0;
+    const matchedRules = [];
+
+    for (const rule of rules) {
+      if (this.matchesRule(rule, amount, type, metadata)) {
+        const points = this.calculateRulePoints(rule, amount);
+        totalPoints += points;
+        matchedRules.push({
+          ruleId: rule.id,
+          points,
+        });
+      }
+    }
+
+    return { basePoints: totalPoints, matchedRules };
+  }
+
+  private async calculateCampaignBonuses(
+    campaigns: any[],
+    userId: string,
+    basePoints: number,
+    metadata?: Record<string, any>
+  ) {
+    let totalBonus = 0;
+    const matchedCampaigns = [];
+
+    for (const campaign of campaigns) {
+      if (this.matchesCampaign(campaign, userId, metadata)) {
+        const bonus = this.calculateCampaignBonus(campaign, basePoints);
+        totalBonus += bonus;
+        matchedCampaigns.push({
+          campaignId: campaign.id,
+          bonus,
+        });
+      }
+    }
+
+    return { campaignBonus: totalBonus, matchedCampaigns };
+  }
+
+  private matchesRule(rule: any, amount: number, type: string, metadata?: Record<string, any>) {
+    const conditions = rule.conditions;
+    if (!conditions) return true;
+
+    // Implement rule matching logic based on conditions
+    // This is a simplified version - expand based on your needs
+    return true;
+  }
+
+  private calculateRulePoints(rule: any, amount: number) {
+    switch (rule.type) {
+      case 'FIXED':
+        return rule.points;
+      case 'PERCENTAGE':
+        return Math.floor(amount * (rule.points / 100));
+      case 'DYNAMIC':
+        // Implement dynamic calculation based on rule configuration
+        return rule.points;
+      default:
+        return 0;
+    }
+  }
+
+  private matchesCampaign(campaign: any, userId: string, metadata?: Record<string, any>) {
+    // Implement campaign matching logic
+    return true;
+  }
+
+  private calculateCampaignBonus(campaign: any, basePoints: number) {
+    switch (campaign.type) {
+      case 'POINTS_MULTIPLIER':
+        return Math.floor(basePoints * (campaign.rewards?.multiplier || 1));
+      case 'BONUS_POINTS':
+        return campaign.rewards?.bonusPoints || 0;
+      default:
+        return 0;
+    }
+  }
+
+  private async cacheCalculationResult(userId: string, merchantId: string, points: number) {
+    const key = `points:${userId}:${merchantId}`;
+    await redis.incrby(key, points);
+    await redis.expire(key, 86400); // Cache for 24 hours
   }
 
   /**

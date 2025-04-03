@@ -1,8 +1,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { TierEvaluationService } from '../services/tier-evaluation.js';
 
 const prisma = new PrismaClient();
+const tierService = new TierEvaluationService();
 
 const tierSchema = z.object({
   name: z.string().min(3).max(100),
@@ -89,6 +91,17 @@ export async function programTierRoutes(fastify: FastifyInstance) {
         }
       });
 
+      // Evaluate all members for potential tier changes
+      const members = await prisma.programMember.findMany({
+        where: {
+          loyaltyProgramId: data.loyaltyProgramId,
+        },
+      });
+
+      for (const member of members) {
+        await tierService.updateMemberTier(member.userId, data.loyaltyProgramId);
+      }
+
       return reply.code(201).send(tier);
     } catch (error) {
       console.error('Failed to create program tier:', error);
@@ -133,6 +146,17 @@ export async function programTierRoutes(fastify: FastifyInstance) {
         }
       });
 
+      // Evaluate all members for potential tier changes
+      const members = await prisma.programMember.findMany({
+        where: {
+          loyaltyProgramId: tier.loyaltyProgramId,
+        },
+      });
+
+      for (const member of members) {
+        await tierService.updateMemberTier(member.userId, tier.loyaltyProgramId);
+      }
+
       return reply.send(tier);
     } catch (error) {
       console.error('Failed to update program tier:', error);
@@ -159,6 +183,41 @@ export async function programTierRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
 
     try {
+      const tier = await prisma.programTier.findUnique({
+        where: { id },
+        include: {
+          members: true,
+        },
+      });
+
+      if (!tier) {
+        return reply.code(404).send({
+          error: 'Tier not found',
+        });
+      }
+
+      // Move members to the next lower tier or remove tier assignment
+      for (const member of tier.members) {
+        const tiers = await prisma.programTier.findMany({
+          where: {
+            loyaltyProgramId: tier.loyaltyProgramId,
+            pointsThreshold: {
+              lt: tier.pointsThreshold,
+            },
+          },
+          orderBy: {
+            pointsThreshold: 'desc',
+          },
+        });
+
+        const newTierId = tiers[0]?.id || null;
+
+        await prisma.programMember.update({
+          where: { id: member.id },
+          data: { tierId: newTierId },
+        });
+      }
+
       await prisma.programTier.delete({
         where: { id },
       });
@@ -172,46 +231,41 @@ export async function programTierRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Get tier members
-  fastify.get('/program-tiers/:id/members', {
+  // Get tier progress for a member
+  fastify.get('/program-tiers/:id/progress/:userId', {
     schema: {
       tags: ['program-tiers'],
-      description: 'Get all members of a program tier',
+      description: 'Get tier progress for a member',
       params: {
         type: 'object',
-        required: ['id'],
+        required: ['id', 'userId'],
         properties: {
-          id: { type: 'string' }
+          id: { type: 'string' },
+          userId: { type: 'string' }
         }
       }
     }
   }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id, userId } = request.params as { id: string; userId: string };
 
     try {
-      const members = await prisma.programMember.findMany({
-        where: {
-          tierId: id,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          }
-        },
-        orderBy: {
-          joinedAt: 'desc',
-        },
+      const tier = await prisma.programTier.findUnique({
+        where: { id },
       });
 
-      return reply.send(members);
+      if (!tier) {
+        return reply.code(404).send({
+          error: 'Tier not found',
+        });
+      }
+
+      const progress = await tierService.getTierProgress(userId, tier.loyaltyProgramId);
+
+      return reply.send(progress);
     } catch (error) {
-      console.error('Failed to fetch tier members:', error);
+      console.error('Failed to fetch tier progress:', error);
       return reply.code(500).send({
-        error: 'Failed to fetch tier members',
+        error: 'Failed to fetch tier progress',
       });
     }
   });

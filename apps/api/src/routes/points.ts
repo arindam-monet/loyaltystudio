@@ -1,8 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { PointsCalculationService } from '../services/points-calculation.js';
 
 const prisma = new PrismaClient();
+const pointsService = new PointsCalculationService();
 
 const pointsTransactionSchema = z.object({
   amount: z.number(),
@@ -44,6 +46,8 @@ export async function pointsRoutes(fastify: FastifyInstance) {
             balance: { type: 'number' },
             lifetimePoints: { type: 'number' },
             redeemedPoints: { type: 'number' },
+            nextTierPoints: { type: 'number' },
+            tierProgress: { type: 'number' },
           },
         },
       },
@@ -51,10 +55,12 @@ export async function pointsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const { userId } = request.params as { userId: string };
+        const merchantId = request.user.merchantId;
 
         const balance = await prisma.pointsTransaction.aggregate({
           where: {
             userId,
+            merchantId,
           },
           _sum: {
             amount: true,
@@ -64,6 +70,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         const lifetimePoints = await prisma.pointsTransaction.aggregate({
           where: {
             userId,
+            merchantId,
             type: 'EARN',
           },
           _sum: {
@@ -74,6 +81,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         const redeemedPoints = await prisma.pointsTransaction.aggregate({
           where: {
             userId,
+            merchantId,
             type: 'REDEEM',
           },
           _sum: {
@@ -81,10 +89,45 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Get tier progress
+        const member = await prisma.programMember.findFirst({
+          where: {
+            userId,
+            loyaltyProgram: {
+              merchantId,
+            },
+          },
+          include: {
+            tier: true,
+          },
+        });
+
+        let nextTierPoints = 0;
+        let tierProgress = 0;
+
+        if (member) {
+          const tiers = await prisma.programTier.findMany({
+            where: {
+              loyaltyProgramId: member.loyaltyProgramId,
+            },
+            orderBy: {
+              pointsThreshold: 'asc',
+            },
+          });
+
+          const currentTierIndex = tiers.findIndex(t => t.id === member.tierId);
+          if (currentTierIndex < tiers.length - 1) {
+            nextTierPoints = tiers[currentTierIndex + 1].pointsThreshold - member.points;
+            tierProgress = (member.points / tiers[currentTierIndex + 1].pointsThreshold) * 100;
+          }
+        }
+
         return {
           balance: balance._sum.amount || 0,
           lifetimePoints: lifetimePoints._sum.amount || 0,
           redeemedPoints: Math.abs(redeemedPoints._sum.amount || 0),
+          nextTierPoints,
+          tierProgress,
         };
       } catch (error) {
         request.log.error(error);
@@ -126,12 +169,16 @@ export async function pointsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = pointsTransactionSchema.parse(request.body);
-        const userId = request.user.id; // From auth middleware
+        const userId = request.user.id;
+        const merchantId = request.user.merchantId;
 
         // For REDEEM transactions, check if user has enough points
         if (data.type === 'REDEEM') {
           const balance = await prisma.pointsTransaction.aggregate({
-            where: { userId },
+            where: { 
+              userId,
+              merchantId,
+            },
             _sum: { amount: true },
           });
 
@@ -140,10 +187,25 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Calculate points if it's an EARN transaction
+        let finalAmount = data.amount;
+        if (data.type === 'EARN') {
+          const calculation = await pointsService.calculatePoints({
+            userId,
+            merchantId,
+            amount: data.amount,
+            type: data.type,
+            metadata: data.metadata,
+          });
+          finalAmount = calculation.totalPoints;
+        }
+
         const transaction = await prisma.pointsTransaction.create({
           data: {
             ...data,
+            amount: finalAmount,
             userId,
+            merchantId,
           },
         });
 
@@ -173,6 +235,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         properties: {
           limit: { type: 'number', default: 10 },
           offset: { type: 'number', default: 0 },
+          type: { type: 'string', enum: ['EARN', 'REDEEM', 'ADJUST'] },
         },
       },
       response: {
@@ -195,10 +258,21 @@ export async function pointsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const { userId } = request.params as { userId: string };
-        const { limit, offset } = request.query as { limit: number; offset: number };
+        const { limit, offset, type } = request.query as { 
+          limit: number; 
+          offset: number;
+          type?: string;
+        };
+        const merchantId = request.user.merchantId;
+
+        const where: any = { 
+          userId,
+          merchantId,
+        };
+        if (type) where.type = type;
 
         const transactions = await prisma.pointsTransaction.findMany({
-          where: { userId },
+          where,
           orderBy: { createdAt: 'desc' },
           take: limit,
           skip: offset,
