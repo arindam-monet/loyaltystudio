@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@loyaltystudio/ui';
-import { Loader2 } from 'lucide-react';
 import { Button } from '@loyaltystudio/ui';
 import { ArrowRight, BarChart3, Gift, Globe, Lock, Shield, Users, ChevronRight, Star, Award, Zap } from 'lucide-react';
 import Image from 'next/image';

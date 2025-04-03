@@ -54,6 +54,8 @@ model Merchant {
   state           String?
   country         String?
   zipCode         String?
+  currency        String         @default("USD")  // Default to USD
+  timezone        String         @default("UTC")  // Default to UTC
   tenantId        String
   tenant          Tenant        @relation(fields: [tenantId], references: [id])
   loyaltyPrograms LoyaltyProgram[]

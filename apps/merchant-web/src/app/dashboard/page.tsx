@@ -19,9 +19,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
   Separator,
-  Skeleton,
-  AreaChart,
-  Badge,
+  Alert,
+  AlertDescription,
+  AlertTitle,
 } from '@loyaltystudio/ui';
 import {
   Building2,
@@ -37,10 +37,11 @@ import {
   CreditCard,
   ChevronRight,
   AlertCircle,
+  Rocket,
 } from 'lucide-react';
 import { LoadingScreen } from '@/components/loading-screen';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type ChecklistItem = {
   id: string;
@@ -54,35 +55,32 @@ type ChecklistItem = {
   };
 };
 
-const checklistItems: ChecklistItem[] = [
+const CHECKLIST_CONFIG = [
+  {
+    id: 'merchant',
+    title: 'Create Merchant',
+    description: 'Set up your merchant profile with business details and branding',
+    icon: <Building2 className="w-4 h-4" />,
+    action: {
+      label: 'Add Merchant',
+      href: '#',
+    },
+  },
   {
     id: 'program',
     title: 'Create Loyalty Program',
-    description: 'Set up your first loyalty program',
+    description: 'Set up your first loyalty program with points, rewards, and rules',
     icon: <Gift className="w-4 h-4" />,
-    completed: false,
     action: {
       label: 'Create Program',
       href: '/programs/new',
     },
   },
   {
-    id: 'branding',
-    title: 'Customize Branding',
-    description: 'Add your logo and brand colors',
-    icon: <Settings className="w-4 h-4" />,
-    completed: false,
-    action: {
-      label: 'Customize',
-      href: '/settings/branding',
-    },
-  },
-  {
     id: 'team',
     title: 'Invite Team Members',
-    description: 'Add your team to collaborate',
+    description: 'Add your team members and assign roles',
     icon: <Users className="w-4 h-4" />,
-    completed: false,
     action: {
       label: 'Invite',
       href: '/settings/team',
@@ -91,12 +89,21 @@ const checklistItems: ChecklistItem[] = [
   {
     id: 'integration',
     title: 'Set Up Integration',
-    description: 'Connect your e-commerce platform',
+    description: 'Connect your business system via API or available integrations',
     icon: <Globe className="w-4 h-4" />,
-    completed: false,
     action: {
       label: 'Connect',
       href: '/settings/integrations',
+    },
+  },
+  {
+    id: 'test',
+    title: 'Test Your Program',
+    description: 'Verify your setup with test transactions and rewards',
+    icon: <Rocket className="w-4 h-4" />,
+    action: {
+      label: 'Test Now',
+      href: '/settings/test',
     },
   },
 ];
@@ -119,6 +126,49 @@ export default function DashboardPage() {
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { data: merchants, isLoading: isMerchantsLoading, refetch } = useMerchants();
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+
+  useEffect(() => {
+    // In a real application, this would be an API call to get the checklist status
+    const fetchChecklistStatus = async () => {
+      try {
+        // This is a placeholder for the actual API call
+        // const response = await fetch('/api/checklist-status');
+        // const status = await response.json();
+        
+        // For now, we'll simulate the API response
+        const status = {
+          merchant: merchants && merchants.length > 0,
+          program: false,
+          branding: false,
+          team: false,
+          integration: false,
+          test: false,
+        };
+
+        // Update checklist items with their completion status
+        const updatedItems = CHECKLIST_CONFIG.map(item => ({
+          ...item,
+          completed: Boolean(status[item.id as keyof typeof status]),
+        }));
+
+        setChecklistItems(updatedItems);
+      } catch (error) {
+        console.error('Failed to fetch checklist status:', error);
+        // Fallback to basic status if API fails
+        setChecklistItems(CHECKLIST_CONFIG.map(item => ({
+          ...item,
+          completed: item.id === 'merchant' ? Boolean(merchants && merchants.length > 0) : false,
+        })));
+      }
+    };
+
+    fetchChecklistStatus();
+  }, [merchants]);
+
+  const completedItems = checklistItems.filter(item => item.completed).length;
+  const totalItems = checklistItems.length;
+  const isNewUser = completedItems === 0;
 
   // If not authenticated, the useAuthGuard hook will handle the redirect
   if (!user) {
@@ -133,164 +183,184 @@ export default function DashboardPage() {
     refetch();
   };
 
-  const renderMetrics = () => {
+  const renderEmptyState = () => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Revenue
-            </CardTitle>
-            <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$1,250.00</div>
-            <div className="flex items-center mt-1">
-              <Badge variant="secondary" className="text-xs">+12.5%</Badge>
-              <span className="text-xs text-muted-foreground ml-2">vs last month</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-8">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Welcome to your dashboard!</AlertTitle>
+          <AlertDescription>
+            Complete the recommended checklist to set up your loyalty program and start seeing data.
+          </AlertDescription>
+        </Alert>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              New Customers
-            </CardTitle>
-            <Users className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <div className="flex items-center mt-1">
-              <Badge variant="destructive" className="text-xs">-20%</Badge>
-              <span className="text-xs text-muted-foreground ml-2">vs last month</span>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Getting Started Checklist</CardTitle>
+              <div className="text-sm text-muted-foreground">
+                {completedItems}/{totalItems} completed
+              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Accounts
-            </CardTitle>
-            <CreditCard className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">45,678</div>
-            <div className="flex items-center mt-1">
-              <Badge variant="secondary" className="text-xs">+12.5%</Badge>
-              <span className="text-xs text-muted-foreground ml-2">vs last month</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Growth Rate
-            </CardTitle>
-            <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4.5%</div>
-            <div className="flex items-center mt-1">
-              <Badge variant="secondary" className="text-xs">+4.5%</Badge>
-              <span className="text-xs text-muted-foreground ml-2">vs last month</span>
-            </div>
+          <CardContent className="space-y-6">
+            {checklistItems.map((item) => (
+              <div key={item.id} className="flex items-start gap-4">
+                <div className={`p-2 rounded-full ${item.completed ? 'bg-green-100' : 'bg-primary/10'}`}>
+                  {item.completed ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">{item.title}</h3>
+                    {item.action && !item.completed && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => item.id === 'merchant' ? handleCreateMerchant() : router.push(item.action!.href)}
+                      >
+                        {item.action.label}
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
     );
   };
 
-  const renderVisitorChart = () => {
+  const renderDashboard = () => {
     return (
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Total Visitors</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AreaChart
-            data={visitorData}
-            areaKeys={['visitors', 'customers']}
-            xAxisKey="date"
-            height={300}
-          />
-        </CardContent>
-      </Card>
-    );
-  };
+      <div className="grid gap-4">
+        {/* Show a reminder if some checklist items are pending */}
+        {completedItems < totalItems && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Setup in progress</AlertTitle>
+            <AlertDescription>
+              Complete the remaining {totalItems - completedItems} setup tasks to fully configure your loyalty program.
+            </AlertDescription>
+          </Alert>
+        )}
 
-  const renderChecklist = () => {
-    return (
-      <Card className='h-full'>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Setup Checklist</CardTitle>
-            <Badge variant="secondary" className="text-xs">2/4 completed</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {checklistItems.map((item) => (
-            <div key={item.id} className="flex items-start gap-4">
-              <div className={`p-2 rounded-full ${item.completed ? 'bg-green-100' : 'bg-primary/10'}`}>
-                {item.completed ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                ) : (
-                  <Circle className="w-4 h-4 text-primary" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">{item.title}</h3>
-                  {item.action && !item.completed && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7"
-                      onClick={() => router.push(item.action!.href)}
-                    >
-                      {item.action.label}
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  )}
+        {/* Metrics will only show up once integration is complete */}
+        {checklistItems.find(item => item.id === 'integration')?.completed && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Revenue
+                </CardTitle>
+                <TrendingUp className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">$0.00</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Start tracking revenue with completed transactions
                 </div>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    );
-  };
+              </CardContent>
+            </Card>
 
-  const renderLoyaltyPrograms = () => {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Loyalty Programs</CardTitle>
-            <Button size="sm" onClick={() => router.push('/programs/new')}>
-              Create Program
-            </Button>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Active Members
+                </CardTitle>
+                <Users className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Members will appear as they join your program
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Points Issued
+                </CardTitle>
+                <Gift className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Points will accumulate as members earn them
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Rewards Claimed
+                </CardTitle>
+                <Gift className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Track as members redeem their points
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="bg-primary/10 p-4 rounded-full mb-4">
-              <Gift className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No Programs Yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Create your first loyalty program to start rewarding your customers and drive repeat business.
-            </p>
-            <Button onClick={() => router.push('/programs/new')}>
-              Create Your First Program
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        )}
+
+        {/* Always show the checklist until everything is complete */}
+        {completedItems < totalItems && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Setup Progress</CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  {completedItems}/{totalItems} completed
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {checklistItems.map((item) => (
+                <div key={item.id} className="flex items-start gap-4">
+                  <div className={`p-2 rounded-full ${item.completed ? 'bg-green-100' : 'bg-primary/10'}`}>
+                    {item.completed ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">{item.title}</h3>
+                      {item.action && !item.completed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => item.id === 'merchant' ? handleCreateMerchant() : router.push(item.action!.href)}
+                        >
+                          {item.action.label}
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   };
 
@@ -316,25 +386,17 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-4 p-4">
               <div className="mb-8">
                 <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
-                <p className="text-muted-foreground">Here's what's happening with your business</p>
+                <p className="text-muted-foreground">
+                  {isNewUser 
+                    ? "Let's get started with setting up your loyalty program"
+                    : completedItems < totalItems 
+                      ? "Continue setting up your loyalty program"
+                      : "Here's how your loyalty program is performing"
+                  }
+                </p>
               </div>
 
-              {renderMetrics()}
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                {/* Chart takes full width */}
-                <div className="lg:col-span-2">
-                  {renderVisitorChart()}
-                </div>
-                
-                {/* Checklist and Programs side by side */}
-                <div className="h-full">
-                  {renderChecklist()}
-                </div>
-                <div className="h-full">
-                  {renderLoyaltyPrograms()}
-                </div>
-              </div>
+              {isNewUser ? renderEmptyState() : renderDashboard()}
             </div>
           </main>
         </div>

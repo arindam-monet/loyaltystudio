@@ -32,6 +32,8 @@ const merchantSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   zipCode: z.string().optional(),
+  currency: z.string().default("USD"),
+  timezone: z.string().default("UTC"),
   tenantId: z.string().cuid(),
 });
 
@@ -39,6 +41,8 @@ const brandingSchema = z.object({
   logo: z.string().url().optional(),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  currency: z.string().regex(/^[A-Z]{3}$/).optional(),
+  timezone: z.string().optional(),
 });
 
 export async function merchantRoutes(fastify: FastifyInstance) {
@@ -121,6 +125,8 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           state: { type: 'string' },
           country: { type: 'string' },
           zipCode: { type: 'string' },
+          currency: { type: 'string', default: "USD" },
+          timezone: { type: 'string', default: "UTC" },
           tenantId: { type: 'string', minLength: 25, maxLength: 25 }
         }
       },
@@ -202,18 +208,20 @@ export async function merchantRoutes(fastify: FastifyInstance) {
   fastify.patch('/merchants/current', {
     schema: {
       tags: ['merchants'],
-      description: 'Update merchant branding',
+      description: 'Update merchant branding and settings',
       body: {
         type: 'object',
         properties: {
           logo: { type: 'string', format: 'uri' },
           primaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
-          secondaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' }
+          secondaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+          currency: { type: 'string', pattern: '^[A-Z]{3}$' },
+          timezone: { type: 'string' }
         }
       },
       response: {
         200: {
-          description: 'Merchant branding updated successfully',
+          description: 'Merchant settings updated successfully',
           type: 'object',
           properties: {
             id: { type: 'string', format: 'uuid' },
@@ -224,7 +232,9 @@ export async function merchantRoutes(fastify: FastifyInstance) {
                 primaryColor: { type: 'string' },
                 secondaryColor: { type: 'string' }
               }
-            }
+            },
+            currency: { type: 'string' },
+            timezone: { type: 'string' }
           }
         }
       }
@@ -245,14 +255,16 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           where: { id: merchantId },
           data: {
             branding: data,
+            currency: data.currency,
+            timezone: data.timezone,
           },
         });
 
         return reply.send(merchant);
       } catch (error) {
-        console.error('Failed to update merchant branding:', error);
+        console.error('Failed to update merchant settings:', error);
         return reply.code(500).send({
-          error: 'Failed to update merchant branding.',
+          error: 'Failed to update merchant settings.',
         });
       }
     }

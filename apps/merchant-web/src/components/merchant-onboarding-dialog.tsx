@@ -12,6 +12,8 @@ type OnboardingData = {
     description: string;
     industry: string;
     website: string;
+    currency: string;
+    timezone: string;
   };
   branding: {
     logo?: File;
@@ -26,6 +28,8 @@ const INITIAL_DATA: OnboardingData = {
     description: '',
     industry: '',
     website: '',
+    currency: 'USD',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   },
   branding: {
     primaryColor: '#4F46E5',
@@ -128,6 +132,49 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                 onChange={(e) => updateFields({ business: { ...data.business, website: e.target.value } })}
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency *</Label>
+                <select
+                  id="currency"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  value={data.business.currency}
+                  onChange={(e) => updateFields({ business: { ...data.business, currency: e.target.value } })}
+                  required
+                >
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                  <option value="JPY">JPY - Japanese Yen</option>
+                  <option value="AUD">AUD - Australian Dollar</option>
+                  <option value="CAD">CAD - Canadian Dollar</option>
+                  <option value="CHF">CHF - Swiss Franc</option>
+                  <option value="CNY">CNY - Chinese Yuan</option>
+                  <option value="INR">INR - Indian Rupee</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone *</Label>
+                <select
+                  id="timezone"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  value={data.business.timezone}
+                  onChange={(e) => updateFields({ business: { ...data.business, timezone: e.target.value } })}
+                  required
+                >
+                  <option value="UTC">UTC</option>
+                  <option value="America/New_York">Eastern Time (ET)</option>
+                  <option value="America/Chicago">Central Time (CT)</option>
+                  <option value="America/Denver">Mountain Time (MT)</option>
+                  <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                  <option value="Europe/London">London (GMT)</option>
+                  <option value="Europe/Paris">Central European Time (CET)</option>
+                  <option value="Asia/Tokyo">Japan Time (JST)</option>
+                  <option value="Asia/Shanghai">China Time (CST)</option>
+                  <option value="Australia/Sydney">Australian Eastern Time (AET)</option>
+                </select>
+              </div>
+            </div>
           </div>
         );
 
@@ -185,6 +232,8 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                 {data.business.website && (
                   <p><span className="font-medium">Website:</span> {data.business.website}</p>
                 )}
+                <p><span className="font-medium">Currency:</span> {data.business.currency}</p>
+                <p><span className="font-medium">Timezone:</span> {data.business.timezone}</p>
               </div>
             </div>
 
