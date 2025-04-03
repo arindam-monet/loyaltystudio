@@ -1,118 +1,224 @@
-import { schemaTask, logger } from "@trigger.dev/sdk/v3";
-import { z } from "zod";
-import { prisma } from "../db/prisma.js";
-import { PointsCalculationService } from "../services/points-calculation.js";
+import { PrismaClient, PointsTransaction, PointsRule } from '@prisma/client';
+import { z } from 'zod';
+import { evaluateSegmentsAfterTransaction } from './segment-evaluation.js';
+
+const prismaClient = new PrismaClient();
 
 const schema = z.object({
   transactionId: z.string(),
   merchantId: z.string(),
   userId: z.string(),
-  metadata: z.record(z.any()).optional(),
 });
 
 type PointsCalculationPayload = z.infer<typeof schema>;
 
-// Points calculation job
-export const pointsCalculationJob: ReturnType<typeof schemaTask> = schemaTask({
-  id: "points-calculation",
-  schema,
-  retry: {
-    maxAttempts: 3,
-    factor: 1.8,
-    minTimeoutInMs: 1000,
-    maxTimeoutInMs: 30000,
-    randomize: true,
-  },
-  run: async (payload: PointsCalculationPayload) => {
-    // Log job start
-    await logger.info("Starting points calculation job", { payload });
+interface TransactionMetadata {
+  merchantId: string;
+  amount?: number;
+  category?: string;
+}
 
-    let loyaltyProgram;
-    try {
-      // Get transaction and related data
-      const transaction = await prisma.pointsTransaction.findUnique({
-        where: { id: payload.transactionId }
-      });
+interface RuleMetadata {
+  type: 'FIXED' | 'PERCENTAGE' | 'DYNAMIC';
+  maxPoints?: number;
+  minAmount?: number;
+  categoryRules?: Record<string, { points: number }>;
+  timeRules?: Array<{
+    daysOfWeek?: number[];
+    startHour?: number;
+    endHour?: number;
+    points: number;
+  }>;
+}
 
-      if (!transaction) {
-        throw new Error(`Transaction ${payload.transactionId} not found`);
+export async function calculatePoints(transactionId: string) {
+  let transaction: (PointsTransaction & { user: any }) | null = null;
+  try {
+    transaction = await prismaClient.pointsTransaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    const metadata = transaction.metadata as unknown as TransactionMetadata;
+    if (!metadata?.merchantId) {
+      throw new Error('Transaction metadata missing merchantId');
+    }
+
+    // Get active points rules for the merchant
+    const rules = await prismaClient.pointsRule.findMany({
+      where: {
+        loyaltyProgram: {
+          merchantId: metadata.merchantId,
+        },
+        isActive: true,
+      },
+    });
+
+    let totalPoints = 0;
+    const matchedRules = [];
+
+    // Calculate points based on rules
+    for (const rule of rules) {
+      const points = await evaluateRule(transaction, rule);
+      if (points > 0) {
+        totalPoints += points;
+        matchedRules.push({
+          ruleId: rule.id,
+          points,
+        });
       }
+    }
 
-      // Get merchant's active loyalty program
-      loyaltyProgram = await prisma.loyaltyProgram.findFirst({
-        where: {
-          merchantId: payload.merchantId,
-          isActive: true
-        }
-      });
-
-      if (!loyaltyProgram) {
-        throw new Error(`No active loyalty program found for merchant ${payload.merchantId}`);
-      }
-
-      const pointsService = new PointsCalculationService();
-
-      // Calculate points using the service
-      const result = await pointsService.calculatePoints({
-        transactionAmount: transaction.amount,
-        merchantId: payload.merchantId,
-        userId: payload.userId,
-        loyaltyProgramId: loyaltyProgram.id,
+    // Create points calculation record
+    const calculation = await prismaClient.pointsCalculation.create({
+      data: {
+        transactionId,
+        merchantId: metadata.merchantId,
+        userId: transaction.userId,
+        points: totalPoints,
+        status: 'COMPLETED',
         metadata: {
-          transactionId: payload.transactionId,
-          ...payload.metadata,
+          matchedRules,
+        },
+        completedAt: new Date(),
+      },
+    });
+
+    // Update points balance
+    await prismaClient.pointsBalance.upsert({
+      where: {
+        userId_merchantId: {
+          userId: transaction.userId,
+          merchantId: metadata.merchantId,
+        },
+      },
+      create: {
+        userId: transaction.userId,
+        merchantId: metadata.merchantId,
+        balance: totalPoints,
+      },
+      update: {
+        balance: {
+          increment: totalPoints,
+        },
+      },
+    });
+
+    // Evaluate segments after points calculation
+    await evaluateSegmentsAfterTransaction(transaction.userId, metadata.merchantId);
+
+    return calculation;
+  } catch (error) {
+    console.error('Failed to calculate points:', error);
+
+    // Create failed calculation record
+    if (transaction) {
+      const metadata = transaction.metadata as unknown as TransactionMetadata;
+      await prismaClient.pointsCalculation.create({
+        data: {
+          transactionId,
+          merchantId: metadata?.merchantId || '',
+          userId: transaction.userId,
+          status: 'FAILED',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          completedAt: new Date(),
         },
       });
+    }
 
-      // Update points balance
-      await pointsService.updatePointsBalance(
-        payload.userId,
-        payload.merchantId,
-        loyaltyProgram.id,
-        result.totalPoints
-      );
+    throw error;
+  }
+}
 
-      // Create calculation record
-      await pointsService.createCalculationRecord(
-        payload.transactionId,
-        payload.merchantId,
-        payload.userId,
-        loyaltyProgram.id,
-        result.totalPoints,
-        "COMPLETED",
-        undefined
-      );
+async function evaluateRule(transaction: PointsTransaction, rule: PointsRule): Promise<number> {
+  // Basic rule evaluation
+  let points = 0;
+  const ruleMetadata = rule.metadata as unknown as RuleMetadata;
 
-      // Log success
-      await logger.info("Completed points calculation", {
-        transactionId: payload.transactionId,
-        points: result.totalPoints,
-        userId: payload.userId,
-        merchantId: payload.merchantId,
-        matchedRules: result.matchedRules,
-      });
+  switch (ruleMetadata.type) {
+    case 'FIXED':
+      points = rule.points;
+      break;
+    case 'PERCENTAGE':
+      // Assuming transaction amount is stored in metadata
+      const amount = (transaction.metadata as unknown as TransactionMetadata)?.amount || 0;
+      points = Math.floor(amount * (rule.points / 100));
+      break;
+    case 'DYNAMIC':
+      // Evaluate dynamic rule conditions
+      points = await evaluateDynamicRule(transaction, rule);
+      break;
+  }
 
-    } catch (error) {
-      // Log error and create failed calculation record
-      await logger.error("Points calculation failed", { 
-        error,
-        transactionId: payload.transactionId,
-        merchantId: payload.merchantId,
-        userId: payload.userId,
-      });
+  // Apply max points limit if set
+  if (ruleMetadata.maxPoints && points > ruleMetadata.maxPoints) {
+    points = ruleMetadata.maxPoints;
+  }
 
-      const pointsService = new PointsCalculationService();
-      await pointsService.createCalculationRecord(
-        payload.transactionId,
-        payload.merchantId,
-        payload.userId,
-        loyaltyProgram?.id || "",
-        0,
-        "FAILED",
-        error instanceof Error ? error.message : "Unknown error"
-      );
-
-      throw error;
+  // Check minimum amount requirement if set
+  if (ruleMetadata.minAmount) {
+    const amount = (transaction.metadata as unknown as TransactionMetadata)?.amount || 0;
+    if (amount < ruleMetadata.minAmount) {
+      return 0;
     }
   }
-});
+
+  return points;
+}
+
+async function evaluateDynamicRule(transaction: PointsTransaction, rule: PointsRule): Promise<number> {
+  const ruleMetadata = rule.metadata as unknown as RuleMetadata;
+
+  // Evaluate category rules if present
+  if (ruleMetadata.categoryRules) {
+    const category = (transaction.metadata as unknown as TransactionMetadata)?.category;
+    if (category) {
+      const categoryRule = ruleMetadata.categoryRules[category];
+      if (categoryRule) {
+        return categoryRule.points;
+      }
+    }
+  }
+
+  // Evaluate time-based rules if present
+  if (ruleMetadata.timeRules) {
+    const transactionTime = new Date(transaction.createdAt);
+    const timeRules = ruleMetadata.timeRules;
+
+    for (const timeRule of timeRules) {
+      if (isTimeInRange(transactionTime, timeRule)) {
+        return timeRule.points;
+      }
+    }
+  }
+
+  return 0;
+}
+
+function isTimeInRange(time: Date, rule: {
+  daysOfWeek?: number[];
+  startHour?: number;
+  endHour?: number;
+  points: number;
+}): boolean {
+  const hour = time.getHours();
+  const day = time.getDay();
+
+  // Check day of week if specified
+  if (rule.daysOfWeek && !rule.daysOfWeek.includes(day)) {
+    return false;
+  }
+
+  // Check time range
+  if (rule.startHour !== undefined && rule.endHour !== undefined) {
+    return hour >= rule.startHour && hour < rule.endHour;
+  }
+
+  return false;
+}
