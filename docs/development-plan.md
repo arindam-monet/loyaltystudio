@@ -48,20 +48,55 @@
       - [ ] Device-specific session controls
 ✅ Core Loyalty Program Features
   - ✅ Points/Rewards calculation engine
-  - [ ] Rule builder interface
-    - [ ] Basic rule builder using React Flow
-    - [ ] Rule validation
-    - [ ] Rule nodes
-    - [ ] Basic conditions
-    - [ ] Rule visualization
-    - [ ] Rule testing
-    - [ ] Rule templates
-  - ✅ Reward redemption system
-  - ✅ Points balance management
-  - ✅ Points transaction history
-  - ✅ Points rules management
-  - ✅ Rewards catalog management
-  - ✅ Reward redemption workflow
+  - [ ] Rule Builder Interface
+    - [ ] Base Loyalty Program Rules
+      - [ ] Setup React Flow Infrastructure
+        - [ ] Install and configure React Flow
+        - [ ] Set up base canvas component
+        - [ ] Create node type registration system
+      - [ ] Basic Rule Nodes
+        - [ ] Base Points Node (points per spend)
+        - [ ] Category Multiplier Node
+        - [ ] Minimum Purchase Node
+        - [ ] Maximum Points Cap Node
+      - [ ] Core Components
+        - [ ] Node Selector Sidebar
+        - [ ] Properties Panel
+        - [ ] Rule Validation Display
+        - [ ] Rule Testing Panel
+      - [ ] Rule Management
+        - [ ] Rule Serialization
+        - [ ] Rule Storage in Database
+        - [ ] Rule Loading and Editing
+        - [ ] Rule Templates
+    - [ ] Campaign Rules Extension
+      - [ ] Advanced Rule Nodes
+        - [ ] Time Period Node (happy hours, seasonal)
+        - [ ] Customer Segment Node
+        - [ ] Bonus Points Node
+        - [ ] Special Rewards Node
+        - [ ] Purchase Pattern Node
+      - [ ] Campaign-specific Features
+        - [ ] Time Constraint Controls
+        - [ ] Segment Selection
+        - [ ] Bonus Structure Configuration
+        - [ ] Multi-condition Rule Builder
+      - [ ] Campaign Rule Management
+        - [ ] Campaign Rule Templates
+        - [ ] Rule Duplication
+        - [ ] Rule Analytics
+    - [ ] Shared Infrastructure
+      - [ ] Rule Validation Engine
+      - [ ] Visual Rule Flow Designer
+      - [ ] Rule Testing Framework
+      - [ ] Rule Version Control
+      - [ ] Rule Performance Analytics
+  - [ ] Reward redemption system
+  - [ ] Points balance management
+  - [ ] Points transaction history
+  - [ ] Points rules management
+  - [ ] Rewards catalog management
+  - [ ] Reward redemption workflow
   - ✅ Loyalty program management
     - ✅ Program creation with default rules
     - ✅ Program-specific points calculation
