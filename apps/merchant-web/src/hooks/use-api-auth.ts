@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { apiClient } from '@/lib/api-client';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosInstance } from 'axios';
 
 export function useApiAuth() {
   const { token, setAuth, clearAuth } = useAuthStore();
@@ -58,6 +58,7 @@ export function useApiAuth() {
 
   return {
     verifySession,
-    isAuthenticated: !!token
+    isAuthenticated: !!token,
+    apiClient, // Expose the apiClient instance
   };
 } 

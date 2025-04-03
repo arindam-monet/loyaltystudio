@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useMerchants } from '@/hooks/use-merchants';
+import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -41,6 +42,7 @@ import {
 } from 'lucide-react';
 import { LoadingScreen } from '@/components/loading-screen';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
+import { LoyaltyProgramDialog } from '@/components/loyalty-program-dialog';
 import { useState, useEffect } from 'react';
 
 type ChecklistItem = {
@@ -131,45 +133,45 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { data: merchants, isLoading: isMerchantsLoading, refetch } = useMerchants();
+  const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
 
+  const fetchChecklistStatus = async () => {
+    try {
+      // This is a placeholder for the actual API call
+      // const response = await fetch('/api/checklist-status');
+      // const status = await response.json();
+      
+      // For now, we'll simulate the API response
+      const status = {
+        merchant: merchants && merchants.length > 0,
+        program: loyaltyPrograms && loyaltyPrograms.length > 0,
+        test: false,
+        integration: false,
+        team: false,
+      };
+
+      // Update checklist items with their completion status
+      const updatedItems = CHECKLIST_CONFIG.map(item => ({
+        ...item,
+        completed: Boolean(status[item.id as keyof typeof status]),
+      }));
+
+      setChecklistItems(updatedItems);
+    } catch (error) {
+      console.error('Failed to fetch checklist status:', error);
+      // Fallback to basic status if API fails
+      setChecklistItems(CHECKLIST_CONFIG.map(item => ({
+        ...item,
+        completed: item.id === 'merchant' ? Boolean(merchants && merchants.length > 0) : false,
+      })));
+    }
+  };
+
   useEffect(() => {
-    // In a real application, this would be an API call to get the checklist status
-    const fetchChecklistStatus = async () => {
-      try {
-        // This is a placeholder for the actual API call
-        // const response = await fetch('/api/checklist-status');
-        // const status = await response.json();
-        
-        // For now, we'll simulate the API response
-        const status = {
-          merchant: merchants && merchants.length > 0,
-          program: false,
-          test: false,
-          integration: false,
-          team: false,
-        };
-
-        // Update checklist items with their completion status
-        const updatedItems = CHECKLIST_CONFIG.map(item => ({
-          ...item,
-          completed: Boolean(status[item.id as keyof typeof status]),
-        }));
-
-        setChecklistItems(updatedItems);
-      } catch (error) {
-        console.error('Failed to fetch checklist status:', error);
-        // Fallback to basic status if API fails
-        setChecklistItems(CHECKLIST_CONFIG.map(item => ({
-          ...item,
-          completed: item.id === 'merchant' ? Boolean(merchants && merchants.length > 0) : false,
-        })));
-      }
-    };
-
     fetchChecklistStatus();
-  }, [merchants]);
+  }, [merchants, loyaltyPrograms]);
 
   // Calculate completed required items
   const completedRequiredItems = checklistItems.filter(item => item.required && item.completed).length;
@@ -187,6 +189,11 @@ export default function DashboardPage() {
 
   const handleOnboardingSuccess = () => {
     refetch();
+  };
+
+  const handleLoyaltyProgramSuccess = () => {
+    // Refetch checklist status after creating a loyalty program
+    fetchChecklistStatus();
   };
 
   const renderEmptyState = () => {
@@ -228,15 +235,31 @@ export default function DashboardPage() {
                       )}
                     </h3>
                     {item.action && !item.completed && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => item.id === 'merchant' ? handleCreateMerchant() : router.push(item.action!.href)}
-                      >
-                        {item.action.label}
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      <>
+                        {item.id === 'merchant' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            onClick={handleCreateMerchant}
+                          >
+                            {item.action.label}
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
+                        ) : item.id === 'program' ? (
+                          <LoyaltyProgramDialog onSuccess={handleLoyaltyProgramSuccess} />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7"
+                            onClick={() => router.push(item.action!.href)}
+                          >
+                            {item.action.label}
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">{item.description}</p>
@@ -358,15 +381,31 @@ export default function DashboardPage() {
                         )}
                       </h3>
                       {item.action && !item.completed && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => item.id === 'merchant' ? handleCreateMerchant() : router.push(item.action!.href)}
-                        >
-                          {item.action.label}
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
+                        <>
+                          {item.id === 'merchant' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7"
+                              onClick={handleCreateMerchant}
+                            >
+                              {item.action.label}
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          ) : item.id === 'program' ? (
+                            <LoyaltyProgramDialog onSuccess={handleLoyaltyProgramSuccess} />
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7"
+                              onClick={() => router.push(item.action!.href)}
+                            >
+                              {item.action.label}
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">{item.description}</p>
