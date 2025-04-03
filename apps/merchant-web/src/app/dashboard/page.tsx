@@ -53,6 +53,7 @@ type ChecklistItem = {
     label: string;
     href: string;
   };
+  required: boolean;
 };
 
 const CHECKLIST_CONFIG = [
@@ -65,6 +66,7 @@ const CHECKLIST_CONFIG = [
       label: 'Add Merchant',
       href: '#',
     },
+    required: true,
   },
   {
     id: 'program',
@@ -75,26 +77,7 @@ const CHECKLIST_CONFIG = [
       label: 'Create Program',
       href: '/programs/new',
     },
-  },
-  {
-    id: 'team',
-    title: 'Invite Team Members',
-    description: 'Add your team members and assign roles',
-    icon: <Users className="w-4 h-4" />,
-    action: {
-      label: 'Invite',
-      href: '/settings/team',
-    },
-  },
-  {
-    id: 'integration',
-    title: 'Set Up Integration',
-    description: 'Connect your business system via API or available integrations',
-    icon: <Globe className="w-4 h-4" />,
-    action: {
-      label: 'Connect',
-      href: '/settings/integrations',
-    },
+    required: true,
   },
   {
     id: 'test',
@@ -105,6 +88,29 @@ const CHECKLIST_CONFIG = [
       label: 'Test Now',
       href: '/settings/test',
     },
+    required: true,
+  },
+  {
+    id: 'integration',
+    title: 'Set Up Integration',
+    description: 'Connect your business system via API or available integrations',
+    icon: <Globe className="w-4 h-4" />,
+    action: {
+      label: 'Connect',
+      href: '/settings/integrations',
+    },
+    required: true,
+  },
+  {
+    id: 'team',
+    title: 'Invite Team Members',
+    description: 'Add your team members and assign roles (optional)',
+    icon: <Users className="w-4 h-4" />,
+    action: {
+      label: 'Invite',
+      href: '/settings/team',
+    },
+    required: false,
   },
 ];
 
@@ -140,10 +146,9 @@ export default function DashboardPage() {
         const status = {
           merchant: merchants && merchants.length > 0,
           program: false,
-          branding: false,
-          team: false,
-          integration: false,
           test: false,
+          integration: false,
+          team: false,
         };
 
         // Update checklist items with their completion status
@@ -166,9 +171,10 @@ export default function DashboardPage() {
     fetchChecklistStatus();
   }, [merchants]);
 
-  const completedItems = checklistItems.filter(item => item.completed).length;
-  const totalItems = checklistItems.length;
-  const isNewUser = completedItems === 0;
+  // Calculate completed required items
+  const completedRequiredItems = checklistItems.filter(item => item.required && item.completed).length;
+  const totalRequiredItems = checklistItems.filter(item => item.required).length;
+  const isNewUser = completedRequiredItems === 0;
 
   // If not authenticated, the useAuthGuard hook will handle the redirect
   if (!user) {
@@ -190,7 +196,7 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Welcome to your dashboard!</AlertTitle>
           <AlertDescription>
-            Complete the recommended checklist to set up your loyalty program and start seeing data.
+            Complete the required steps to set up your loyalty program and start seeing data.
           </AlertDescription>
         </Alert>
 
@@ -199,7 +205,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Getting Started Checklist</CardTitle>
               <div className="text-sm text-muted-foreground">
-                {completedItems}/{totalItems} completed
+                {completedRequiredItems}/{totalRequiredItems} required steps completed
               </div>
             </div>
           </CardHeader>
@@ -215,7 +221,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium">{item.title}</h3>
+                    <h3 className="font-medium">
+                      {item.title}
+                      {!item.required && (
+                        <span className="ml-2 text-xs text-muted-foreground">(Optional)</span>
+                      )}
+                    </h3>
                     {item.action && !item.completed && (
                       <Button
                         variant="ghost"
@@ -242,12 +253,12 @@ export default function DashboardPage() {
     return (
       <div className="grid gap-4">
         {/* Show a reminder if some checklist items are pending */}
-        {completedItems < totalItems && (
+        {completedRequiredItems < totalRequiredItems && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Setup in progress</AlertTitle>
             <AlertDescription>
-              Complete the remaining {totalItems - completedItems} setup tasks to fully configure your loyalty program.
+              Complete the remaining {totalRequiredItems - completedRequiredItems} setup tasks to fully configure your loyalty program.
             </AlertDescription>
           </Alert>
         )}
@@ -318,13 +329,13 @@ export default function DashboardPage() {
         )}
 
         {/* Always show the checklist until everything is complete */}
-        {completedItems < totalItems && (
+        {completedRequiredItems < totalRequiredItems && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Setup Progress</CardTitle>
                 <div className="text-sm text-muted-foreground">
-                  {completedItems}/{totalItems} completed
+                  {completedRequiredItems}/{totalRequiredItems} required steps completed
                 </div>
               </div>
             </CardHeader>
@@ -340,7 +351,12 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{item.title}</h3>
+                      <h3 className="font-medium">
+                        {item.title}
+                        {!item.required && (
+                          <span className="ml-2 text-xs text-muted-foreground">(Optional)</span>
+                        )}
+                      </h3>
                       {item.action && !item.completed && (
                         <Button
                           variant="ghost"
@@ -389,7 +405,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground">
                   {isNewUser 
                     ? "Let's get started with setting up your loyalty program"
-                    : completedItems < totalItems 
+                    : completedRequiredItems < totalRequiredItems 
                       ? "Continue setting up your loyalty program"
                       : "Here's how your loyalty program is performing"
                   }
