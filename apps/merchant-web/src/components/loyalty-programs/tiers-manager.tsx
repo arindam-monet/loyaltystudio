@@ -26,12 +26,13 @@ import {
   AlertDescription,
   Separator,
 } from '@loyaltystudio/ui';
-import { useForm } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTiers } from '@/hooks/use-tiers';
 import { Tier } from '@/lib/stores/tier-store';
 
+// Match the schema exactly with the API types
 const tierSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().min(1, 'Description is required'),
@@ -42,13 +43,13 @@ const tierSchema = z.object({
     specialDiscounts: z.object({
       percentage: z.number(),
       categories: z.array(z.string()),
-    }).optional(),
+    }).nullish(),
     prioritySupport: z.boolean(),
   }),
   requirements: z.object({
-    minimumSpend: z.number().optional(),
-    minimumOrders: z.number().optional(),
-    timeInProgram: z.number().optional(),
+    minimumSpend: z.number().nullish(),
+    minimumOrders: z.number().nullish(),
+    timeInProgram: z.number().nullish(),
   }),
   isActive: z.boolean(),
 });
@@ -69,19 +70,19 @@ export function TiersManager() {
       benefits: {
         pointsMultiplier: undefined,
         exclusiveRewards: [],
-        specialDiscounts: undefined,
+        specialDiscounts: null,
         prioritySupport: false,
       },
       requirements: {
-        minimumSpend: undefined,
-        minimumOrders: undefined,
-        timeInProgram: undefined,
+        minimumSpend: null,
+        minimumOrders: null,
+        timeInProgram: null,
       },
       isActive: true,
     },
   });
 
-  const onSubmit = async (data: TierFormData) => {
+  const onSubmit: SubmitHandler<TierFormData> = async (data) => {
     try {
       setError(null);
       // Transform the data to match the API requirements
@@ -89,11 +90,12 @@ export function TiersManager() {
         ...data,
         benefits: {
           ...data.benefits,
-          specialDiscounts: data.benefits.specialDiscounts ? {
-            ...data.benefits.specialDiscounts,
-            percentage: data.benefits.specialDiscounts.percentage,
-            categories: data.benefits.specialDiscounts.categories,
-          } : undefined,
+          specialDiscounts: data.benefits.specialDiscounts || undefined,
+        },
+        requirements: {
+          minimumSpend: data.requirements.minimumSpend || undefined,
+          minimumOrders: data.requirements.minimumOrders || undefined,
+          timeInProgram: data.requirements.timeInProgram || undefined,
         },
       };
       await createTier.mutateAsync(apiData);
@@ -236,7 +238,8 @@ export function TiersManager() {
                           <Input
                             {...field}
                             type="number"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                            value={field.value ?? ''}
                             placeholder="Enter minimum spend"
                           />
                         </FormControl>
@@ -255,7 +258,8 @@ export function TiersManager() {
                           <Input
                             {...field}
                             type="number"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                            value={field.value ?? ''}
                             placeholder="Enter minimum orders"
                           />
                         </FormControl>
