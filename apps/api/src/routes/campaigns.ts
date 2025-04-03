@@ -9,11 +9,10 @@ const campaignSchema = z.object({
   description: z.string().optional(),
   type: z.enum(['POINTS_MULTIPLIER', 'BONUS_POINTS', 'SPECIAL_REWARD']),
   startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
-  rules: z.record(z.any()),
-  rewards: z.record(z.any()),
-  loyaltyProgramId: z.string().cuid(),
-  targetTierIds: z.array(z.string().cuid()).optional(),
+  endDate: z.string().datetime().optional(),
+  conditions: z.record(z.any()).optional(),
+  rewards: z.record(z.any()).optional(),
+  loyaltyProgramId: z.string(),
   isActive: z.boolean().default(true),
 });
 
@@ -45,18 +44,13 @@ export async function campaignRoutes(fastify: FastifyInstance) {
           ...(includeInactive ? {} : { isActive: true }),
         },
         include: {
-          targetTiers: true,
           participants: {
             include: {
-              member: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      email: true,
-                      name: true,
-                    }
-                  }
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
                 }
               }
             }
@@ -83,17 +77,16 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       description: 'Create a new campaign',
       body: {
         type: 'object',
-        required: ['name', 'type', 'startDate', 'endDate', 'rules', 'rewards', 'loyaltyProgramId'],
+        required: ['name', 'type', 'startDate', 'loyaltyProgramId'],
         properties: {
           name: { type: 'string', minLength: 3, maxLength: 100 },
           description: { type: 'string' },
           type: { type: 'string', enum: ['POINTS_MULTIPLIER', 'BONUS_POINTS', 'SPECIAL_REWARD'] },
           startDate: { type: 'string', format: 'date-time' },
           endDate: { type: 'string', format: 'date-time' },
-          rules: { type: 'object' },
+          conditions: { type: 'object' },
           rewards: { type: 'object' },
           loyaltyProgramId: { type: 'string' },
-          targetTierIds: { type: 'array', items: { type: 'string' } },
           isActive: { type: 'boolean' }
         }
       }
@@ -104,13 +97,19 @@ export async function campaignRoutes(fastify: FastifyInstance) {
     try {
       const campaign = await prisma.campaign.create({
         data: {
-          ...data,
-          targetTiers: data.targetTierIds ? {
-            connect: data.targetTierIds.map(id => ({ id }))
-          } : undefined
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          conditions: data.conditions,
+          rewards: data.rewards,
+          isActive: data.isActive,
+          loyaltyProgram: {
+            connect: { id: data.loyaltyProgramId }
+          }
         },
         include: {
-          targetTiers: true,
           participants: true,
         }
       });
@@ -144,9 +143,8 @@ export async function campaignRoutes(fastify: FastifyInstance) {
           type: { type: 'string', enum: ['POINTS_MULTIPLIER', 'BONUS_POINTS', 'SPECIAL_REWARD'] },
           startDate: { type: 'string', format: 'date-time' },
           endDate: { type: 'string', format: 'date-time' },
-          rules: { type: 'object' },
+          conditions: { type: 'object' },
           rewards: { type: 'object' },
-          targetTierIds: { type: 'array', items: { type: 'string' } },
           isActive: { type: 'boolean' }
         }
       }
@@ -158,14 +156,8 @@ export async function campaignRoutes(fastify: FastifyInstance) {
     try {
       const campaign = await prisma.campaign.update({
         where: { id },
-        data: {
-          ...data,
-          targetTiers: data.targetTierIds ? {
-            set: data.targetTierIds.map(id => ({ id }))
-          } : undefined
-        },
+        data,
         include: {
-          targetTiers: true,
           participants: true,
         }
       });
@@ -223,33 +215,29 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       },
       body: {
         type: 'object',
-        required: ['memberId'],
+        required: ['userId'],
         properties: {
-          memberId: { type: 'string' }
+          userId: { type: 'string' }
         }
       }
     }
   }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { memberId } = request.body as { memberId: string };
+    const { userId } = request.body as { userId: string };
 
     try {
       const participant = await prisma.campaignParticipant.create({
         data: {
           campaignId: id,
-          memberId,
-          joinedAt: new Date(),
+          userId,
+          status: 'ELIGIBLE',
         },
         include: {
-          member: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true,
-                }
-              }
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
             }
           }
         }
@@ -317,20 +305,16 @@ export async function campaignRoutes(fastify: FastifyInstance) {
           campaignId: id,
         },
         include: {
-          member: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true,
-                }
-              }
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
             }
           }
         },
         orderBy: {
-          joinedAt: 'desc',
+          createdAt: 'desc',
         },
       });
 

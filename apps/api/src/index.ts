@@ -15,9 +15,14 @@ import { userRoutes } from './routes/users.js';
 import { pointsRoutes } from './routes/points.js';
 import { rewardsRoutes } from './routes/rewards.js';
 import { merchantRoutes } from './routes/merchants.js';
+import { loyaltyProgramRoutes } from './routes/loyalty-programs.js';
+import { segmentRoutes } from './routes/segments.js';
 import { env } from './config/env.js';
 import { apiKeyPlugin } from './middleware/api-key.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
+import { programTierRoutes } from './routes/program-tiers.js';
+import { programMemberRoutes } from './routes/program-members.js';
+import { campaignRoutes } from './routes/campaigns.js';
 
 const app = fastify({
   logger: {
@@ -90,6 +95,11 @@ app.register(userRoutes);
 app.register(pointsRoutes);
 app.register(rewardsRoutes);
 app.register(merchantRoutes);
+app.register(loyaltyProgramRoutes);
+app.register(segmentRoutes);
+app.register(programTierRoutes);
+app.register(programMemberRoutes);
+app.register(campaignRoutes);
 app.register(apiKeyRoutes);
 
 // Register db plugin

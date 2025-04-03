@@ -11,6 +11,7 @@ const rewardSchema = z.object({
   type: z.enum(['PHYSICAL', 'DIGITAL', 'EXPERIENCE']),
   metadata: z.record(z.any()).optional(),
   isActive: z.boolean().default(true),
+  loyaltyProgramId: z.string(),
 });
 
 const rewardRedemptionSchema = z.object({
@@ -35,7 +36,8 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           pointsCost: { type: 'number' },
           type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE'] },
           metadata: { type: 'object', additionalProperties: true },
-          isActive: { type: 'boolean', default: true }
+          isActive: { type: 'boolean', default: true },
+          loyaltyProgramId: { type: 'string' }
         }
       },
       response: {
@@ -59,7 +61,17 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
         const data = rewardSchema.parse(request.body);
 
         const reward = await prisma.reward.create({
-          data,
+          data: {
+            name: data.name,
+            description: data.description,
+            pointsCost: data.pointsCost,
+            type: data.type,
+            isActive: data.isActive,
+            metadata: data.metadata,
+            loyaltyProgram: {
+              connect: { id: data.loyaltyProgramId }
+            }
+          },
         });
 
         return reply.code(201).send(reward);

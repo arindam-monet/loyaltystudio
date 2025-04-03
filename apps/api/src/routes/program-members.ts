@@ -7,8 +7,8 @@ const prisma = new PrismaClient();
 const memberSchema = z.object({
   userId: z.string().cuid(),
   loyaltyProgramId: z.string().cuid(),
-  tierId: z.string().cuid().optional(),
-  points: z.number().min(0).default(0),
+  tierId: z.string().cuid(),
+  pointsBalance: z.number().min(0).default(0),
   metadata: z.record(z.any()).optional(),
 });
 
@@ -32,7 +32,9 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     try {
       const members = await prisma.programMember.findMany({
         where: {
-          loyaltyProgramId,
+          tier: {
+            loyaltyProgramId
+          }
         },
         include: {
           user: {
@@ -45,7 +47,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           tier: true,
         },
         orderBy: {
-          points: 'desc',
+          pointsBalance: 'desc',
         },
       });
 
@@ -65,12 +67,12 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       description: 'Add a member to a loyalty program',
       body: {
         type: 'object',
-        required: ['userId', 'loyaltyProgramId'],
+        required: ['userId', 'loyaltyProgramId', 'tierId'],
         properties: {
           userId: { type: 'string' },
           loyaltyProgramId: { type: 'string' },
           tierId: { type: 'string' },
-          points: { type: 'number', minimum: 0 },
+          pointsBalance: { type: 'number', minimum: 0 },
           metadata: { type: 'object' }
         }
       }
@@ -81,7 +83,10 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     try {
       const member = await prisma.programMember.create({
         data: {
-          ...data,
+          userId: data.userId,
+          tierId: data.tierId,
+          pointsBalance: data.pointsBalance,
+          metadata: data.metadata,
           joinedAt: new Date(),
         },
         include: {
@@ -121,7 +126,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         type: 'object',
         properties: {
           tierId: { type: 'string' },
-          points: { type: 'number', minimum: 0 },
+          pointsBalance: { type: 'number', minimum: 0 },
           metadata: { type: 'object' }
         }
       }
@@ -133,7 +138,11 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     try {
       const member = await prisma.programMember.update({
         where: { id },
-        data,
+        data: {
+          tierId: data.tierId,
+          pointsBalance: data.pointsBalance,
+          metadata: data.metadata,
+        },
         include: {
           user: {
             select: {
@@ -214,16 +223,10 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       const member = await prisma.programMember.update({
         where: { id },
         data: {
-          points: {
+          pointsBalance: {
             increment: points
           },
-          pointsHistory: {
-            create: {
-              points,
-              type: 'EARNED',
-              reason: reason || 'Points added',
-            }
-          }
+          lastActivity: new Date(),
         },
         include: {
           user: {
@@ -234,6 +237,20 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
             }
           },
           tier: true,
+        }
+      });
+
+      // Create points transaction
+      await prisma.pointsTransaction.create({
+        data: {
+          userId: member.userId,
+          amount: points,
+          type: 'EARN',
+          reason: reason || 'Points added',
+          metadata: {
+            memberId: id,
+            programId: member.tier?.loyaltyProgramId
+          }
         }
       });
 
@@ -275,16 +292,10 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       const member = await prisma.programMember.update({
         where: { id },
         data: {
-          points: {
+          pointsBalance: {
             decrement: points
           },
-          pointsHistory: {
-            create: {
-              points: -points,
-              type: 'REDEEMED',
-              reason: reason || 'Points deducted',
-            }
-          }
+          lastActivity: new Date(),
         },
         include: {
           user: {
@@ -295,6 +306,20 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
             }
           },
           tier: true,
+        }
+      });
+
+      // Create points transaction
+      await prisma.pointsTransaction.create({
+        data: {
+          userId: member.userId,
+          amount: points,
+          type: 'REDEEM',
+          reason: reason || 'Points deducted',
+          metadata: {
+            memberId: id,
+            programId: member.tier?.loyaltyProgramId
+          }
         }
       });
 
@@ -324,9 +349,20 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
 
     try {
-      const history = await prisma.pointsHistory.findMany({
+      const member = await prisma.programMember.findUnique({
+        where: { id },
+        select: { userId: true }
+      });
+
+      if (!member) {
+        return reply.code(404).send({
+          error: 'Member not found'
+        });
+      }
+
+      const history = await prisma.pointsTransaction.findMany({
         where: {
-          memberId: id,
+          userId: member.userId,
         },
         orderBy: {
           createdAt: 'desc',

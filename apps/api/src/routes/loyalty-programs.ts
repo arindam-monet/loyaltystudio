@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 
@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 const loyaltyProgramSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
+  merchantId: z.string().cuid(),
+  settings: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional(),
   isActive: z.boolean().default(true),
 });
@@ -14,71 +16,121 @@ const loyaltyProgramSchema = z.object({
 const defaultPointsRuleSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  conditions: z.array(z.object({
-    field: z.string(),
-    operator: z.enum(['equals', 'greaterThan', 'lessThan', 'contains']),
-    value: z.any(),
-  })),
+  type: z.enum(['FIXED', 'PERCENTAGE', 'DYNAMIC']),
+  conditions: z.record(z.any()),
   points: z.number(),
+  maxPoints: z.number().optional(),
+  minAmount: z.number().optional(),
+  categoryRules: z.record(z.any()).optional(),
+  timeRules: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional(),
+  isActive: z.boolean().default(true),
 });
 
 const defaultRewardSchema = z.object({
   name: z.string(),
   description: z.string(),
+  type: z.enum(['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON']),
   pointsCost: z.number(),
-  type: z.enum(['PHYSICAL', 'DIGITAL', 'EXPERIENCE']),
+  stock: z.number().optional(),
+  validityPeriod: z.number().optional(),
+  redemptionLimit: z.number().optional(),
+  conditions: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional(),
+  isActive: z.boolean().default(true),
 });
 
+const defaultTierSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  pointsThreshold: z.number(),
+  benefits: z.record(z.any()).optional(),
+});
+
+interface CreateLoyaltyProgramBody {
+  defaultRules?: Array<{
+    name: string;
+    description?: string;
+    type: string;
+    conditions: Record<string, any>;
+    points: number;
+    maxPoints?: number;
+    minAmount?: number;
+    categoryRules?: Record<string, any>;
+    timeRules?: Record<string, any>;
+    metadata?: Record<string, any>;
+    isActive?: boolean;
+  }>;
+  defaultRewards?: Array<{
+    name: string;
+    description: string;
+    type: string;
+    pointsCost: number;
+    stock?: number;
+    validityPeriod?: number;
+    redemptionLimit?: number;
+    conditions?: Record<string, any>;
+    metadata?: Record<string, any>;
+    isActive?: boolean;
+  }>;
+  defaultTiers?: Array<{
+    name: string;
+    description?: string;
+    pointsThreshold: number;
+    benefits?: Record<string, any>;
+  }>;
+}
+
+interface AuthUser {
+  id: string;
+  email: string;
+  tenantId: string;
+  merchantId: string;
+  role: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+}
+
+interface AuthenticatedRequest extends FastifyRequest {
+  user: AuthUser;
+}
+
 export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
-  // Create loyalty program with default rules and rewards
+  // Create loyalty program with default rules, rewards, and tiers
   fastify.post('/loyalty-programs', {
     schema: {
-      description: 'Create a new loyalty program with default rules and rewards',
+      description: 'Create a new loyalty program with default rules, rewards, and tiers',
       tags: ['loyalty-programs'],
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['name'],
+        required: ['name', 'merchantId'],
         properties: {
           name: { type: 'string' },
           description: { type: 'string' },
+          merchantId: { type: 'string' },
+          settings: { type: 'object', additionalProperties: true },
           metadata: { type: 'object', additionalProperties: true },
           isActive: { type: 'boolean', default: true },
           defaultRules: {
             type: 'array',
             items: {
               type: 'object',
-              required: ['name', 'conditions', 'points'],
+              required: ['name', 'type', 'conditions', 'points'],
               properties: {
                 name: { type: 'string' },
                 description: { type: 'string' },
-                conditions: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    required: ['field', 'operator', 'value'],
-                    properties: {
-                      field: { type: 'string' },
-                      operator: { 
-                        type: 'string',
-                        enum: ['equals', 'greaterThan', 'lessThan', 'contains']
-                      },
-                      value: { 
-                        oneOf: [
-                          { type: 'string' },
-                          { type: 'number' },
-                          { type: 'boolean' },
-                          { type: 'array' },
-                          { type: 'object' }
-                        ]
-                      }
-                    }
-                  }
-                },
+                type: { type: 'string', enum: ['FIXED', 'PERCENTAGE', 'DYNAMIC'] },
+                conditions: { type: 'object', additionalProperties: true },
                 points: { type: 'number' },
-                metadata: { type: 'object', additionalProperties: true }
+                maxPoints: { type: 'number' },
+                minAmount: { type: 'number' },
+                categoryRules: { type: 'object', additionalProperties: true },
+                timeRules: { type: 'object', additionalProperties: true },
+                metadata: { type: 'object', additionalProperties: true },
+                isActive: { type: 'boolean', default: true }
               }
             }
           },
@@ -86,53 +138,31 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
             type: 'array',
             items: {
               type: 'object',
-              required: ['name', 'description', 'pointsCost', 'type'],
+              required: ['name', 'description', 'type', 'pointsCost'],
               properties: {
                 name: { type: 'string' },
                 description: { type: 'string' },
+                type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON'] },
                 pointsCost: { type: 'number' },
-                type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE'] },
-                metadata: { type: 'object', additionalProperties: true }
+                stock: { type: 'number' },
+                validityPeriod: { type: 'number' },
+                redemptionLimit: { type: 'number' },
+                conditions: { type: 'object', additionalProperties: true },
+                metadata: { type: 'object', additionalProperties: true },
+                isActive: { type: 'boolean', default: true }
               }
             }
-          }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            metadata: { type: 'object' },
-            isActive: { type: 'boolean' },
-            createdAt: { type: 'string' },
-            rules: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  points: { type: 'number' },
-                  isActive: { type: 'boolean' }
-                }
-              }
-            },
-            rewards: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  pointsCost: { type: 'number' },
-                  type: { type: 'string' },
-                  isActive: { type: 'boolean' }
-                }
+          },
+          defaultTiers: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'pointsThreshold'],
+              properties: {
+                name: { type: 'string' },
+                description: { type: 'string' },
+                pointsThreshold: { type: 'number' },
+                benefits: { type: 'object', additionalProperties: true }
               }
             }
           }
@@ -142,37 +172,34 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = loyaltyProgramSchema.parse(request.body);
-        const merchantId = request.user.merchantId; // From auth middleware
 
-        // Create loyalty program with default rules and rewards
+        const body = request.body as CreateLoyaltyProgramBody;
         const loyaltyProgram = await prisma.loyaltyProgram.create({
           data: {
             ...data,
-            merchantId,
             pointsRules: {
-              create: request.body.defaultRules?.map(rule => ({
-                name: rule.name,
-                description: rule.description,
-                conditions: rule.conditions,
-                points: rule.points,
-                metadata: rule.metadata,
-                isActive: true
+              create: body.defaultRules?.map(rule => ({
+                ...rule,
+                loyaltyProgramId: data.merchantId,
               })) || []
             },
             rewards: {
-              create: request.body.defaultRewards?.map(reward => ({
-                name: reward.name,
-                description: reward.description,
-                pointsCost: reward.pointsCost,
-                type: reward.type,
-                metadata: reward.metadata,
-                isActive: true
+              create: body.defaultRewards?.map(reward => ({
+                ...reward,
+                loyaltyProgramId: data.merchantId,
+              })) || []
+            },
+            tiers: {
+              create: body.defaultTiers?.map(tier => ({
+                ...tier,
+                loyaltyProgramId: data.merchantId,
               })) || []
             }
           },
           include: {
             pointsRules: true,
-            rewards: true
+            rewards: true,
+            tiers: true
           }
         });
 
@@ -184,10 +211,10 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Get loyalty program details
+  // Get loyalty program details with all related data
   fastify.get('/loyalty-programs/:id', {
     schema: {
-      description: 'Get loyalty program details',
+      description: 'Get loyalty program details with all related data',
       tags: ['loyalty-programs'],
       security: [{ bearerAuth: [] }],
       params: {
@@ -196,53 +223,13 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
         properties: {
           id: { type: 'string' }
         }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            metadata: { type: 'object' },
-            isActive: { type: 'boolean' },
-            createdAt: { type: 'string' },
-            rules: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  points: { type: 'number' },
-                  isActive: { type: 'boolean' }
-                }
-              }
-            },
-            rewards: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  pointsCost: { type: 'number' },
-                  type: { type: 'string' },
-                  isActive: { type: 'boolean' }
-                }
-              }
-            }
-          }
-        }
       }
     },
-    handler: async (request, reply) => {
-      try {
-        const { id } = request.params as { id: string };
-        const merchantId = request.user.merchantId; // From auth middleware
+    handler: async (request: FastifyRequest, reply) => {
+      const { id } = request.params as { id: string };
+      const merchantId = (request.user as AuthUser).merchantId;
 
+      try {
         const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
           where: {
             id,
@@ -250,7 +237,24 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
           },
           include: {
             pointsRules: true,
-            rewards: true
+            rewards: true,
+            tiers: {
+              include: {
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        email: true,
+                        name: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            campaigns: true,
+            segments: true
           }
         });
 
@@ -266,42 +270,37 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // List merchant's loyalty programs
+  // List merchant's loyalty programs with basic info
   fastify.get('/loyalty-programs', {
     schema: {
-      description: 'List merchant\'s loyalty programs',
+      description: 'List merchant\'s loyalty programs with basic info',
       tags: ['loyalty-programs'],
       security: [{ bearerAuth: [] }],
-      response: {
-        200: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              name: { type: 'string' },
-              description: { type: 'string' },
-              isActive: { type: 'boolean' },
-              createdAt: { type: 'string' }
-            }
-          }
+      querystring: {
+        type: 'object',
+        properties: {
+          includeInactive: { type: 'boolean', default: false }
         }
       }
     },
-    handler: async (request, reply) => {
-      try {
-        const merchantId = request.user.merchantId; // From auth middleware
+    handler: async (request: FastifyRequest, reply) => {
+      const { includeInactive } = request.query as { includeInactive?: boolean };
+      const merchantId = (request.user as AuthUser).merchantId;
 
+      try {
         const loyaltyPrograms = await prisma.loyaltyProgram.findMany({
           where: {
-            merchantId
+            merchantId,
+            ...(includeInactive ? {} : { isActive: true })
           },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            isActive: true,
-            createdAt: true
+          include: {
+            _count: {
+              select: {
+                tiers: true,
+                rewards: true,
+                campaigns: true
+              }
+            }
           }
         });
 
@@ -313,47 +312,92 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Launch loyalty program
-  fastify.post('/loyalty-programs/launch', {
+  // Update loyalty program settings and metadata
+  fastify.patch('/loyalty-programs/:id', {
     schema: {
-      description: 'Launch a loyalty program',
+      description: 'Update loyalty program settings and metadata',
       tags: ['loyalty-programs'],
       security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }
+        }
+      },
       body: {
         type: 'object',
-        required: ['programId'],
         properties: {
-          programId: { type: 'string' }
+          name: { type: 'string' },
+          description: { type: 'string' },
+          settings: { type: 'object', additionalProperties: true },
+          metadata: { type: 'object', additionalProperties: true },
+          isActive: { type: 'boolean' }
         }
       }
     },
-    handler: async (request, reply) => {
-      try {
-        const { programId } = request.body as { programId: string };
-        const merchantId = request.user.merchantId;
+    handler: async (request: FastifyRequest, reply) => {
+      const { id } = request.params as { id: string };
+      const merchantId = (request.user as AuthUser).merchantId;
+      const data = loyaltyProgramSchema.partial().parse(request.body);
 
-        // Find the program
+      try {
+        const loyaltyProgram = await prisma.loyaltyProgram.update({
+          where: {
+            id,
+            merchantId
+          },
+          data
+        });
+
+        return reply.send(loyaltyProgram);
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to update loyalty program' });
+      }
+    }
+  });
+
+  // Delete loyalty program
+  fastify.delete('/loyalty-programs/:id', {
+    schema: {
+      description: 'Delete a loyalty program',
+      tags: ['loyalty-programs'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }
+        }
+      }
+    },
+    handler: async (request: FastifyRequest, reply) => {
+      const { id } = request.params as { id: string };
+      const merchantId = (request.user as AuthUser).merchantId;
+
+      try {
+        // Check if program exists and belongs to merchant
         const program = await prisma.loyaltyProgram.findFirst({
           where: {
-            id: programId,
-            merchantId,
-          },
+            id,
+            merchantId
+          }
         });
 
         if (!program) {
           return reply.code(404).send({ error: 'Loyalty program not found' });
         }
 
-        // Update program status
-        const updatedProgram = await prisma.loyaltyProgram.update({
-          where: { id: programId },
-          data: { isActive: true },
+        // Delete program and all related data
+        await prisma.loyaltyProgram.delete({
+          where: { id }
         });
 
-        return reply.send(updatedProgram);
+        return reply.code(204).send();
       } catch (error) {
         request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to launch loyalty program' });
+        return reply.code(500).send({ error: 'Failed to delete loyalty program' });
       }
     }
   });

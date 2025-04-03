@@ -73,7 +73,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         ...userWithoutRole,
         role: {
           ...role,
-          permissions: role.permissions.map(rp => rp.permission),
+          permissions: role?.permissions.map(rp => rp.permission),
         },
       };
 

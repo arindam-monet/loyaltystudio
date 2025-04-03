@@ -94,7 +94,9 @@ export async function programTierRoutes(fastify: FastifyInstance) {
       // Evaluate all members for potential tier changes
       const members = await prisma.programMember.findMany({
         where: {
-          loyaltyProgramId: data.loyaltyProgramId,
+          tier: {
+            loyaltyProgramId: data.loyaltyProgramId
+          }
         },
       });
 
@@ -149,7 +151,9 @@ export async function programTierRoutes(fastify: FastifyInstance) {
       // Evaluate all members for potential tier changes
       const members = await prisma.programMember.findMany({
         where: {
-          loyaltyProgramId: tier.loyaltyProgramId,
+          tier: {
+            loyaltyProgramId: tier.loyaltyProgramId
+          }
         },
       });
 
@@ -210,7 +214,7 @@ export async function programTierRoutes(fastify: FastifyInstance) {
           },
         });
 
-        const newTierId = tiers[0]?.id || null;
+        const newTierId = tiers[0]?.id || undefined;
 
         await prisma.programMember.update({
           where: { id: member.id },
