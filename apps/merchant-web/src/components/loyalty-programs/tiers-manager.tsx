@@ -29,7 +29,8 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useTierStore } from '@/lib/stores/tier-store';
+import { useTiers } from '@/hooks/use-tiers';
+import { Tier } from '@/lib/stores/tier-store';
 
 const tierSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -37,19 +38,19 @@ const tierSchema = z.object({
   pointsThreshold: z.number().min(0, 'Points threshold must be 0 or greater'),
   benefits: z.object({
     pointsMultiplier: z.number().optional(),
-    exclusiveRewards: z.array(z.string()).optional(),
+    exclusiveRewards: z.array(z.string()),
     specialDiscounts: z.object({
-      percentage: z.number().min(0).max(100).optional(),
-      categories: z.array(z.string()).optional(),
+      percentage: z.number(),
+      categories: z.array(z.string()),
     }).optional(),
-    prioritySupport: z.boolean().optional(),
+    prioritySupport: z.boolean(),
   }),
   requirements: z.object({
     minimumSpend: z.number().optional(),
     minimumOrders: z.number().optional(),
     timeInProgram: z.number().optional(),
   }),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
 });
 
 type TierFormData = z.infer<typeof tierSchema>;
@@ -57,7 +58,7 @@ type TierFormData = z.infer<typeof tierSchema>;
 export function TiersManager() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tiers, createTier, updateTier, deleteTier } = useTierStore();
+  const { tiers = [], createTier, updateTier, deleteTier, isLoading } = useTiers();
 
   const form = useForm<TierFormData>({
     resolver: zodResolver(tierSchema),
@@ -65,8 +66,17 @@ export function TiersManager() {
       name: '',
       description: '',
       pointsThreshold: 0,
-      benefits: {},
-      requirements: {},
+      benefits: {
+        pointsMultiplier: undefined,
+        exclusiveRewards: [],
+        specialDiscounts: undefined,
+        prioritySupport: false,
+      },
+      requirements: {
+        minimumSpend: undefined,
+        minimumOrders: undefined,
+        timeInProgram: undefined,
+      },
       isActive: true,
     },
   });
@@ -74,7 +84,19 @@ export function TiersManager() {
   const onSubmit = async (data: TierFormData) => {
     try {
       setError(null);
-      await createTier.mutateAsync(data);
+      // Transform the data to match the API requirements
+      const apiData = {
+        ...data,
+        benefits: {
+          ...data.benefits,
+          specialDiscounts: data.benefits.specialDiscounts ? {
+            ...data.benefits.specialDiscounts,
+            percentage: data.benefits.specialDiscounts.percentage,
+            categories: data.benefits.specialDiscounts.categories,
+          } : undefined,
+        },
+      };
+      await createTier.mutateAsync(apiData);
       setOpen(false);
       form.reset();
     } catch (error) {
@@ -280,8 +302,8 @@ export function TiersManager() {
 
       <div className="space-y-4">
         {tiers
-          .sort((a, b) => a.pointsThreshold - b.pointsThreshold)
-          .map((tier) => (
+          .sort((a: Tier, b: Tier) => a.pointsThreshold - b.pointsThreshold)
+          .map((tier: Tier) => (
             <Card key={tier.id}>
               <CardHeader>
                 <CardTitle>{tier.name}</CardTitle>

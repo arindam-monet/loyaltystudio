@@ -40,29 +40,30 @@ import { RuleBuilder } from '@/components/loyalty-programs/rule-builder';
 import { RewardsManager } from '@/components/loyalty-programs/rewards-manager';
 import { TiersManager } from '@/components/loyalty-programs/tiers-manager';
 import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
-import { useApiAuth } from '@/hooks/use-api-auth';
-import { useQueryClient } from '@tanstack/react-query';
 
 const programSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   description: z.string().min(1, 'Description is required'),
   settings: z.object({
-    pointsName: z.string().default('Points'),
-    currency: z.string().default('USD'),
-    timezone: z.string().default('UTC'),
+    pointsName: z.string(),
+    currency: z.string(),
+    timezone: z.string()
   }),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean()
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
+
+interface Program extends ProgramFormData {
+  id: string;
+}
 
 export default function LoyaltyProgramsPage() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { loyaltyPrograms, isLoading } = useLoyaltyPrograms();
-  const { apiClient } = useApiAuth();
-  const queryClient = useQueryClient();
+  const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
 
   const form = useForm<ProgramFormData>({
     resolver: zodResolver(programSchema),
@@ -81,8 +82,7 @@ export default function LoyaltyProgramsPage() {
   const onSubmit = async (data: ProgramFormData) => {
     try {
       setError(null);
-      await apiClient.post('/loyalty-programs', data);
-      queryClient.invalidateQueries({ queryKey: ['loyalty-programs'] });
+      await createLoyaltyProgram.mutateAsync(data);
       setOpen(false);
       form.reset();
     } catch (error) {
@@ -239,7 +239,7 @@ export default function LoyaltyProgramsPage() {
         </TabsList>
 
         <TabsContent value="programs" className="space-y-4">
-          {loyaltyPrograms?.map((program) => (
+          {loyaltyPrograms?.map((program: Program) => (
             <Card key={program.id}>
               <CardHeader>
                 <CardTitle>{program.name}</CardTitle>
@@ -278,7 +278,14 @@ export default function LoyaltyProgramsPage() {
         </TabsContent>
 
         <TabsContent value="rules">
-          <RuleBuilder />
+          <RuleBuilder
+            nodes={[]}
+            edges={[]}
+            onNodesChange={() => {}}
+            onEdgesChange={() => {}}
+            onConnect={() => {}}
+            onNodeDataChange={() => {}}
+          />
         </TabsContent>
 
         <TabsContent value="rewards">

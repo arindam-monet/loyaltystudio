@@ -21,7 +21,7 @@ export function useTeam() {
     queryKey: ['team-members'],
     queryFn: async () => {
       const response = await apiClient.get('/team-members');
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error('Failed to fetch team members');
       }
       return response.data as TeamMember[];
@@ -31,7 +31,7 @@ export function useTeam() {
   const invite = useMutation({
     mutationFn: async (data: InviteData) => {
       const response = await apiClient.post('/team-members/invite', data);
-      if (!response.ok) {
+      if (response.status !== 200 && response.status !== 201) {
         throw new Error('Failed to send invitation');
       }
       return response.data;
@@ -44,7 +44,7 @@ export function useTeam() {
   const remove = useMutation({
     mutationFn: async (memberId: string) => {
       const response = await apiClient.delete(`/team-members/${memberId}`);
-      if (!response.ok) {
+      if (response.status !== 200 && response.status !== 204) {
         throw new Error('Failed to remove team member');
       }
       return response.data;

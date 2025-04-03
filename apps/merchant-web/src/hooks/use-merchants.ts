@@ -20,11 +20,14 @@ export interface Merchant {
 }
 
 export function useMerchants() {
-  const token = useAuthStore((state) => state.token);
+  const { token } = useAuthStore();
 
   return useQuery({
     queryKey: ['merchants'],
     queryFn: async () => {
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
       const response = await apiClient.get<Merchant[]>('/merchants');
       return response.data;
     },

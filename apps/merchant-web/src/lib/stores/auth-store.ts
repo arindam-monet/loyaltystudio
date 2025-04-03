@@ -7,6 +7,7 @@ interface User {
   name?: string;
   avatar?: string;
   emailVerified?: boolean;
+  tenantId?: string;
   role: {
     id: string;
     name: string;

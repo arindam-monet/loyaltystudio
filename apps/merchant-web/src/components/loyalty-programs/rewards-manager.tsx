@@ -33,7 +33,9 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useRewards } from '@/hooks/use-rewards';
 import { useRewardStore } from '@/lib/stores/reward-store';
+import type { Reward } from '@/lib/stores/reward-store';
 
 const rewardSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -45,7 +47,7 @@ const rewardSchema = z.object({
   redemptionLimit: z.number().optional(),
   conditions: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
 });
 
 type RewardFormData = z.infer<typeof rewardSchema>;
@@ -53,7 +55,8 @@ type RewardFormData = z.infer<typeof rewardSchema>;
 export function RewardsManager() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { rewards, createReward, updateReward, deleteReward } = useRewardStore();
+  const { rewards, isLoading, createReward } = useRewards();
+  const { setSelectedReward } = useRewardStore();
 
   const form = useForm<RewardFormData>({
     resolver: zodResolver(rewardSchema),
@@ -209,7 +212,7 @@ export function RewardsManager() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rewards.map((reward) => (
+        {rewards?.map((reward: Reward) => (
           <Card key={reward.id}>
             <CardHeader>
               <CardTitle>{reward.name}</CardTitle>
