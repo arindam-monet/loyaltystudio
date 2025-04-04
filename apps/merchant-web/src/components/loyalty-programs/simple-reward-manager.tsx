@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Card,
@@ -67,12 +67,14 @@ export function SimpleRewardManager({
   onRewardsChange,
 }: SimpleRewardManagerProps) {
   const [open, setOpen] = useState(false);
+  // Initialize with empty array if rewards is undefined
+  const safeRewards = Array.isArray(rewards) ? rewards : [];
   const [editingReward, setEditingReward] = useState<RewardFormData | null>(
     null
   );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const form = useForm<RewardFormData>({
+  const form = useForm({
     resolver: zodResolver(rewardSchema),
     defaultValues: {
       name: "",
@@ -85,15 +87,15 @@ export function SimpleRewardManager({
     },
   });
 
-  const onSubmit = (data: RewardFormData) => {
+  const onSubmit = (data: any) => {
     if (editingIndex !== null) {
       // Update existing reward
-      const updatedRewards = [...rewards];
+      const updatedRewards = [...safeRewards];
       updatedRewards[editingIndex] = data;
       onRewardsChange(updatedRewards);
     } else {
       // Add new reward
-      onRewardsChange([...rewards, { ...data, id: `reward-${Date.now()}` }]);
+      onRewardsChange([...safeRewards, { ...data, id: `reward-${Date.now()}` }]);
     }
     setOpen(false);
     form.reset();
@@ -109,13 +111,13 @@ export function SimpleRewardManager({
   };
 
   const handleDelete = (index: number) => {
-    const updatedRewards = [...rewards];
+    const updatedRewards = [...safeRewards];
     updatedRewards.splice(index, 1);
     onRewardsChange(updatedRewards);
   };
 
   // Sort rewards by points cost
-  const sortedRewards = [...rewards].sort(
+  const sortedRewards = [...safeRewards].sort(
     (a, b) => a.pointsCost - b.pointsCost
   );
 
@@ -152,7 +154,7 @@ export function SimpleRewardManager({
 
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit((data) => onSubmit(data as RewardFormData))}
                 className="space-y-4"
               >
                 <FormField
@@ -308,7 +310,7 @@ export function SimpleRewardManager({
         </Dialog>
       </div>
 
-      {rewards.length === 0 ? (
+      {safeRewards.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">

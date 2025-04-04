@@ -23,6 +23,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useMerchants } from '@/hooks/use-merchants';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
+import { useMerchantStore } from '@/lib/stores/merchant-store';
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -30,25 +31,31 @@ interface MerchantSwitcherProps extends PopoverTriggerProps {
   className?: string;
 }
 
-export default function MerchantSwitcher({ 
+export default function MerchantSwitcher({
   className,
 }: MerchantSwitcherProps) {
   const router = useRouter();
   const { data: merchants = [], isLoading, refetch } = useMerchants();
   const [open, setOpen] = React.useState(false);
-  const [selectedMerchant, setSelectedMerchant] = React.useState(
-    merchants.find((m) => m.isDefault) || merchants[0]
-  );
+  const { selectedMerchant, setSelectedMerchant } = useMerchantStore();
+  const [localSelectedMerchant, setLocalSelectedMerchant] = React.useState<typeof merchants[0] | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = React.useState(false);
 
   // Update selected merchant when merchants data loads
   React.useEffect(() => {
     if (merchants.length > 0) {
-      setSelectedMerchant(merchants.find((m) => m.isDefault) || merchants[0]);
+      const defaultMerchant = merchants.find((m) => m.isDefault) || merchants[0];
+      setLocalSelectedMerchant(defaultMerchant);
+
+      // Only set the global merchant if it's not already set
+      if (!selectedMerchant) {
+        setSelectedMerchant(defaultMerchant);
+      }
     }
-  }, [merchants]);
+  }, [merchants, selectedMerchant, setSelectedMerchant]);
 
   const handleMerchantSelect = (merchant: typeof merchants[0]) => {
+    setLocalSelectedMerchant(merchant);
     setSelectedMerchant(merchant);
     setOpen(false);
   };
@@ -94,16 +101,16 @@ export default function MerchantSwitcher({
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                 <AvatarImage
-                  src={selectedMerchant?.branding?.logo}
-                  alt={selectedMerchant?.name}
+                  src={(selectedMerchant || localSelectedMerchant)?.branding?.logo}
+                  alt={(selectedMerchant || localSelectedMerchant)?.name}
                 />
                 <AvatarFallback>
-                  {selectedMerchant?.name?.charAt(0)}
+                  {(selectedMerchant || localSelectedMerchant)?.name?.charAt(0)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start text-sm">
-                <span className="font-medium">{selectedMerchant?.name}</span>
-                {selectedMerchant?.isDefault && (
+                <span className="font-medium">{(selectedMerchant || localSelectedMerchant)?.name}</span>
+                {(selectedMerchant || localSelectedMerchant)?.isDefault && (
                   <span className="text-xs text-muted-foreground">Enterprise</span>
                 )}
               </div>
@@ -134,7 +141,7 @@ export default function MerchantSwitcher({
                     <CheckIcon
                       className={cn(
                         'ml-auto h-4 w-4',
-                        selectedMerchant?.id === merchant.id
+                        (selectedMerchant?.id || localSelectedMerchant?.id) === merchant.id
                           ? 'opacity-100'
                           : 'opacity-0'
                       )}
@@ -155,11 +162,11 @@ export default function MerchantSwitcher({
           </Command>
         </PopoverContent>
       </Popover>
-      <MerchantOnboardingDialog 
-        open={isOnboardingOpen} 
+      <MerchantOnboardingDialog
+        open={isOnboardingOpen}
         onOpenChange={setIsOnboardingOpen}
         onSuccess={handleOnboardingSuccess}
       />
     </>
   );
-} 
+}

@@ -174,28 +174,44 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
         const data = loyaltyProgramSchema.parse(request.body);
 
         const body = request.body as CreateLoyaltyProgramBody;
+        // First create the loyalty program
         const loyaltyProgram = await prisma.loyaltyProgram.create({
           data: {
             ...data,
-            pointsRules: {
-              create: body.defaultRules?.map(rule => ({
-                ...rule,
-                loyaltyProgramId: data.merchantId,
-              })) || []
-            },
-            rewards: {
-              create: body.defaultRewards?.map(reward => ({
-                ...reward,
-                loyaltyProgramId: data.merchantId,
-              })) || []
-            },
-            tiers: {
-              create: body.defaultTiers?.map(tier => ({
-                ...tier,
-                loyaltyProgramId: data.merchantId,
-              })) || []
-            }
           },
+        });
+
+        // Then create related entities with the correct loyaltyProgramId
+        if (body.defaultRules && body.defaultRules.length > 0) {
+          await prisma.pointsRule.createMany({
+            data: body.defaultRules.map(rule => ({
+              ...rule,
+              loyaltyProgramId: loyaltyProgram.id,
+            })),
+          });
+        }
+
+        if (body.defaultRewards && body.defaultRewards.length > 0) {
+          await prisma.reward.createMany({
+            data: body.defaultRewards.map(reward => ({
+              ...reward,
+              loyaltyProgramId: loyaltyProgram.id,
+            })),
+          });
+        }
+
+        if (body.defaultTiers && body.defaultTiers.length > 0) {
+          await prisma.programTier.createMany({
+            data: body.defaultTiers.map(tier => ({
+              ...tier,
+              loyaltyProgramId: loyaltyProgram.id,
+            })),
+          });
+        }
+
+        // Fetch the complete loyalty program with related entities
+        const completeProgram = await prisma.loyaltyProgram.findUnique({
+          where: { id: loyaltyProgram.id },
           include: {
             pointsRules: true,
             rewards: true,
@@ -203,7 +219,7 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
           }
         });
 
-        return reply.code(201).send(loyaltyProgram);
+        return reply.code(201).send(completeProgram);
       } catch (error) {
         request.log.error(error);
         return reply.code(500).send({ error: 'Failed to create loyalty program' });
@@ -401,4 +417,4 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
       }
     }
   });
-} 
+}

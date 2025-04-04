@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Card,
@@ -59,10 +59,12 @@ interface SimpleRuleBuilderProps {
 
 export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderProps) {
   const [open, setOpen] = useState(false);
+  // Initialize with empty array if rules is undefined
+  const safeRules = Array.isArray(rules) ? rules : [];
   const [editingRule, setEditingRule] = useState<RuleFormData | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const form = useForm<RuleFormData>({
+  const form = useForm({
     resolver: zodResolver(ruleSchema),
     defaultValues: {
       name: "",
@@ -72,15 +74,15 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
     },
   });
 
-  const onSubmit = (data: RuleFormData) => {
+  const onSubmit = (data: any) => {
     if (editingIndex !== null) {
       // Update existing rule
-      const updatedRules = [...rules];
+      const updatedRules = [...safeRules];
       updatedRules[editingIndex] = data;
       onRulesChange(updatedRules);
     } else {
       // Add new rule
-      onRulesChange([...rules, data]);
+      onRulesChange([...safeRules, data]);
     }
     setOpen(false);
     form.reset();
@@ -96,7 +98,7 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
   };
 
   const handleDelete = (index: number) => {
-    const updatedRules = [...rules];
+    const updatedRules = [...safeRules];
     updatedRules.splice(index, 1);
     onRulesChange(updatedRules);
   };
@@ -128,11 +130,11 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit((data) => onSubmit(data as RuleFormData))} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="name"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Rule Name</FormLabel>
                       <FormControl>
@@ -149,7 +151,7 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
                 <FormField
                   control={form.control}
                   name="type"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Rule Type</FormLabel>
                       <Select
@@ -177,7 +179,7 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
                 <FormField
                   control={form.control}
                   name="points"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>
                         {form.watch("type") === "FIXED" ? "Points per Purchase" : "Percentage Rate"}
@@ -186,7 +188,7 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
                         <Input
                           {...field}
                           type="number"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => field.onChange(Number(e.target.value))}
                           placeholder={form.watch("type") === "FIXED" ? "e.g., 10" : "e.g., 5"}
                         />
                       </FormControl>
@@ -203,14 +205,14 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
                 <FormField
                   control={form.control}
                   name="minAmount"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Minimum Purchase Amount (Optional)</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
-                          onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => field.onChange(Number(e.target.value) || 0)}
                           placeholder="e.g., 10"
                         />
                       </FormControl>
@@ -245,7 +247,7 @@ export function SimpleRuleBuilder({ rules, onRulesChange }: SimpleRuleBuilderPro
         </Dialog>
       </div>
 
-      {rules.length === 0 ? (
+      {safeRules.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">

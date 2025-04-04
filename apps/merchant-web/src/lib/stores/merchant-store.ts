@@ -3,9 +3,18 @@ import { create } from 'zustand';
 export interface Merchant {
   id: string;
   name: string;
-  domain: string;
-  createdAt: Date;
-  updatedAt: Date;
+  description?: string;
+  industry?: string;
+  website?: string;
+  subdomain?: string;
+  isDefault?: boolean;
+  branding?: {
+    logo?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+  };
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 interface MerchantStore {
@@ -16,4 +25,4 @@ interface MerchantStore {
 export const useMerchantStore = create<MerchantStore>((set) => ({
   selectedMerchant: null,
   setSelectedMerchant: (merchant) => set({ selectedMerchant: merchant }),
-})); 
+}));

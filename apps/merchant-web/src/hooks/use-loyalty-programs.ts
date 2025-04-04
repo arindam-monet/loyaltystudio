@@ -36,20 +36,35 @@ export function useLoyaltyPrograms() {
 
   const createLoyaltyProgram = useMutation({
     mutationFn: async (data: any) => {
-      if (!selectedMerchant) throw new Error('No merchant selected');
+      if (!selectedMerchant) {
+        console.error('No merchant selected');
+        throw new Error('No merchant selected. Please select a merchant first.');
+      }
 
-      // Ensure merchantId is set
+      if (!data.merchantId && !selectedMerchant.id) {
+        console.error('Missing merchantId', { data, selectedMerchant });
+        throw new Error('Missing merchant ID. Please try again or contact support.');
+      }
+
+      // Ensure merchantId is set and is a valid string
       const programData = {
         ...data,
         merchantId: data.merchantId || selectedMerchant.id,
       };
 
-      const response = await apiClient.post<LoyaltyProgram>('/loyalty-programs', programData);
+      console.log('Creating loyalty program with data:', programData);
 
-      if (response.status !== 201) {
-        throw new Error('Failed to create loyalty program');
+      try {
+        const response = await apiClient.post<LoyaltyProgram>('/loyalty-programs', programData);
+
+        if (response.status !== 201) {
+          throw new Error('Failed to create loyalty program');
+        }
+        return response.data;
+      } catch (error: any) {
+        console.error('API error creating loyalty program:', error.response?.data || error.message);
+        throw error;
       }
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loyalty-programs'] });

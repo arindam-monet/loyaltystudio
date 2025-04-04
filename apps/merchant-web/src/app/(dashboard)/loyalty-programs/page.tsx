@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -70,7 +70,7 @@ import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useMerchantStore } from "@/lib/stores/merchant-store";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle } from "lucide-react";
 import { GuidedProgramWizard } from "@/components/loyalty-programs/guided-program-wizard";
 
 // API response type
@@ -169,9 +169,19 @@ export default function LoyaltyProgramsPage() {
   const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
   const { selectedMerchant } = useMerchantStore();
 
+  // Debug log for merchant selection
+  useEffect(() => {
+    console.log('Selected merchant in loyalty programs page:', selectedMerchant);
+  }, [selectedMerchant]);
+
   const handleCreateProgram = async (data: ProgramFormData) => {
     try {
       setError(null);
+
+      if (!selectedMerchant) {
+        setError('No merchant selected. Please select a merchant first.');
+        return;
+      }
 
       // Transform the simple rules to match the API format
       const transformedRules = data?.rules?.map(rule => ({
@@ -191,7 +201,7 @@ export default function LoyaltyProgramsPage() {
         description: data.basicInfo.description,
         settings: data.basicInfo.settings,
         isActive: data.basicInfo.isActive,
-        merchantId: selectedMerchant?.id || "", // Use the selected merchant ID
+        merchantId: selectedMerchant?.id, // Use the selected merchant ID
         defaultTiers: data?.tiers?.map(tier => ({
           name: tier.name,
           description: tier.description || "",
@@ -245,10 +255,25 @@ export default function LoyaltyProgramsPage() {
                   <p className="text-muted-foreground">
                     Create and manage your loyalty programs
                   </p>
+                  {error && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 <Dialog open={open} onOpenChange={setOpen}>
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button
+                      onClick={(e) => {
+                        if (!selectedMerchant) {
+                          e.preventDefault();
+                          setError("Please select a merchant before creating a loyalty program.");
+                        } else {
+                          setError(null);
+                        }
+                      }}
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       Create Program
                     </Button>

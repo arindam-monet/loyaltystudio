@@ -1,4 +1,5 @@
-import { useState } from "react";
+import React, { useState } from "react";
+// Import UI components from the correct package
 import {
   Button,
   Card,
@@ -59,10 +60,12 @@ export function SimpleTierManager({
   onTiersChange,
 }: SimpleTierManagerProps) {
   const [open, setOpen] = useState(false);
+  // Initialize with empty array if tiers is undefined
+  const safeTiers = Array.isArray(tiers) ? tiers : [];
   const [editingTier, setEditingTier] = useState<TierFormData | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const form = useForm<TierFormData>({
+  const form = useForm({
     resolver: zodResolver(tierSchema),
     defaultValues: {
       name: "",
@@ -72,15 +75,15 @@ export function SimpleTierManager({
     },
   });
 
-  const onSubmit = (data: TierFormData) => {
+  const onSubmit = (data: any) => {
     if (editingIndex !== null) {
       // Update existing tier
-      const updatedTiers = [...tiers];
-      updatedTiers[editingIndex] = data;
+      const updatedTiers = [...safeTiers];
+      updatedTiers[editingIndex] = { ...data, benefits: data.benefits || [] };
       onTiersChange(updatedTiers);
     } else {
       // Add new tier
-      onTiersChange([...tiers, { ...data, id: `tier-${Date.now()}` }]);
+      onTiersChange([...safeTiers, { ...data, id: `tier-${Date.now()}` }]);
     }
     setOpen(false);
     form.reset();
@@ -96,13 +99,13 @@ export function SimpleTierManager({
   };
 
   const handleDelete = (index: number) => {
-    const updatedTiers = [...tiers];
+    const updatedTiers = [...safeTiers];
     updatedTiers.splice(index, 1);
     onTiersChange(updatedTiers);
   };
 
   // Sort tiers by points threshold
-  const sortedTiers = [...tiers].sort(
+  const sortedTiers = [...safeTiers].sort(
     (a, b) => a.pointsThreshold - b.pointsThreshold
   );
 
@@ -139,13 +142,13 @@ export function SimpleTierManager({
 
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit((data) => onSubmit(data as TierFormData))}
                 className="space-y-4"
               >
                 <FormField
                   control={form.control}
                   name="name"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Tier Name</FormLabel>
                       <FormControl>
@@ -165,7 +168,7 @@ export function SimpleTierManager({
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Description (Optional)</FormLabel>
                       <FormControl>
@@ -185,14 +188,14 @@ export function SimpleTierManager({
                 <FormField
                   control={form.control}
                   name="pointsThreshold"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Points Threshold</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
-                          onChange={(e) =>
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             field.onChange(Number(e.target.value))
                           }
                           placeholder="Enter points required"
@@ -229,7 +232,7 @@ export function SimpleTierManager({
         </Dialog>
       </div>
 
-      {tiers.length === 0 ? (
+      {safeTiers.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">
