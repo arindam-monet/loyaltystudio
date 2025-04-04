@@ -29,5 +29,7 @@ export * from './components/dropdown-menu';
 export * from './components/collapsible';
 export * from './components/badge';
 export * from './components/switch';
+export * from './components/stepper';
+export * from './components/table';
 export { PasswordInput } from './components/password-input';
 export * from './components/area-chart';

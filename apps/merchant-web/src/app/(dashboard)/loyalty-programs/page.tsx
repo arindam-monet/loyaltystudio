@@ -38,6 +38,27 @@ import {
   BreadcrumbPage,
   SidebarProvider,
   SidebarTrigger,
+  Stepper,
+  StepperContent,
+  StepperDescription,
+  StepperFooter,
+  StepperHeader,
+  StepperNext,
+  StepperPrevious,
+  StepperTitle,
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHead,
+  TableRow,
 } from "@loyaltystudio/ui";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +70,7 @@ import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ReactFlowProvider } from "reactflow";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 
 const programSchema = z.object({
   id: z.string().optional(),
@@ -68,13 +90,32 @@ interface Program extends ProgramFormData {
   id: string;
 }
 
+const WIZARD_STEPS = [
+  {
+    title: "Basic Information",
+    description: "Set up your program name and description",
+  },
+  {
+    title: "Points Configuration",
+    description: "Configure how points are earned and spent",
+  },
+  {
+    title: "Tiers Setup",
+    description: "Create membership tiers (optional)",
+  },
+  {
+    title: "Initial Rewards",
+    description: "Add your first rewards",
+  },
+];
+
 export default function LoyaltyProgramsPage() {
   const router = useRouter();
   const { isLoading: isAuthLoading } = useAuthGuard();
   const [open, setOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { loyaltyPrograms, isLoading, createLoyaltyProgram } =
-    useLoyaltyPrograms();
+  const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
 
   const form = useForm<ProgramFormData>({
     resolver: zodResolver(programSchema),
@@ -98,9 +139,7 @@ export default function LoyaltyProgramsPage() {
       form.reset();
     } catch (error) {
       console.error("Failed to create program:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to create program"
-      );
+      setError(error instanceof Error ? error.message : "Failed to create program");
     }
   };
 
@@ -128,18 +167,21 @@ export default function LoyaltyProgramsPage() {
                 <div>
                   <h1 className="text-3xl font-bold">Loyalty Programs</h1>
                   <p className="text-muted-foreground">
-                    Manage your loyalty programs, rules, rewards, and tiers
+                    Create and manage your loyalty programs
                   </p>
                 </div>
                 <Dialog open={open} onOpenChange={setOpen}>
                   <DialogTrigger asChild>
-                    <Button>Create Program</Button>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Program
+                    </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-3xl">
                     <DialogHeader>
                       <DialogTitle>Create Loyalty Program</DialogTitle>
                       <DialogDescription>
-                        Set up a new loyalty program for your business.
+                        Follow the steps to set up your new loyalty program
                       </DialogDescription>
                     </DialogHeader>
 
@@ -149,225 +191,212 @@ export default function LoyaltyProgramsPage() {
                       </Alert>
                     )}
 
-                    <Form {...form}>
-                      <form
-                        onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Program Name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Enter program name"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <Stepper
+                      value={currentStep}
+                      onValueChange={setCurrentStep}
+                      className="min-h-[400px]"
+                    >
+                      <StepperContent value={0}>
+                        <StepperHeader>
+                          <StepperTitle>Basic Information</StepperTitle>
+                          <StepperDescription>
+                            Set up your program name and description
+                          </StepperDescription>
+                        </StepperHeader>
+                        <Form {...form}>
+                          <form className="space-y-4 py-4">
+                            <FormField
+                              control={form.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Program Name</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter program name" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="description"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Description</FormLabel>
+                                  <FormControl>
+                                    <Textarea
+                                      {...field}
+                                      placeholder="Enter program description"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </form>
+                        </Form>
+                      </StepperContent>
 
-                        <FormField
-                          control={form.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  placeholder="Enter program description"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <StepperContent value={1}>
+                        <StepperHeader>
+                          <StepperTitle>Points Configuration</StepperTitle>
+                          <StepperDescription>
+                            Configure how points are earned and spent
+                          </StepperDescription>
+                        </StepperHeader>
+                        <Form {...form}>
+                          <form className="space-y-4 py-4">
+                            <FormField
+                              control={form.control}
+                              name="settings.pointsName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Points Name</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Points" />
+                                  </FormControl>
+                                  <FormDescription>
+                                    What would you like to call your points? (e.g., Stars, Coins)
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="settings.currency"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Currency</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="USD" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </form>
+                        </Form>
+                      </StepperContent>
 
-                        <Separator />
-
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold">
-                            Program Settings
-                          </h3>
-                          <FormField
-                            control={form.control}
-                            name="settings.pointsName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Points Name</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="Enter points name"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="settings.currency"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Currency</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="Enter currency code"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="settings.timezone"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Timezone</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="Enter timezone"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      <StepperContent value={2}>
+                        <StepperHeader>
+                          <StepperTitle>Tiers Setup</StepperTitle>
+                          <StepperDescription>
+                            Create membership tiers (optional)
+                          </StepperDescription>
+                        </StepperHeader>
+                        <div className="py-4">
+                          <TiersManager />
                         </div>
+                      </StepperContent>
 
-                        <FormField
-                          control={form.control}
-                          name="isActive"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Active Status
-                                </FormLabel>
-                                <FormDescription>
-                                  Enable or disable this program
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={form.formState.isSubmitting}
-                          >
-                            {form.formState.isSubmitting
-                              ? "Creating..."
-                              : "Create Program"}
-                          </Button>
+                      <StepperContent value={3}>
+                        <StepperHeader>
+                          <StepperTitle>Initial Rewards</StepperTitle>
+                          <StepperDescription>
+                            Add your first rewards
+                          </StepperDescription>
+                        </StepperHeader>
+                        <div className="py-4">
+                          <RewardsManager />
                         </div>
-                      </form>
-                    </Form>
+                      </StepperContent>
+
+                      <StepperFooter>
+                        <StepperPrevious>Previous</StepperPrevious>
+                        {currentStep === WIZARD_STEPS.length - 1 ? (
+                          <Button onClick={form.handleSubmit(onSubmit)}>
+                            Create Program
+                          </Button>
+                        ) : (
+                          <StepperNext>Next</StepperNext>
+                        )}
+                      </StepperFooter>
+                    </Stepper>
                   </DialogContent>
                 </Dialog>
               </div>
 
-              <Tabs defaultValue="programs" className="space-y-4">
-                <TabsList>
-                  <TabsTrigger value="programs">Programs</TabsTrigger>
-                  <TabsTrigger value="rules">Rules</TabsTrigger>
-                  <TabsTrigger value="rewards">Rewards</TabsTrigger>
-                  <TabsTrigger value="tiers">Tiers</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="programs" className="space-y-4">
-                  {loyaltyPrograms?.map((program: Program) => (
-                    <Card key={program.id}>
-                      <CardHeader>
-                        <CardTitle>{program.name}</CardTitle>
-                        <CardDescription>{program.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="font-medium">Points Name</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {program.settings?.pointsName || "Points"}
-                              </p>
-                            </div>
-                            <div>
-                              <h4 className="font-medium">Status</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {program.isActive ? "Active" : "Inactive"}
-                              </p>
-                            </div>
-                          </div>
-
-                          <Separator />
-
+              {/* Programs List */}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Program Name</TableHead>
+                      <TableHead>Points Name</TableHead>
+                      <TableHead>Members</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loyaltyPrograms?.map((program: Program) => (
+                      <TableRow key={program.id}>
+                        <TableCell className="font-medium">
                           <div>
-                            <h4 className="font-medium mb-2">
-                              Program Settings
-                            </h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                              <li>
-                                • Currency:{" "}
-                                {program.settings?.currency || "USD"}
-                              </li>
-                              <li>
-                                • Timezone:{" "}
-                                {program.settings?.timezone || "UTC"}
-                              </li>
-                            </ul>
+                            <div>{program.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {program.description}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </TabsContent>
-
-                <TabsContent value="rules">
-                  <ReactFlowProvider>
-                    <RuleBuilder
-                      nodes={[]}
-                      edges={[]}
-                      onNodesChange={() => {}}
-                      onEdgesChange={() => {}}
-                      onConnect={() => {}}
-                      onNodeDataChange={() => {}}
-                    />
-                  </ReactFlowProvider>
-                </TabsContent>
-
-                <TabsContent value="rewards">
-                  <RewardsManager />
-                </TabsContent>
-
-                <TabsContent value="tiers">
-                  <TiersManager />
-                </TabsContent>
-              </Tabs>
+                        </TableCell>
+                        <TableCell>{program.settings.pointsName}</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={program.isActive ? "default" : "secondary"}
+                          >
+                            {program.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  router.push(`/loyalty-programs/${program.id}`)
+                                }
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Program
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  // Handle delete
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Program
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!loyaltyPrograms?.length && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="h-24 text-center"
+                        >
+                          No loyalty programs found. Create your first program to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </main>
         </div>
