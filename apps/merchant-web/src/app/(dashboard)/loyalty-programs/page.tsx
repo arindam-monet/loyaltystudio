@@ -3,11 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Button,
   Dialog,
   DialogContent,
@@ -15,37 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Textarea,
-  Switch,
   Alert,
   AlertDescription,
   Separator,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-  SidebarProvider,
-  SidebarTrigger,
-  Stepper,
-  StepperContent,
-  StepperDescription,
-  StepperFooter,
-  StepperHeader,
-  StepperNext,
-  StepperPrevious,
-  StepperTitle,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
@@ -60,14 +31,9 @@ import {
   TableHead,
   TableRow,
 } from "@loyaltystudio/ui";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { RuleBuilder } from "@/components/loyalty-programs/rule-builder";
-import { RewardsManager } from "@/components/loyalty-programs/rewards-manager";
-import { TiersManager } from "@/components/loyalty-programs/tiers-manager";
 import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
-import { AppSidebar } from "@/components/app-sidebar";
+
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useMerchantStore } from "@/lib/stores/merchant-store";
 import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle } from "lucide-react";
@@ -138,35 +104,12 @@ const programSchema = z.object({
 
 type ProgramFormData = z.infer<typeof programSchema>;
 
-interface Program extends ProgramFormData {
-  id: string;
-}
-
-const WIZARD_STEPS = [
-  {
-    title: "Basic Information",
-    description: "Set up your program name and description",
-  },
-  {
-    title: "Points Configuration",
-    description: "Configure how points are earned and spent",
-  },
-  {
-    title: "Tiers Setup",
-    description: "Create membership tiers (optional)",
-  },
-  {
-    title: "Initial Rewards",
-    description: "Add your first rewards",
-  },
-];
-
 export default function LoyaltyProgramsPage() {
   const router = useRouter();
-  const { isLoading: isAuthLoading } = useAuthGuard();
+  useAuthGuard();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
+  const { loyaltyPrograms, createLoyaltyProgram } = useLoyaltyPrograms();
   const { selectedMerchant } = useMerchantStore();
 
   // Debug log for merchant selection
@@ -230,162 +173,156 @@ export default function LoyaltyProgramsPage() {
   };
 
   return (
-    <SidebarProvider defaultOpen>
-      <div className="flex h-screen overflow-hidden w-full">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col h-screen overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 bg-background z-10">
-            <div className="flex items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>Loyalty Programs</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+    <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 bg-background z-10">
+        <div className="flex items-center gap-2 px-4">
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Loyalty Programs</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </header>
+      <main className="flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-4 p-4">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">Loyalty Programs</h1>
+              <p className="text-muted-foreground">
+                Create and manage your loyalty programs
+              </p>
+              {error && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
             </div>
-          </header>
-          <main className="flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-4 p-4">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h1 className="text-3xl font-bold">Loyalty Programs</h1>
-                  <p className="text-muted-foreground">
-                    Create and manage your loyalty programs
-                  </p>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={(e) => {
+                    if (!selectedMerchant) {
+                      e.preventDefault();
+                      setError("Please select a merchant before creating a loyalty program.");
+                    } else {
+                      setError(null);
+                    }
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Program
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] sm:max-w-[90vw] p-0 overflow-y-auto">
+                <div className="p-6 border-b">
+                  <DialogHeader>
+                    <DialogTitle>Create Loyalty Program</DialogTitle>
+                    <DialogDescription>
+                      Create your loyalty program in under 10 minutes
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-4">
                   {error && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
+                    <Alert variant="destructive" className="mb-4">
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
+
+                  <GuidedProgramWizard
+                    onSubmit={handleCreateProgram}
+                    onCancel={() => setOpen(false)}
+                  />
                 </div>
-                <Dialog open={open} onOpenChange={setOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      onClick={(e) => {
-                        if (!selectedMerchant) {
-                          e.preventDefault();
-                          setError("Please select a merchant before creating a loyalty program.");
-                        } else {
-                          setError(null);
-                        }
-                      }}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Program
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-h-[90vh] sm:max-w-[90vw] p-0 overflow-y-auto">
-                    <div className="p-6 border-b">
-                      <DialogHeader>
-                        <DialogTitle>Create Loyalty Program</DialogTitle>
-                        <DialogDescription>
-                          Create your loyalty program in under 10 minutes
-                        </DialogDescription>
-                      </DialogHeader>
-                    </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-                    <div className="flex-1 overflow-y-auto px-6 py-4">
-                      {error && (
-                        <Alert variant="destructive" className="mb-4">
-                          <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                      )}
-
-                      <GuidedProgramWizard
-                        onSubmit={handleCreateProgram}
-                        onCancel={() => setOpen(false)}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {/* Programs List */}
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Program Name</TableHead>
-                      <TableHead>Points Name</TableHead>
-                      <TableHead>Members</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loyaltyPrograms?.map((program: LoyaltyProgram) => (
-                      <TableRow key={program.id}>
-                        <TableCell className="font-medium">
-                          <div>
-                            <div>{program.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {program.description}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{program.settings.pointsName}</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={program.isActive ? "default" : "secondary"}
+          {/* Programs List */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Program Name</TableHead>
+                  <TableHead>Points Name</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loyaltyPrograms?.map((program: LoyaltyProgram) => (
+                  <TableRow key={program.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div>{program.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {program.description}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{program.settings.pointsName}</TableCell>
+                    <TableCell>0</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={program.isActive ? "default" : "secondary"}
+                      >
+                        {program.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(`/loyalty-programs/${program.id}`)
+                            }
                           >
-                            {program.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(`/loyalty-programs/${program.id}`)
-                                }
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit Program
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => {
-                                  // Handle delete
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Program
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!loyaltyPrograms?.length && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          className="h-24 text-center"
-                        >
-                          No loyalty programs found. Create your first program to get started.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </main>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Program
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => {
+                              // Handle delete
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Program
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!loyaltyPrograms?.length && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="h-24 text-center"
+                    >
+                      No loyalty programs found. Create your first program to get started.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </main>
+    </div>
   );
 }

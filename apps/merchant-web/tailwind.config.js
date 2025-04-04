@@ -10,13 +10,16 @@ module.exports = {
       colors: {
         // Add any app-specific colors here
         sidebar: {
-          DEFAULT: "hsl(var(--bg-sidebar))",
-          foreground: "hsl(var(--text-sidebar))",
-          hover: "hsl(var(--bg-sidebar-hover))",
-          text: "hsl(var(--text-sidebar))",
+          DEFAULT: "var(--bg-sidebar)",
+          foreground: "var(--text-sidebar)",
+          hover: "var(--bg-sidebar-hover)",
+          text: "var(--text-sidebar)",
+        },
+        sheet: {
+          DEFAULT: "var(--bg-sidebar)",
         },
       },
     },
   },
   plugins: [],
-} 
+}

@@ -2,23 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@loyaltystudio/ui';
+
 import {
   LayoutDashboard,
   Users,
   Gift,
   Settings,
-  Building2,
   FileText,
-  BookOpen,
-  MoreHorizontal,
-  CreditCard,
-  Users2,
   BarChart3,
-  Wallet,
   Receipt,
   Bell,
-  Mail,
   HelpCircle,
   ChevronDown,
   ChevronRight,
@@ -32,10 +25,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
-  Button,
+
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  useSidebar,
 } from '@loyaltystudio/ui';
 import MerchantSwitcher from './merchant-switcher';
 import { UserInfo } from './user-info';
@@ -44,12 +38,19 @@ import { useState } from 'react';
 export function AppSidebar() {
   const pathname = usePathname();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { open: isOpen, isMobile } = useSidebar();
 
   return (
-    <Sidebar className="border-r bg-sidebar h-screen flex flex-col w-64 shrink-0">
-      <SidebarHeader className="border-b px-6 py-3 flex-none">
+    <Sidebar
+      className="border-r bg-sidebar h-screen flex flex-col transition-all duration-300 ease-in-out"
+      style={!isMobile ? { width: isOpen ? '16rem' : '4.5rem' } : undefined}
+      collapsible="icon"
+    >
+      <SidebarHeader className="border-b px-6 py-3 flex-none transition-all duration-300 ease-in-out">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold h-10">Loyalty Studio</h1>
+          <h1 className="text-xl font-semibold h-10 truncate">
+            {isMobile || isOpen ? 'Loyalty Studio' : 'LS'}
+          </h1>
         </div>
       </SidebarHeader>
 
@@ -60,9 +61,11 @@ export function AppSidebar() {
           </div>
           <SidebarSeparator />
           <div className="px-2 py-2">
-            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Main
-            </h2>
+            {(isMobile || isOpen) && (
+              <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+                Main
+              </h2>
+            )}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -72,7 +75,7 @@ export function AppSidebar() {
                 >
                   <Link href="/dashboard">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
+                    {(isMobile || isOpen) && "Dashboard"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -84,7 +87,7 @@ export function AppSidebar() {
                 >
                   <Link href="/loyalty-programs">
                     <Gift className="mr-2 h-4 w-4" />
-                    Loyalty Programs
+                    {(isMobile || isOpen) && "Loyalty Programs"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -96,7 +99,7 @@ export function AppSidebar() {
                 >
                   <Link href="/customers">
                     <Users className="mr-2 h-4 w-4" />
-                    Customers
+                    {(isMobile || isOpen) && "Customers"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -108,7 +111,7 @@ export function AppSidebar() {
                 >
                   <Link href="/transactions">
                     <Receipt className="mr-2 h-4 w-4" />
-                    Transactions
+                    {(isMobile || isOpen) && "Transactions"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -120,7 +123,7 @@ export function AppSidebar() {
                 >
                   <Link href="/analytics">
                     <BarChart3 className="mr-2 h-4 w-4" />
-                    Analytics
+                    {(isMobile || isOpen) && "Analytics"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -128,9 +131,11 @@ export function AppSidebar() {
           </div>
           <SidebarSeparator />
           <div className="px-2 py-2">
-            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Marketing
-            </h2>
+            {(isMobile || isOpen) && (
+              <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+                Marketing
+              </h2>
+            )}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -140,7 +145,7 @@ export function AppSidebar() {
                 >
                   <Link href="/campaigns">
                     <Bell className="mr-2 h-4 w-4" />
-                    Campaigns
+                    {(isMobile || isOpen) && "Campaigns"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -148,9 +153,11 @@ export function AppSidebar() {
           </div>
           <SidebarSeparator />
           <div className="px-2 py-2">
-            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Settings
-            </h2>
+            {(isMobile || isOpen) && (
+              <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+                Settings
+              </h2>
+            )}
             <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
@@ -159,7 +166,7 @@ export function AppSidebar() {
                 >
                   <div className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    {(isMobile || isOpen) ? 'Settings' : ''}
                   </div>
                   {isSettingsOpen ? (
                     <ChevronDown className="h-4 w-4" />
@@ -177,7 +184,7 @@ export function AppSidebar() {
                       tooltip="General Settings"
                     >
                       <Link href="/settings/general">
-                        General
+                        {isOpen && "General"}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -188,7 +195,7 @@ export function AppSidebar() {
                       tooltip="Team Settings"
                     >
                       <Link href="/settings/team">
-                        Team
+                        {isOpen && "Team"}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -199,7 +206,7 @@ export function AppSidebar() {
                       tooltip="Billing Settings"
                     >
                       <Link href="/settings/billing">
-                        Billing
+                        {isOpen && "Billing"}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -210,9 +217,11 @@ export function AppSidebar() {
           </div>
           <SidebarSeparator />
           <div className="px-2 py-2">
-            <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Support
-            </h2>
+            {(isMobile || isOpen) && (
+              <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
+                Support
+              </h2>
+            )}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -222,7 +231,7 @@ export function AppSidebar() {
                 >
                   <Link href="/help">
                     <HelpCircle className="mr-2 h-4 w-4" />
-                    Help Center
+                    {(isMobile || isOpen) && "Help Center"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -234,7 +243,7 @@ export function AppSidebar() {
                 >
                   <Link href="/api-docs">
                     <FileText className="mr-2 h-4 w-4" />
-                    API Docs
+                    {(isMobile || isOpen) && "API Docs"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -243,8 +252,14 @@ export function AppSidebar() {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="border-t flex-none">
-        <UserInfo />
+      <SidebarFooter className="border-t flex-none p-4">
+        {isMobile || isOpen ? (
+          <UserInfo />
+        ) : (
+          <div className="flex justify-center">
+            <UserInfo compact={true} />
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

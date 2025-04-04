@@ -1,3 +1,5 @@
+'use client';
+
 import { useAuthStore } from '@/lib/stores/auth-store';
 import {
   Avatar,
@@ -16,7 +18,11 @@ import { ChevronUp, LogOut, Settings, User, Shield } from 'lucide-react';
 import { useLogout } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 
-export function UserInfo() {
+export interface UserInfoProps {
+  compact?: boolean;
+}
+
+export function UserInfo({ compact = false }: UserInfoProps) {
   const { user } = useAuthStore();
   const router = useRouter();
   const logout = useLogout();
@@ -35,23 +41,30 @@ export function UserInfo() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-start px-2 py-6">
-          <div className="flex items-center gap-2">
+          {compact ? (
             <Avatar className="h-8 w-8">
               <AvatarImage src={user.name?.[0]} />
               <AvatarFallback>{user.name?.[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col items-start text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{user.name}</span>
-                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                  <Shield className="h-2 w-2" />
-                  {user.role.name}
-                </Badge>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user.name?.[0]} />
+                <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col items-start text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{user.name}</span>
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                    <Shield className="h-2 w-2" />
+                    {user.role.name}
+                  </Badge>
+                </div>
+                <span className="text-xs text-muted-foreground">{user.email}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{user.email}</span>
+              <ChevronUp className="ml-auto h-4 w-4" />
             </div>
-            <ChevronUp className="ml-auto h-4 w-4" />
-          </div>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
@@ -73,4 +86,4 @@ export function UserInfo() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-} 
+}
