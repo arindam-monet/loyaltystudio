@@ -35,12 +35,17 @@ export function useLoyaltyPrograms() {
   });
 
   const createLoyaltyProgram = useMutation({
-    mutationFn: async (data: Omit<LoyaltyProgram, 'id' | 'merchantId'>) => {
+    mutationFn: async (data: any) => {
       if (!selectedMerchant) throw new Error('No merchant selected');
-      const response = await apiClient.post<LoyaltyProgram>('/loyalty-programs', {
+
+      // Ensure merchantId is set
+      const programData = {
         ...data,
-        merchantId: selectedMerchant.id,
-      });
+        merchantId: data.merchantId || selectedMerchant.id,
+      };
+
+      const response = await apiClient.post<LoyaltyProgram>('/loyalty-programs', programData);
+
       if (response.status !== 201) {
         throw new Error('Failed to create loyalty program');
       }
@@ -83,4 +88,4 @@ export function useLoyaltyPrograms() {
     updateLoyaltyProgram,
     deleteLoyaltyProgram,
   };
-} 
+}

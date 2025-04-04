@@ -68,10 +68,10 @@ import { RewardsManager } from "@/components/loyalty-programs/rewards-manager";
 import { TiersManager } from "@/components/loyalty-programs/tiers-manager";
 import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { AppSidebar } from "@/components/app-sidebar";
-import { ReactFlowProvider } from "reactflow";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { useMerchantStore } from "@/lib/stores/merchant-store";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { CreateProgramWizard } from "@/components/loyalty-programs/create-program-wizard";
+import { GuidedProgramWizard } from "@/components/loyalty-programs/guided-program-wizard";
 
 // API response type
 interface LoyaltyProgram {
@@ -167,20 +167,50 @@ export default function LoyaltyProgramsPage() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
+  const { selectedMerchant } = useMerchantStore();
 
   const handleCreateProgram = async (data: ProgramFormData) => {
     try {
       setError(null);
+
+      // Transform the simple rules to match the API format
+      const transformedRules = data?.rules?.map(rule => ({
+        name: rule.name,
+        description: `${rule.type === "FIXED" ? "Fixed" : "Percentage"} points rule`,
+        type: rule.type === "FIXED" ? "FIXED" : "PERCENTAGE",
+        conditions: { type: rule.type },
+        points: rule.points,
+        maxPoints: rule.type === "PERCENTAGE" ? rule.points * 10 : undefined, // Set a reasonable max for percentage rules
+        minAmount: rule.minAmount || 0,
+        isActive: true
+      }));
+
       // Transform the data to match the API format
       const apiData = {
         name: data.basicInfo.name,
         description: data.basicInfo.description,
         settings: data.basicInfo.settings,
         isActive: data.basicInfo.isActive,
-        tiers: data.tiers,
-        rewards: data.rewards,
-        rules: data.rules,
+        merchantId: selectedMerchant?.id || "", // Use the selected merchant ID
+        defaultTiers: data?.tiers?.map(tier => ({
+          name: tier.name,
+          description: tier.description || "",
+          pointsThreshold: tier.pointsThreshold,
+          benefits: tier.benefits || {}
+        })),
+        defaultRewards: data?.rewards?.map(reward => ({
+          name: reward.name,
+          description: reward.description,
+          type: reward.type,
+          pointsCost: reward.pointsCost,
+          stock: reward.stock,
+          validityPeriod: reward.validityPeriod,
+          redemptionLimit: reward.redemptionLimit,
+          isActive: true
+        })),
+        defaultRules: transformedRules
       };
+
       await createLoyaltyProgram.mutateAsync(apiData);
       setOpen(false);
     } catch (error) {
@@ -223,24 +253,28 @@ export default function LoyaltyProgramsPage() {
                       Create Program
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-3xl">
-                    <DialogHeader>
-                      <DialogTitle>Create Loyalty Program</DialogTitle>
-                      <DialogDescription>
-                        Follow the steps to set up your new loyalty program
-                      </DialogDescription>
-                    </DialogHeader>
+                  <DialogContent className="max-h-[90vh] sm:max-w-[90vw] p-0 overflow-y-auto">
+                    <div className="p-6 border-b">
+                      <DialogHeader>
+                        <DialogTitle>Create Loyalty Program</DialogTitle>
+                        <DialogDescription>
+                          Create your loyalty program in under 10 minutes
+                        </DialogDescription>
+                      </DialogHeader>
+                    </div>
 
-                    {error && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
+                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                      {error && (
+                        <Alert variant="destructive" className="mb-4">
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      )}
 
-                    <CreateProgramWizard
-                      onSubmit={handleCreateProgram}
-                      onCancel={() => setOpen(false)}
-                    />
+                      <GuidedProgramWizard
+                        onSubmit={handleCreateProgram}
+                        onCancel={() => setOpen(false)}
+                      />
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
