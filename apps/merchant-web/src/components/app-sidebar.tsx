@@ -65,7 +65,7 @@ export function AppSidebar() {
             </h2>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/dashboard'}
                   tooltip="Dashboard"
@@ -77,7 +77,19 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.includes('/loyalty-programs')}
+                  tooltip="Loyalty Programs"
+                >
+                  <Link href="/loyalty-programs">
+                    <Gift className="mr-2 h-4 w-4" />
+                    Loyalty Programs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/customers'}
                   tooltip="Customers"
@@ -89,31 +101,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/rewards'}
-                  tooltip="Rewards"
-                >
-                  <Link href="/rewards">
-                    <Gift className="mr-2 h-4 w-4" />
-                    Rewards
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/analytics'}
-                  tooltip="Analytics"
-                >
-                  <Link href="/analytics">
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Analytics
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/transactions'}
                   tooltip="Transactions"
@@ -124,16 +112,28 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/analytics'}
+                  tooltip="Analytics"
+                >
+                  <Link href="/analytics">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Analytics
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </div>
           <SidebarSeparator />
           <div className="px-2 py-2">
             <h2 className="mb-2 px-2 text-sm font-medium text-muted-foreground">
-              Management
+              Marketing
             </h2>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/campaigns'}
                   tooltip="Campaigns"
@@ -141,30 +141,6 @@ export function AppSidebar() {
                   <Link href="/campaigns">
                     <Bell className="mr-2 h-4 w-4" />
                     Campaigns
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/notifications'}
-                  tooltip="Notifications"
-                >
-                  <Link href="/notifications">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Notifications
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild
-                  isActive={pathname === '/integrations'}
-                  tooltip="Integrations"
-                >
-                  <Link href="/integrations">
-                    <Building2 className="mr-2 h-4 w-4" />
-                    Integrations
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -177,7 +153,7 @@ export function AppSidebar() {
             </h2>
             <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   className="w-full justify-between"
                   isActive={pathname.startsWith('/settings')}
                 >
@@ -195,7 +171,7 @@ export function AppSidebar() {
               <CollapsibleContent className="mt-1 space-y-1">
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       asChild
                       isActive={pathname === '/settings/general'}
                       tooltip="General Settings"
@@ -206,7 +182,7 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       asChild
                       isActive={pathname === '/settings/team'}
                       tooltip="Team Settings"
@@ -217,7 +193,7 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       asChild
                       isActive={pathname === '/settings/billing'}
                       tooltip="Billing Settings"
@@ -227,17 +203,7 @@ export function AppSidebar() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      asChild
-                      isActive={pathname === '/settings/limits'}
-                      tooltip="Usage Limits"
-                    >
-                      <Link href="/settings/limits">
-                        Limits
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+
                 </SidebarMenu>
               </CollapsibleContent>
             </Collapsible>
@@ -249,7 +215,7 @@ export function AppSidebar() {
             </h2>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/help'}
                   tooltip="Help Center"
@@ -261,7 +227,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
                   isActive={pathname === '/api-docs'}
                   tooltip="API Documentation"
@@ -282,4 +248,4 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-} 
+}
