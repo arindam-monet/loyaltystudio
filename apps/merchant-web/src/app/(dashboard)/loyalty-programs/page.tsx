@@ -71,17 +71,69 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ReactFlowProvider } from "reactflow";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { CreateProgramWizard } from "@/components/loyalty-programs/create-program-wizard";
 
+// API response type
+interface LoyaltyProgram {
+  id: string;
+  name: string;
+  description: string;
+  settings: {
+    pointsName: string;
+    currency: string;
+    timezone: string;
+  };
+  isActive: boolean;
+  tiers?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    pointsThreshold: number;
+    benefits?: Record<string, any>;
+  }>;
+  rewards?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    type: "PHYSICAL" | "DIGITAL" | "EXPERIENCE" | "COUPON";
+    pointsCost: number;
+    stock?: number;
+    validityPeriod?: number;
+    redemptionLimit?: number;
+    conditions?: Record<string, any>;
+  }>;
+  rules?: any[];
+}
+
+// Form data type for the wizard
 const programSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Name is required"),
-  description: z.string().min(1, "Description is required"),
-  settings: z.object({
-    pointsName: z.string(),
-    currency: z.string(),
-    timezone: z.string(),
+  basicInfo: z.object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().min(1, "Description is required"),
+    settings: z.object({
+      pointsName: z.string(),
+      currency: z.string(),
+      timezone: z.string(),
+    }),
+    isActive: z.boolean(),
   }),
-  isActive: z.boolean(),
+  tiers: z.array(z.object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    pointsThreshold: z.number().min(0, "Points threshold must be positive"),
+    benefits: z.record(z.any()).optional(),
+  })).optional(),
+  rewards: z.array(z.object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().min(1, "Description is required"),
+    type: z.enum(["PHYSICAL", "DIGITAL", "EXPERIENCE", "COUPON"]),
+    pointsCost: z.number().min(0, "Points cost must be positive"),
+    stock: z.number().optional(),
+    validityPeriod: z.number().optional(),
+    redemptionLimit: z.number().optional(),
+    conditions: z.record(z.any()).optional(),
+  })).optional(),
+  rules: z.array(z.any()).optional(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -113,30 +165,24 @@ export default function LoyaltyProgramsPage() {
   const router = useRouter();
   const { isLoading: isAuthLoading } = useAuthGuard();
   const [open, setOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
 
-  const form = useForm<ProgramFormData>({
-    resolver: zodResolver(programSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      settings: {
-        pointsName: "Points",
-        currency: "USD",
-        timezone: "UTC",
-      },
-      isActive: true,
-    },
-  });
-
-  const onSubmit = async (data: ProgramFormData) => {
+  const handleCreateProgram = async (data: ProgramFormData) => {
     try {
       setError(null);
-      await createLoyaltyProgram.mutateAsync(data);
+      // Transform the data to match the API format
+      const apiData = {
+        name: data.basicInfo.name,
+        description: data.basicInfo.description,
+        settings: data.basicInfo.settings,
+        isActive: data.basicInfo.isActive,
+        tiers: data.tiers,
+        rewards: data.rewards,
+        rules: data.rules,
+      };
+      await createLoyaltyProgram.mutateAsync(apiData);
       setOpen(false);
-      form.reset();
     } catch (error) {
       console.error("Failed to create program:", error);
       setError(error instanceof Error ? error.message : "Failed to create program");
@@ -191,130 +237,10 @@ export default function LoyaltyProgramsPage() {
                       </Alert>
                     )}
 
-                    <Stepper
-                      value={currentStep}
-                      onValueChange={setCurrentStep}
-                      className="min-h-[400px]"
-                    >
-                      <StepperContent value={0}>
-                        <StepperHeader>
-                          <StepperTitle>Basic Information</StepperTitle>
-                          <StepperDescription>
-                            Set up your program name and description
-                          </StepperDescription>
-                        </StepperHeader>
-                        <Form {...form}>
-                          <form className="space-y-4 py-4">
-                            <FormField
-                              control={form.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Program Name</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter program name" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="description"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Description</FormLabel>
-                                  <FormControl>
-                                    <Textarea
-                                      {...field}
-                                      placeholder="Enter program description"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </form>
-                        </Form>
-                      </StepperContent>
-
-                      <StepperContent value={1}>
-                        <StepperHeader>
-                          <StepperTitle>Points Configuration</StepperTitle>
-                          <StepperDescription>
-                            Configure how points are earned and spent
-                          </StepperDescription>
-                        </StepperHeader>
-                        <Form {...form}>
-                          <form className="space-y-4 py-4">
-                            <FormField
-                              control={form.control}
-                              name="settings.pointsName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Points Name</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Points" />
-                                  </FormControl>
-                                  <FormDescription>
-                                    What would you like to call your points? (e.g., Stars, Coins)
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="settings.currency"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Currency</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="USD" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </form>
-                        </Form>
-                      </StepperContent>
-
-                      <StepperContent value={2}>
-                        <StepperHeader>
-                          <StepperTitle>Tiers Setup</StepperTitle>
-                          <StepperDescription>
-                            Create membership tiers (optional)
-                          </StepperDescription>
-                        </StepperHeader>
-                        <div className="py-4">
-                          <TiersManager />
-                        </div>
-                      </StepperContent>
-
-                      <StepperContent value={3}>
-                        <StepperHeader>
-                          <StepperTitle>Initial Rewards</StepperTitle>
-                          <StepperDescription>
-                            Add your first rewards
-                          </StepperDescription>
-                        </StepperHeader>
-                        <div className="py-4">
-                          <RewardsManager />
-                        </div>
-                      </StepperContent>
-
-                      <StepperFooter>
-                        <StepperPrevious>Previous</StepperPrevious>
-                        {currentStep === WIZARD_STEPS.length - 1 ? (
-                          <Button onClick={form.handleSubmit(onSubmit)}>
-                            Create Program
-                          </Button>
-                        ) : (
-                          <StepperNext>Next</StepperNext>
-                        )}
-                      </StepperFooter>
-                    </Stepper>
+                    <CreateProgramWizard
+                      onSubmit={handleCreateProgram}
+                      onCancel={() => setOpen(false)}
+                    />
                   </DialogContent>
                 </Dialog>
               </div>
@@ -332,7 +258,7 @@ export default function LoyaltyProgramsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loyaltyPrograms?.map((program: Program) => (
+                    {loyaltyPrograms?.map((program: LoyaltyProgram) => (
                       <TableRow key={program.id}>
                         <TableCell className="font-medium">
                           <div>
