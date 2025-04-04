@@ -94,12 +94,12 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === '/customers'}
-                  tooltip="Customers"
+                  isActive={pathname === '/program-members'}
+                  tooltip="Program Members"
                 >
-                  <Link href="/customers">
+                  <Link href="/program-members">
                     <Users className="mr-2 h-4 w-4" />
-                    {(isMobile || isOpen) && "Customers"}
+                    {(isMobile || isOpen) && "Program Members"}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

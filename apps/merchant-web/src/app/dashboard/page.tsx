@@ -43,6 +43,7 @@ import {
 import { LoadingScreen } from '@/components/loading-screen';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 import { useState, useEffect } from 'react';
+import { ChecklistService } from '@/services/checklist-service';
 
 type ChecklistItem = {
   id: string;
@@ -77,6 +78,17 @@ const CHECKLIST_CONFIG = [
     action: {
       label: 'Create Program',
       href: '/loyalty-programs',
+    },
+    required: true,
+  },
+  {
+    id: 'members',
+    title: 'Add Program Members',
+    description: 'Add members to your loyalty program to start testing',
+    icon: <Users className="w-4 h-4" />,
+    action: {
+      label: 'Add Members',
+      href: '/program-members',
     },
     required: true,
   },
@@ -138,18 +150,12 @@ export default function DashboardPage() {
 
   const fetchChecklistStatus = async () => {
     try {
-      // This is a placeholder for the actual API call
-      // const response = await fetch('/api/checklist-status');
-      // const status = await response.json();
-      
-      // For now, we'll simulate the API response
-      const status = {
-        merchant: merchants && merchants.length > 0,
-        program: loyaltyPrograms && loyaltyPrograms.length > 0,
-        test: false,
-        integration: false,
-        team: false,
-      };
+      // Get checklist status from service
+      const status = await ChecklistService.getStatus();
+
+      // Override merchant and program status based on actual data
+      status.merchant = Boolean(merchants && merchants.length > 0);
+      status.program = Boolean(loyaltyPrograms && loyaltyPrograms.length > 0);
 
       // Update checklist items with their completion status
       const updatedItems = CHECKLIST_CONFIG.map(item => ({
@@ -457,9 +463,9 @@ export default function DashboardPage() {
               <div className="mb-8">
                 <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
                 <p className="text-muted-foreground">
-                  {isNewUser 
+                  {isNewUser
                     ? "Let's get started with setting up your loyalty program"
-                    : completedRequiredItems < totalRequiredItems 
+                    : completedRequiredItems < totalRequiredItems
                       ? "Continue setting up your loyalty program"
                       : "Here's how your loyalty program is performing"
                   }
@@ -471,11 +477,11 @@ export default function DashboardPage() {
           </main>
         </div>
       </div>
-      <MerchantOnboardingDialog 
-        open={isOnboardingOpen} 
+      <MerchantOnboardingDialog
+        open={isOnboardingOpen}
         onOpenChange={setIsOnboardingOpen}
         onSuccess={handleOnboardingSuccess}
       />
     </SidebarProvider>
   );
-} 
+}
