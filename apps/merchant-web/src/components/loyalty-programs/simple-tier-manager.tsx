@@ -54,7 +54,10 @@ interface SimpleTierManagerProps {
   onTiersChange: (tiers: TierFormData[]) => void;
 }
 
-export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerProps) {
+export function SimpleTierManager({
+  tiers,
+  onTiersChange,
+}: SimpleTierManagerProps) {
   const [open, setOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<TierFormData | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -99,13 +102,20 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
   };
 
   // Sort tiers by points threshold
-  const sortedTiers = [...tiers].sort((a, b) => a.pointsThreshold - b.pointsThreshold);
+  const sortedTiers = [...tiers].sort(
+    (a, b) => a.pointsThreshold - b.pointsThreshold
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium">Membership Tiers</h3>
+          <h3 className="text-lg font-medium">
+            Membership Tiers{" "}
+            <span className="px-2 py-1 bg-muted text-xs rounded-md">
+              Optional
+            </span>
+          </h3>
           <p className="text-sm text-muted-foreground">
             Create tiers to reward your most loyal customers
           </p>
@@ -128,7 +138,10 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -136,7 +149,10 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
                     <FormItem>
                       <FormLabel>Tier Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., Silver, Gold, Platinum" />
+                        <Input
+                          {...field}
+                          placeholder="e.g., Silver, Gold, Platinum"
+                        />
                       </FormControl>
                       <FormDescription>
                         A name for this membership tier
@@ -176,7 +192,9 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
                         <Input
                           {...field}
                           type="number"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
                           placeholder="Enter points required"
                         />
                       </FormControl>
@@ -215,7 +233,8 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">
-              No tiers defined yet. Add tiers to create a multi-level loyalty program.
+              No tiers defined yet. Add tiers to create a multi-level loyalty
+              program.
             </p>
             <Button
               variant="outline"
@@ -264,7 +283,9 @@ export function SimpleTierManager({ tiers, onTiersChange }: SimpleTierManagerPro
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEdit(tier, index)}>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(tier, index)}
+                          >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>

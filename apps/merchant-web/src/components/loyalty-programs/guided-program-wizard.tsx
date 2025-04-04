@@ -451,12 +451,6 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
               {/* Step 2: Point Earning Rules */}
               {currentStep === 1 && (
                 <div className="space-y-4">
-                  <div className="border-b pb-2">
-                    <h3 className="text-lg font-medium">Point Earning Rules</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Define how customers earn points in your program.
-                    </p>
-                  </div>
 
                   <SimpleRuleBuilder
                     rules={form.watch("rules")}
@@ -475,22 +469,8 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
               {/* Step 3: Rewards (Optional) */}
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div className="border-b pb-2">
-                    <div className="flex justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium">Rewards (Optional)</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Create rewards that customers can redeem with their points.
-                        </p>
-                      </div>
-                      <div className="px-2 py-1 bg-muted text-xs rounded-md">
-                        Optional
-                      </div>
-                    </div>
-                  </div>
-
                   <SimpleRewardManager
-                    rewards={form.watch("rewards")}
+                    rewards={form.watch("rewards") || []}
                     onRewardsChange={(rewards: any) => form.setValue("rewards", rewards)}
                   />
 
@@ -506,22 +486,8 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
               {/* Step 4: Membership Tiers (Optional) */}
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <div className="border-b pb-2">
-                    <div className="flex justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium">Membership Tiers (Optional)</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Create tiers to reward your most loyal customers.
-                        </p>
-                      </div>
-                      <div className="px-2 py-1 bg-muted text-xs rounded-md">
-                        Optional
-                      </div>
-                    </div>
-                  </div>
-
                   <SimpleTierManager
-                    tiers={form.watch("tiers")}
+                    tiers={form.watch("tiers") || []}
                     onTiersChange={(tiers: any) => form.setValue("tiers", tiers)}
                   />
 

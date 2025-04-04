@@ -62,9 +62,14 @@ interface SimpleRewardManagerProps {
   onRewardsChange: (rewards: RewardFormData[]) => void;
 }
 
-export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardManagerProps) {
+export function SimpleRewardManager({
+  rewards,
+  onRewardsChange,
+}: SimpleRewardManagerProps) {
   const [open, setOpen] = useState(false);
-  const [editingReward, setEditingReward] = useState<RewardFormData | null>(null);
+  const [editingReward, setEditingReward] = useState<RewardFormData | null>(
+    null
+  );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const form = useForm<RewardFormData>({
@@ -110,13 +115,20 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
   };
 
   // Sort rewards by points cost
-  const sortedRewards = [...rewards].sort((a, b) => a.pointsCost - b.pointsCost);
+  const sortedRewards = [...rewards].sort(
+    (a, b) => a.pointsCost - b.pointsCost
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium">Program Rewards</h3>
+          <h3 className="text-lg font-medium">
+            Program Rewards{" "}
+            <span className="px-2 py-1 bg-muted text-xs rounded-md">
+              Optional
+            </span>
+          </h3>
           <p className="text-sm text-muted-foreground">
             Create rewards that customers can redeem with their points
           </p>
@@ -139,7 +151,10 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -147,11 +162,12 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                     <FormItem>
                       <FormLabel>Reward Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., Free Coffee, $10 Discount" />
+                        <Input
+                          {...field}
+                          placeholder="e.g., Free Coffee, $10 Discount"
+                        />
                       </FormControl>
-                      <FormDescription>
-                        A name for this reward
-                      </FormDescription>
+                      <FormDescription>A name for this reward</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -194,15 +210,21 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="PHYSICAL">Physical Product</SelectItem>
-                            <SelectItem value="DIGITAL">Digital Item</SelectItem>
-                            <SelectItem value="EXPERIENCE">Experience</SelectItem>
-                            <SelectItem value="COUPON">Discount Coupon</SelectItem>
+                            <SelectItem value="PHYSICAL">
+                              Physical Product
+                            </SelectItem>
+                            <SelectItem value="DIGITAL">
+                              Digital Item
+                            </SelectItem>
+                            <SelectItem value="EXPERIENCE">
+                              Experience
+                            </SelectItem>
+                            <SelectItem value="COUPON">
+                              Discount Coupon
+                            </SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormDescription>
-                          The type of reward
-                        </FormDescription>
+                        <FormDescription>The type of reward</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -218,7 +240,9 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                           <Input
                             {...field}
                             type="number"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
                             placeholder="e.g., 500"
                           />
                         </FormControl>
@@ -244,7 +268,9 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                             type="number"
                             onChange={(e) =>
                               field.onChange(
-                                e.target.value ? Number(e.target.value) : undefined
+                                e.target.value
+                                  ? Number(e.target.value)
+                                  : undefined
                               )
                             }
                             placeholder="e.g., 100"
@@ -286,7 +312,8 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">
-              No rewards defined yet. Add rewards that customers can redeem with their points.
+              No rewards defined yet. Add rewards that customers can redeem with
+              their points.
             </p>
             <Button
               variant="outline"
@@ -330,10 +357,10 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                         {reward.type === "PHYSICAL"
                           ? "Physical"
                           : reward.type === "DIGITAL"
-                          ? "Digital"
-                          : reward.type === "EXPERIENCE"
-                          ? "Experience"
-                          : "Coupon"}
+                            ? "Digital"
+                            : reward.type === "EXPERIENCE"
+                              ? "Experience"
+                              : "Coupon"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -354,7 +381,9 @@ export function SimpleRewardManager({ rewards, onRewardsChange }: SimpleRewardMa
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEdit(reward, index)}>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(reward, index)}
+                          >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
