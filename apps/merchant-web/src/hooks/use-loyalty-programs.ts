@@ -79,8 +79,11 @@ export function useLoyaltyPrograms() {
       }
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log('Update successful:', data);
+      // Invalidate both the list and the individual program queries
       queryClient.invalidateQueries({ queryKey: ['loyalty-programs'] });
+      queryClient.invalidateQueries({ queryKey: ['loyalty-program', variables.id] });
     },
   });
 

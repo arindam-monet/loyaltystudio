@@ -91,9 +91,7 @@ export default function ProgramMembersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<any[]>([]);
-  const [isCsvUploading, setIsCsvUploading] = useState(false);
   const { user } = useAuthStore();
   const { members, isLoading: isMembersLoading, createMember, deleteMember } = useProgramMembers(selectedProgram);
   const { tiers, isLoading: isTiersLoading } = useProgramTiers(selectedProgram);
@@ -165,10 +163,20 @@ export default function ProgramMembersPage() {
   const onSubmit = async (data: MemberFormData) => {
     console.log('Submitting form with data:', data);
 
-    if (!data.tierId) {
+    if (!data.tierId && tiers.length > 0) {
       toast({
         title: 'Error',
         description: 'Please select a membership tier',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // If no tiers are available, show an error
+    if (tiers.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Cannot add member: No tiers available. Please create a tier first.',
         variant: 'destructive'
       });
       return;
@@ -227,8 +235,7 @@ export default function ProgramMembersPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setCsvFile(file);
-    setIsCsvUploading(true);
+
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -247,8 +254,7 @@ export default function ProgramMembersPage() {
             description: `Missing required headers: ${missingHeaders.join(', ')}`,
             variant: 'destructive'
           });
-          setCsvFile(null);
-          setIsCsvUploading(false);
+
           return;
         }
 
@@ -275,7 +281,7 @@ export default function ProgramMembersPage() {
         }
 
         setCsvData(data);
-        setIsCsvUploading(false);
+
       } catch (error) {
         console.error('Failed to parse CSV:', error);
         toast({
@@ -283,8 +289,7 @@ export default function ProgramMembersPage() {
           description: 'Failed to parse CSV file. Please check the format.',
           variant: 'destructive'
         });
-        setCsvFile(null);
-        setIsCsvUploading(false);
+
       }
     };
 
@@ -294,8 +299,7 @@ export default function ProgramMembersPage() {
         description: 'Failed to read the file',
         variant: 'destructive'
       });
-      setCsvFile(null);
-      setIsCsvUploading(false);
+
     };
 
     reader.readAsText(file);
@@ -304,6 +308,17 @@ export default function ProgramMembersPage() {
   // Bulk import members
   const handleBulkImport = async () => {
     if (!selectedProgram || !csvData.length) return;
+
+    // Check if tiers are available
+    if (tiers.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Cannot import members: No tiers available. Please create a tier first.',
+        variant: 'destructive'
+      });
+      setIsBulkImportDialogOpen(false);
+      return;
+    }
 
     setIsSubmitting(true);
     let successCount = 0;
@@ -362,7 +377,7 @@ export default function ProgramMembersPage() {
         }
 
         // Reset state
-        setCsvFile(null);
+
         setCsvData([]);
         setIsBulkImportDialogOpen(false);
       } else {
@@ -514,23 +529,42 @@ export default function ProgramMembersPage() {
                                         render={({ field }) => (
                                           <FormItem>
                                             <FormLabel>Membership Tier</FormLabel>
-                                            <Select
-                                              onValueChange={field.onChange}
-                                              value={field.value || (tiers.length > 0 ? tiers[0].id : '')}
-                                            >
-                                              <FormControl>
-                                                <SelectTrigger>
-                                                  <SelectValue placeholder="Select a tier" />
-                                                </SelectTrigger>
-                                              </FormControl>
-                                              <SelectContent>
-                                                {tiers.map((tier) => (
-                                                  <SelectItem key={tier.id} value={tier.id}>
-                                                    {tier.name} (Min: {tier.pointsThreshold} points)
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
+                                            {tiers.length > 0 ? (
+                                              <Select
+                                                onValueChange={field.onChange}
+                                                value={field.value || (tiers.length > 0 ? tiers[0].id : '')}
+                                              >
+                                                <FormControl>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select a tier" />
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  {tiers.map((tier) => (
+                                                    <SelectItem key={tier.id} value={tier.id}>
+                                                      {tier.name} (Min: {tier.pointsThreshold} points)
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            ) : (
+                                              <div className="flex flex-col gap-2">
+                                                <div className="border rounded-md p-3 bg-muted/20 text-sm text-muted-foreground">
+                                                  No tiers available. Please create a tier first.
+                                                </div>
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setIsAddDialogOpen(false);
+                                                    router.push('/settings/tiers');
+                                                  }}
+                                                >
+                                                  Create Tier
+                                                </Button>
+                                              </div>
+                                            )}
                                             <FormDescription>
                                               Select the membership tier for this member
                                             </FormDescription>

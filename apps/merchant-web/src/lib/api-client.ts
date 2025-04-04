@@ -31,17 +31,37 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    console.log(`API Request [${config.method?.toUpperCase()}] ${config.url}:`, {
+      data: config.data,
+      params: config.params,
+      headers: config.headers
+    });
+
     return config;
   },
   (error) => {
+    console.error('API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
 // Add response interceptor for handling auth errors
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`API Response [${response.config.method?.toUpperCase()}] ${response.config.url}:`, {
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   (error) => {
+    console.error(`API Error [${error.config?.method?.toUpperCase()}] ${error.config?.url}:`, {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+
     if (error.response?.status === 401) {
       // Clear auth on unauthorized
       useAuthStore.getState().clearAuth();
@@ -54,4 +74,4 @@ apiClient.interceptors.response.use(
 apiClient.clearCache = async () => {
   // Clear any cached data in the API client
   apiClient.defaults.headers.common = {};
-}; 
+};

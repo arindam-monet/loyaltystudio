@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function useCampaigns(programId: string) {
   const queryClient = useQueryClient();
+  const { token } = useAuthStore();
 
   const {
     data: campaigns,
@@ -11,15 +13,15 @@ export function useCampaigns(programId: string) {
   } = useQuery({
     queryKey: ["campaigns", programId],
     queryFn: async () => {
-      const response = await api.get(`/loyalty-programs/${programId}/campaigns`);
+      const response = await apiClient.get(`/loyalty-programs/${programId}/campaigns`);
       return response.data;
     },
-    enabled: !!programId,
+    enabled: !!programId && !!token,
   });
 
   const createCampaign = useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.post(`/loyalty-programs/${programId}/campaigns`, data);
+      const response = await apiClient.post(`/loyalty-programs/${programId}/campaigns`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -29,7 +31,7 @@ export function useCampaigns(programId: string) {
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await api.patch(`/loyalty-programs/${programId}/campaigns/${id}`, data);
+      const response = await apiClient.patch(`/loyalty-programs/${programId}/campaigns/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -39,7 +41,7 @@ export function useCampaigns(programId: string) {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/loyalty-programs/${programId}/campaigns/${id}`);
+      await apiClient.delete(`/loyalty-programs/${programId}/campaigns/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", programId] });
@@ -54,4 +56,4 @@ export function useCampaigns(programId: string) {
     updateCampaign,
     deleteCampaign,
   };
-} 
+}
