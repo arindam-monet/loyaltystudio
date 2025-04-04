@@ -191,7 +191,7 @@ export default function LoyaltyProgramDetailsPage() {
                             <h4 className="font-medium mb-2">Program Status</h4>
                             <div>
                               {program.isActive ? (
-                                <Badge variant="success">Active</Badge>
+                                <Badge variant="default">Active</Badge>
                               ) : (
                                 <Badge variant="secondary">Inactive</Badge>
                               )}

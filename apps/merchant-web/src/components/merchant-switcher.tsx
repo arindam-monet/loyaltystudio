@@ -92,11 +92,11 @@ export default function MerchantSwitcher({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             role="combobox"
             aria-expanded={open}
             aria-label="Select a merchant"
-            className={cn('w-full justify-between px-2', className)}
+            className={cn('w-full justify-between px-2 bg-muted/50 border-dashed', className)}
           >
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
@@ -109,7 +109,7 @@ export default function MerchantSwitcher({
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start text-sm">
-                <span className="font-medium">{(selectedMerchant || localSelectedMerchant)?.name}</span>
+                <span className="font-medium text-primary">{(selectedMerchant || localSelectedMerchant)?.name}</span>
                 {(selectedMerchant || localSelectedMerchant)?.isDefault && (
                   <span className="text-xs text-muted-foreground">Enterprise</span>
                 )}
