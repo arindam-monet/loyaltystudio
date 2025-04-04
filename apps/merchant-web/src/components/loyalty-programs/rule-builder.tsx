@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -23,13 +23,6 @@ import { MinimumPurchase } from './rule-nodes/minimum-purchase';
 import { RuleSidebar } from './rule-nodes/rule-sidebar';
 import { RuleProperties } from './rule-nodes/rule-properties';
 
-const nodeTypes: NodeTypes = {
-  basePoints: BasePoints,
-  categoryMultiplier: CategoryMultiplier,
-  minimumPurchase: MinimumPurchase,
-  maximumPoints: MaximumPoints,
-};
-
 interface RuleBuilderProps {
   nodes: Node[];
   edges: Edge[];
@@ -49,6 +42,16 @@ export function RuleBuilder({
 }: RuleBuilderProps) {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const { screenToFlowPosition, toObject } = useReactFlow();
+
+  const nodeTypes = useMemo<NodeTypes>(
+    () => ({
+      basePoints: BasePoints,
+      categoryMultiplier: CategoryMultiplier,
+      minimumPurchase: MinimumPurchase,
+      maximumPoints: MaximumPoints,
+    }),
+    []
+  );
 
   const handleNodesChange = useCallback(
     (changes: any[]) => {

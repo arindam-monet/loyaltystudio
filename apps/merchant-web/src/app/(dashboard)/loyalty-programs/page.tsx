@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -38,26 +38,28 @@ import {
   BreadcrumbPage,
   SidebarProvider,
   SidebarTrigger,
-} from '@loyaltystudio/ui';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { RuleBuilder } from '@/components/loyalty-programs/rule-builder';
-import { RewardsManager } from '@/components/loyalty-programs/rewards-manager';
-import { TiersManager } from '@/components/loyalty-programs/tiers-manager';
-import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
-import { AppSidebar } from '@/components/app-sidebar';
+} from "@loyaltystudio/ui";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { RuleBuilder } from "@/components/loyalty-programs/rule-builder";
+import { RewardsManager } from "@/components/loyalty-programs/rewards-manager";
+import { TiersManager } from "@/components/loyalty-programs/tiers-manager";
+import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ReactFlowProvider } from "reactflow";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 const programSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().min(1, 'Description is required'),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().min(1, "Description is required"),
   settings: z.object({
     pointsName: z.string(),
     currency: z.string(),
-    timezone: z.string()
+    timezone: z.string(),
   }),
-  isActive: z.boolean()
+  isActive: z.boolean(),
 });
 
 type ProgramFormData = z.infer<typeof programSchema>;
@@ -68,19 +70,21 @@ interface Program extends ProgramFormData {
 
 export default function LoyaltyProgramsPage() {
   const router = useRouter();
+  const { isLoading: isAuthLoading } = useAuthGuard();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { loyaltyPrograms, isLoading, createLoyaltyProgram } = useLoyaltyPrograms();
+  const { loyaltyPrograms, isLoading, createLoyaltyProgram } =
+    useLoyaltyPrograms();
 
   const form = useForm<ProgramFormData>({
     resolver: zodResolver(programSchema),
     defaultValues: {
-      name: '',
-      description: '',
+      name: "",
+      description: "",
       settings: {
-        pointsName: 'Points',
-        currency: 'USD',
-        timezone: 'UTC',
+        pointsName: "Points",
+        currency: "USD",
+        timezone: "UTC",
       },
       isActive: true,
     },
@@ -93,8 +97,10 @@ export default function LoyaltyProgramsPage() {
       setOpen(false);
       form.reset();
     } catch (error) {
-      console.error('Failed to create program:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create program');
+      console.error("Failed to create program:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to create program"
+      );
     }
   };
 
@@ -144,7 +150,10 @@ export default function LoyaltyProgramsPage() {
                     )}
 
                     <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-4"
+                      >
                         <FormField
                           control={form.control}
                           name="name"
@@ -152,7 +161,10 @@ export default function LoyaltyProgramsPage() {
                             <FormItem>
                               <FormLabel>Program Name</FormLabel>
                               <FormControl>
-                                <Input {...field} placeholder="Enter program name" />
+                                <Input
+                                  {...field}
+                                  placeholder="Enter program name"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -166,7 +178,10 @@ export default function LoyaltyProgramsPage() {
                             <FormItem>
                               <FormLabel>Description</FormLabel>
                               <FormControl>
-                                <Textarea {...field} placeholder="Enter program description" />
+                                <Textarea
+                                  {...field}
+                                  placeholder="Enter program description"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -176,7 +191,9 @@ export default function LoyaltyProgramsPage() {
                         <Separator />
 
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold">Program Settings</h3>
+                          <h3 className="text-lg font-semibold">
+                            Program Settings
+                          </h3>
                           <FormField
                             control={form.control}
                             name="settings.pointsName"
@@ -184,7 +201,10 @@ export default function LoyaltyProgramsPage() {
                               <FormItem>
                                 <FormLabel>Points Name</FormLabel>
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter points name" />
+                                  <Input
+                                    {...field}
+                                    placeholder="Enter points name"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -198,7 +218,10 @@ export default function LoyaltyProgramsPage() {
                               <FormItem>
                                 <FormLabel>Currency</FormLabel>
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter currency code" />
+                                  <Input
+                                    {...field}
+                                    placeholder="Enter currency code"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -212,7 +235,10 @@ export default function LoyaltyProgramsPage() {
                               <FormItem>
                                 <FormLabel>Timezone</FormLabel>
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter timezone" />
+                                  <Input
+                                    {...field}
+                                    placeholder="Enter timezone"
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -226,7 +252,9 @@ export default function LoyaltyProgramsPage() {
                           render={({ field }) => (
                             <FormItem className="flex items-center justify-between rounded-lg border p-4">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-base">Active Status</FormLabel>
+                                <FormLabel className="text-base">
+                                  Active Status
+                                </FormLabel>
                                 <FormDescription>
                                   Enable or disable this program
                                 </FormDescription>
@@ -242,11 +270,20 @@ export default function LoyaltyProgramsPage() {
                         />
 
                         <div className="flex justify-end space-x-2">
-                          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setOpen(false)}
+                          >
                             Cancel
                           </Button>
-                          <Button type="submit" disabled={form.formState.isSubmitting}>
-                            {form.formState.isSubmitting ? 'Creating...' : 'Create Program'}
+                          <Button
+                            type="submit"
+                            disabled={form.formState.isSubmitting}
+                          >
+                            {form.formState.isSubmitting
+                              ? "Creating..."
+                              : "Create Program"}
                           </Button>
                         </div>
                       </form>
@@ -276,13 +313,13 @@ export default function LoyaltyProgramsPage() {
                             <div>
                               <h4 className="font-medium">Points Name</h4>
                               <p className="text-sm text-muted-foreground">
-                                {program.settings?.pointsName || 'Points'}
+                                {program.settings?.pointsName || "Points"}
                               </p>
                             </div>
                             <div>
                               <h4 className="font-medium">Status</h4>
                               <p className="text-sm text-muted-foreground">
-                                {program.isActive ? 'Active' : 'Inactive'}
+                                {program.isActive ? "Active" : "Inactive"}
                               </p>
                             </div>
                           </div>
@@ -290,10 +327,18 @@ export default function LoyaltyProgramsPage() {
                           <Separator />
 
                           <div>
-                            <h4 className="font-medium mb-2">Program Settings</h4>
+                            <h4 className="font-medium mb-2">
+                              Program Settings
+                            </h4>
                             <ul className="space-y-2 text-sm text-muted-foreground">
-                              <li>• Currency: {program.settings?.currency || 'USD'}</li>
-                              <li>• Timezone: {program.settings?.timezone || 'UTC'}</li>
+                              <li>
+                                • Currency:{" "}
+                                {program.settings?.currency || "USD"}
+                              </li>
+                              <li>
+                                • Timezone:{" "}
+                                {program.settings?.timezone || "UTC"}
+                              </li>
                             </ul>
                           </div>
                         </div>
@@ -303,14 +348,16 @@ export default function LoyaltyProgramsPage() {
                 </TabsContent>
 
                 <TabsContent value="rules">
-                  <RuleBuilder
-                    nodes={[]}
-                    edges={[]}
-                    onNodesChange={() => {}}
-                    onEdgesChange={() => {}}
-                    onConnect={() => {}}
-                    onNodeDataChange={() => {}}
-                  />
+                  <ReactFlowProvider>
+                    <RuleBuilder
+                      nodes={[]}
+                      edges={[]}
+                      onNodesChange={() => {}}
+                      onEdgesChange={() => {}}
+                      onConnect={() => {}}
+                      onNodeDataChange={() => {}}
+                    />
+                  </ReactFlowProvider>
                 </TabsContent>
 
                 <TabsContent value="rewards">
@@ -327,4 +374,4 @@ export default function LoyaltyProgramsPage() {
       </div>
     </SidebarProvider>
   );
-} 
+}
