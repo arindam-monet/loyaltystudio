@@ -65,6 +65,7 @@ model Merchant {
   pointsBalances  PointsBalance[]
   pointsCalculations PointsCalculation[]
   apiKeys         ApiKey[]
+  webhooks        Webhook[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   branding        Json?         @default("{}")
@@ -418,4 +419,59 @@ model ApiKeyRateLimit {
 
   @@unique([apiKeyId, window])
   @@index([apiKeyId])
-} 
+}
+
+// Webhook event types
+enum WebhookEventType {
+  transaction_created
+  points_earned
+  points_redeemed
+  points_adjusted
+  member_created
+  member_updated
+  member_deleted
+  tier_changed
+  reward_redeemed
+  reward_created
+  reward_updated
+  reward_deleted
+  campaign_started
+  campaign_ended
+  campaign_updated
+}
+
+// Webhook model for event notifications
+model Webhook {
+  id          String   @id @default(cuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  url         String
+  events      WebhookEventType[]
+  secret      String
+  description String?
+  isActive    Boolean  @default(true)
+  deliveryLogs WebhookDeliveryLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([merchantId])
+}
+
+// Webhook delivery log for tracking and debugging
+model WebhookDeliveryLog {
+  id          String   @id @default(cuid())
+  webhookId   String
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  eventType   WebhookEventType
+  payload     Json
+  statusCode  Int?
+  response    String?
+  error       String?
+  attempts    Int      @default(0)
+  successful  Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([webhookId])
+  @@index([eventType])
+  @@index([successful])
+}

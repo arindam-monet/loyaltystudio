@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { PointsCalculationService } from '../services/points-calculation.js';
+import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
 const pointsService = new PointsCalculationService();
@@ -175,7 +176,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         // For REDEEM transactions, check if user has enough points
         if (data.type === 'REDEEM') {
           const balance = await prisma.pointsTransaction.aggregate({
-            where: { 
+            where: {
               userId,
               merchantId,
             },
@@ -208,6 +209,26 @@ export async function pointsRoutes(fastify: FastifyInstance) {
             merchantId,
           },
         });
+
+        // Trigger webhook based on transaction type
+        let eventType: string;
+        switch (data.type) {
+          case 'EARN':
+            eventType = 'points_earned';
+            break;
+          case 'REDEEM':
+            eventType = 'points_redeemed';
+            break;
+          case 'ADJUST':
+            eventType = 'points_adjusted';
+            break;
+          default:
+            eventType = 'transaction_created';
+        }
+
+        // Send webhook asynchronously (don't await)
+        webhookService.sendWebhook(merchantId, eventType, transaction)
+          .catch(error => request.log.error({ error }, 'Failed to send webhook'));
 
         return reply.code(201).send(transaction);
       } catch (error) {
@@ -258,14 +279,14 @@ export async function pointsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const { userId } = request.params as { userId: string };
-        const { limit, offset, type } = request.query as { 
-          limit: number; 
+        const { limit, offset, type } = request.query as {
+          limit: number;
           offset: number;
           type?: string;
         };
         const merchantId = request.user.merchantId;
 
-        const where: any = { 
+        const where: any = {
           userId,
           merchantId,
         };
@@ -305,11 +326,11 @@ export async function pointsRoutes(fastify: FastifyInstance) {
               required: ['field', 'operator', 'value'],
               properties: {
                 field: { type: 'string' },
-                operator: { 
+                operator: {
                   type: 'string',
                   enum: ['equals', 'greaterThan', 'lessThan', 'contains']
                 },
-                value: { 
+                value: {
                   oneOf: [
                     { type: 'string' },
                     { type: 'number' },
@@ -339,7 +360,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
                 properties: {
                   field: { type: 'string' },
                   operator: { type: 'string' },
-                  value: { 
+                  value: {
                     oneOf: [
                       { type: 'string' },
                       { type: 'number' },
@@ -470,4 +491,4 @@ export async function pointsRoutes(fastify: FastifyInstance) {
       }
     }
   });
-} 
+}

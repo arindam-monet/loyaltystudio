@@ -23,6 +23,7 @@ import { apiKeyRoutes } from './routes/api-keys.js';
 import { programTierRoutes } from './routes/program-tiers.js';
 import { programMemberRoutes } from './routes/program-members.js';
 import { campaignRoutes } from './routes/campaigns.js';
+import { webhookRoutes } from './routes/webhooks.js';
 
 const app = fastify({
   logger: {
@@ -101,6 +102,7 @@ app.register(programTierRoutes);
 app.register(programMemberRoutes);
 app.register(campaignRoutes);
 app.register(apiKeyRoutes);
+app.register(webhookRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
@@ -113,12 +115,12 @@ app.get('/health', async () => {
   try {
     // Check Redis connection
     await app.cache.get('health-check');
-    return { 
+    return {
       status: 'ok',
       redis: 'connected'
     };
   } catch (error) {
-    return { 
+    return {
       status: 'error',
       redis: 'disconnected',
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -143,8 +145,8 @@ app.get('/debug/openapi', async () => {
 const start = async () => {
   try {
     console.log('Starting server...');
-    
-    
+
+
     await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
     console.log(`Server is running on ${env.API_URL}`);
     console.log('API Documentation available at http://localhost:3001/docs');
@@ -166,4 +168,4 @@ process.on('unhandledRejection', (err) => {
   process.exit(1);
 });
 
-start(); 
+start();

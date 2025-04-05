@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
+import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
 
@@ -101,6 +102,21 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         }
       });
 
+      // Get merchant ID from tier
+      const tier = await prisma.programTier.findUnique({
+        where: { id: data.tierId },
+        include: { loyaltyProgram: true }
+      });
+
+      if (tier) {
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          tier.loyaltyProgram.merchantId,
+          'member_created',
+          member
+        ).catch(error => request.log.error({ error }, 'Failed to send member created webhook'));
+      }
+
       return reply.code(201).send(member);
     } catch (error) {
       console.error('Failed to add program member:', error);
@@ -136,6 +152,12 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     const data = memberSchema.partial().parse(request.body);
 
     try {
+      // Get original member data for comparison
+      const originalMember = await prisma.programMember.findUnique({
+        where: { id },
+        include: { tier: { include: { loyaltyProgram: true } } }
+      });
+
       const member = await prisma.programMember.update({
         where: { id },
         data: {
@@ -154,6 +176,32 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           tier: true,
         }
       });
+
+      if (originalMember) {
+        const merchantId = originalMember.tier.loyaltyProgram.merchantId;
+
+        // Send member updated webhook
+        webhookService.sendWebhook(
+          merchantId,
+          'member_updated',
+          member
+        ).catch(error => request.log.error({ error }, 'Failed to send member updated webhook'));
+
+        // If tier changed, send tier changed webhook
+        if (data.tierId && data.tierId !== originalMember.tierId) {
+          webhookService.sendWebhook(
+            merchantId,
+            'tier_changed',
+            {
+              memberId: member.id,
+              userId: member.userId,
+              previousTierId: originalMember.tierId,
+              newTierId: member.tierId,
+              timestamp: new Date().toISOString()
+            }
+          ).catch(error => request.log.error({ error }, 'Failed to send tier changed webhook'));
+        }
+      }
 
       return reply.send(member);
     } catch (error) {
@@ -181,9 +229,29 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
 
     try {
+      // Get member data before deletion
+      const member = await prisma.programMember.findUnique({
+        where: { id },
+        include: { tier: { include: { loyaltyProgram: true } } }
+      });
+
       await prisma.programMember.delete({
         where: { id },
       });
+
+      if (member) {
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          member.tier.loyaltyProgram.merchantId,
+          'member_deleted',
+          {
+            id: member.id,
+            userId: member.userId,
+            tierId: member.tierId,
+            deletedAt: new Date().toISOString()
+          }
+        ).catch(error => request.log.error({ error }, 'Failed to send member deleted webhook'));
+      }
 
       return reply.code(204).send();
     } catch (error) {
@@ -377,4 +445,4 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       });
     }
   });
-} 
+}
