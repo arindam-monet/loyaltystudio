@@ -208,15 +208,77 @@ The platform is built with an API-first approach, making it easy to integrate wi
 
 ### 4.3 Webhooks
 
-LoyaltyStudio.ai provides a webhook system for real-time event notifications.
+LoyaltyStudio.ai provides a comprehensive webhook system for real-time event notifications, enabling merchants to build seamless integrations with their existing systems.
 
 #### Webhook Features:
 
-- Event-based triggers for various system actions
-- Configurable endpoints for receiving webhook data
-- Webhook security with signature verification
-- Retry mechanisms for failed webhook deliveries
-- Webhook logs and monitoring
+- **Event-based Notifications**: Real-time notifications for key business events
+- **Selective Subscriptions**: Subscribe to specific event types based on integration needs
+- **Secure Delivery**: HMAC signature verification ensures webhook authenticity
+- **Automatic Retries**: Built-in retry mechanism with exponential backoff for failed deliveries
+- **Delivery Logs**: Detailed logs of all webhook attempts for debugging and monitoring
+- **Testing Tools**: Send test events to verify webhook configuration
+- **Secret Rotation**: Ability to regenerate webhook secrets for enhanced security
+
+#### Supported Event Types:
+
+**Transaction Events**:
+- `transaction_created`: When any transaction is created
+- `points_earned`: When a customer earns points
+- `points_redeemed`: When points are redeemed
+- `points_adjusted`: When points are manually adjusted
+
+**Member Events**:
+- `member_created`: When a new member joins a loyalty program
+- `member_updated`: When member details are updated
+- `member_deleted`: When a member is removed
+- `tier_changed`: When a member moves to a different tier
+
+**Reward Events**:
+- `reward_redeemed`: When a reward is redeemed
+- `reward_created`: When a new reward is added
+- `reward_updated`: When a reward is modified
+- `reward_deleted`: When a reward is removed
+
+**Campaign Events**:
+- `campaign_started`: When a campaign begins
+- `campaign_ended`: When a campaign ends
+- `campaign_updated`: When campaign details change
+
+#### Webhook Management:
+
+Merchants can manage webhooks through:
+- RESTful API endpoints for programmatic control
+- Merchant dashboard for visual configuration
+- Detailed logs for monitoring and troubleshooting
+
+#### Example Webhook Payload:
+
+```json
+{
+  "event": "points_earned",
+  "timestamp": "2023-06-01T12:34:56.789Z",
+  "data": {
+    "id": "tx_123456",
+    "userId": "user_123",
+    "merchantId": "merchant_456",
+    "amount": 100,
+    "type": "EARN",
+    "status": "COMPLETED",
+    "createdAt": "2023-06-01T12:34:56.789Z"
+  }
+}
+```
+
+#### Integration Use Cases:
+
+- **E-commerce Integration**: Display real-time loyalty information during shopping
+- **POS System Integration**: Show points earned on receipts and cashier displays
+- **Mobile App Notifications**: Send push notifications for loyalty events
+- **CRM Integration**: Update customer profiles with loyalty information
+- **Analytics**: Track loyalty program performance in real-time
+- **Inventory Management**: Monitor physical reward redemptions
+- **Marketing Automation**: Trigger campaigns based on loyalty events
 
 ## 5. Analytics and Reporting
 
@@ -323,11 +385,29 @@ Merchants can integrate the loyalty program with their existing systems.
 
 #### Integration Steps:
 
-1. Generate API keys
-2. Configure webhook endpoints
-3. Install platform-specific plugins
-4. Test the integration
-5. Enable automatic synchronization
+1. **Generate API Keys**:
+   - Create API keys with appropriate permissions
+   - Store API keys securely in your application
+
+2. **Configure Webhook Endpoints**:
+   - Create webhook endpoints in your application to receive events
+   - Register these endpoints in LoyaltyStudio
+   - Select which event types to subscribe to
+   - Implement signature verification for security
+
+3. **Install Platform-specific Plugins**:
+   - Use pre-built plugins for common platforms
+   - Follow platform-specific integration guides
+
+4. **Test the Integration**:
+   - Use the webhook testing tool to send test events
+   - Verify proper handling in your application
+   - Check webhook delivery logs for any issues
+
+5. **Enable Automatic Synchronization**:
+   - Configure real-time data flow between systems
+   - Set up error handling and monitoring
+   - Implement fallback mechanisms for reliability
 
 ## 8. Support and Resources
 
@@ -347,10 +427,30 @@ Merchants can integrate the loyalty program with their existing systems.
 
 ### 8.3 Developer Resources
 
-- SDKs and client libraries
-- Code examples
-- Integration templates
-- API reference
+- **SDKs and Client Libraries**:
+  - JavaScript/TypeScript SDK
+  - Python SDK
+  - PHP SDK
+  - Ruby SDK
+  - Mobile SDKs (iOS/Android)
+
+- **Code Examples**:
+  - Webhook implementation examples
+  - Points calculation integration
+  - Reward redemption flows
+  - Member management
+
+- **Integration Templates**:
+  - E-commerce platform templates
+  - POS system integration guides
+  - CRM connector templates
+  - Mobile app integration examples
+
+- **API Reference**:
+  - Complete API documentation
+  - Webhook event reference
+  - Authentication guides
+  - Rate limiting information
 
 ## 9. Roadmap and Future Development
 
