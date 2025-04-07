@@ -84,6 +84,7 @@ export default function ProgramMembersPage() {
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
   const [selectedProgram, setSelectedProgram] = useState<string>('');
+  const [isChangingProgram, setIsChangingProgram] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChecklistUpdated, setIsChecklistUpdated] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,8 +233,6 @@ export default function ProgramMembersPage() {
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -401,7 +400,6 @@ export default function ProgramMembersPage() {
   }
 
   return (
-
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 bg-background z-10">
         <div className="flex items-center gap-2 px-4">
@@ -427,7 +425,13 @@ export default function ProgramMembersPage() {
                     <Label htmlFor="program">Select Loyalty Program</Label>
                     <Select
                       value={selectedProgram}
-                      onValueChange={setSelectedProgram}
+                      onValueChange={(value) => {
+                        if (value !== selectedProgram) {
+                          setIsChangingProgram(true);
+                          setSelectedProgram(value);
+                          setTimeout(() => setIsChangingProgram(false), 300);
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a loyalty program" />
@@ -445,246 +449,306 @@ export default function ProgramMembersPage() {
                   {selectedProgram && (
                     <div className="space-y-6">
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                          <div className="relative w-full max-w-sm">
-                            <Input
-                              placeholder="Search members..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="pl-8"
-                            />
-                            <div className="absolute left-2 top-2.5 text-muted-foreground">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                        {isChangingProgram ? (
+                          <>
+                            <div className="flex items-center gap-4">
+                              <div className="relative w-full max-w-sm">
+                                <div className="h-10 w-64 bg-muted animate-pulse rounded-md"></div>
+                              </div>
+                              <div className="h-9 w-16 bg-muted animate-pulse rounded-md"></div>
                             </div>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSearchQuery('')}
-                            disabled={!searchQuery}
-                          >
-                            Clear
-                          </Button>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Add Member
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>Add New Member</DialogTitle>
-                                <DialogDescription>
-                                  Add a new member to your loyalty program.
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                                  <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Name</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} />
-                                        </FormControl>
-                                        <FormDescription>
-                                          Enter the member's full name
-                                        </FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Email</FormLabel>
-                                        <FormControl>
-                                          <Input {...field} type="email" />
-                                        </FormControl>
-                                        <FormDescription>
-                                          Enter the member's email address
-                                        </FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <FormField
-                                    control={form.control}
-                                    name="tierId"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Membership Tier</FormLabel>
-                                        {tiers.length > 0 ? (
-                                          <Select
-                                            onValueChange={field.onChange}
-                                            value={field.value || (tiers.length > 0 ? tiers[0].id : '')}
-                                          >
-                                            <FormControl>
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Select a tier" />
-                                              </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                              {tiers.map((tier) => (
-                                                <SelectItem key={tier.id} value={tier.id}>
-                                                  {tier.name} (Min: {tier.pointsThreshold} points)
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        ) : (
-                                          <div className="flex flex-col gap-2">
-                                            <div className="border rounded-md p-3 bg-muted/20 text-sm text-muted-foreground">
-                                              No tiers available. Please create a tier first.
-                                            </div>
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => {
-                                                setIsAddDialogOpen(false);
-                                                router.push('/settings/tiers');
-                                              }}
-                                            >
-                                              Create Tier
-                                            </Button>
-                                          </div>
-                                        )}
-                                        <FormDescription>
-                                          Select the membership tier for this member
-                                        </FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <FormField
-                                    control={form.control}
-                                    name="initialPoints"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Initial Points</FormLabel>
-                                        <FormControl>
-                                          <Input
-                                            type="number"
-                                            {...field}
-                                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                            value={field.value}
-                                          />
-                                        </FormControl>
-                                        <FormDescription>
-                                          Set initial points balance (optional)
-                                        </FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <DialogFooter>
-                                    <Button
-                                      type="submit"
-                                      disabled={isSubmitting}
-                                    >
-                                      {isSubmitting ? 'Adding...' : 'Add Member'}
-                                    </Button>
-                                  </DialogFooter>
-                                </form>
-                              </Form>
-                            </DialogContent>
-                          </Dialog>
-
-                          <Dialog open={isBulkImportDialogOpen} onOpenChange={setIsBulkImportDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" className="gap-2">
-                                <Upload className="h-4 w-4" />
-                                Bulk Import
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>Bulk Import Members</DialogTitle>
-                                <DialogDescription>
-                                  Upload a CSV file to import multiple members at once.
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <div className="space-y-4">
-                                <div className="grid w-full max-w-sm items-center gap-1.5">
-                                  <Label htmlFor="csv-file">CSV File</Label>
-                                  <Input
-                                    id="csv-file"
-                                    type="file"
-                                    accept=".csv"
-                                    onChange={handleCsvUpload}
-                                  />
-                                  <p className="text-sm text-muted-foreground">
-                                    CSV must include columns: email, name, initialPoints<br />
-                                    Optional column: tierName (if not provided, lowest tier will be used)
-                                  </p>
-                                </div>
-
-                                {csvData.length > 0 && (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">
-                                        {csvData.length} members ready to import
-                                      </span>
-                                    </div>
-                                    <Button
-                                      onClick={handleBulkImport}
-                                      disabled={isSubmitting}
-                                      className="w-full"
-                                    >
-                                      {isSubmitting ? 'Importing...' : 'Import Members'}
-                                    </Button>
-                                  </div>
-                                )}
-
-                                <div className="mt-4">
-                                  <h4 className="text-sm font-medium mb-2">Sample CSV Format</h4>
-                                  <div className="bg-muted p-2 rounded-md text-xs font-mono">
-                                    email,name,initialPoints,tierName<br />
-                                    john@example.com,John Doe,100,Bronze<br />
-                                    jane@example.com,Jane Smith,250,Silver
-                                  </div>
-                                  <Button
-                                    variant="link"
-                                    size="sm"
-                                    className="mt-2 h-auto p-0"
-                                    onClick={() => {
-                                      const csv = 'email,name,initialPoints,tierName\njohn@example.com,John Doe,100,Bronze\njane@example.com,Jane Smith,250,Silver';
-                                      const blob = new Blob([csv], { type: 'text/csv' });
-                                      const url = URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      a.download = 'sample_members.csv';
-                                      a.click();
-                                      URL.revokeObjectURL(url);
-                                    }}
-                                  >
-                                    <Download className="h-3 w-3 mr-1" />
-                                    Download Sample
-                                  </Button>
+                            <div className="flex gap-2">
+                              <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+                              <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-4">
+                              <div className="relative w-full max-w-sm">
+                                <Input
+                                  placeholder="Search members..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="pl-8"
+                                />
+                                <div className="absolute left-2 top-2.5 text-muted-foreground">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                                 </div>
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSearchQuery('')}
+                                disabled={!searchQuery}
+                              >
+                                Clear
+                              </Button>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button className="gap-2">
+                                    <Plus className="h-4 w-4" />
+                                    Add Member
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[425px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Add New Member</DialogTitle>
+                                    <DialogDescription>
+                                      Add a new member to your loyalty program.
+                                    </DialogDescription>
+                                  </DialogHeader>
+
+                                  <Form {...form}>
+                                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                                      <FormField
+                                        control={form.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Name</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Enter the member's full name
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="email"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} type="email" />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Enter the member's email address
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="tierId"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Membership Tier</FormLabel>
+                                            {tiers.length > 0 ? (
+                                              <Select
+                                                onValueChange={field.onChange}
+                                                value={field.value || (tiers.length > 0 ? tiers[0].id : '')}
+                                              >
+                                                <FormControl>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select a tier" />
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  {tiers.map((tier) => (
+                                                    <SelectItem key={tier.id} value={tier.id}>
+                                                      {tier.name} (Min: {tier.pointsThreshold} points)
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            ) : (
+                                              <div className="flex flex-col gap-2">
+                                                <div className="border rounded-md p-3 bg-muted/20 text-sm text-muted-foreground">
+                                                  No tiers available. Please create a tier first.
+                                                </div>
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setIsAddDialogOpen(false);
+                                                    router.push('/settings/tiers');
+                                                  }}
+                                                >
+                                                  Create Tier
+                                                </Button>
+                                              </div>
+                                            )}
+                                            <FormDescription>
+                                              Select the membership tier for this member
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="initialPoints"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Initial Points</FormLabel>
+                                            <FormControl>
+                                              <Input
+                                                type="number"
+                                                {...field}
+                                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                                value={field.value}
+                                              />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Set initial points balance (optional)
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <DialogFooter>
+                                        <Button
+                                          type="submit"
+                                          disabled={isSubmitting}
+                                        >
+                                          {isSubmitting ? 'Adding...' : 'Add Member'}
+                                        </Button>
+                                      </DialogFooter>
+                                    </form>
+                                  </Form>
+                                </DialogContent>
+                              </Dialog>
+
+                              <Dialog open={isBulkImportDialogOpen} onOpenChange={setIsBulkImportDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="gap-2">
+                                    <Upload className="h-4 w-4" />
+                                    Bulk Import
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[425px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Bulk Import Members</DialogTitle>
+                                    <DialogDescription>
+                                      Upload a CSV file to import multiple members at once.
+                                    </DialogDescription>
+                                  </DialogHeader>
+
+                                  <div className="space-y-4">
+                                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                                      <Label htmlFor="csv-file">CSV File</Label>
+                                      <Input
+                                        id="csv-file"
+                                        type="file"
+                                        accept=".csv"
+                                        onChange={handleCsvUpload}
+                                      />
+                                      <p className="text-sm text-muted-foreground">
+                                        CSV must include columns: email, name, initialPoints<br />
+                                        Optional column: tierName (if not provided, lowest tier will be used)
+                                      </p>
+                                    </div>
+
+                                    {csvData.length > 0 && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <FileText className="h-4 w-4 text-primary" />
+                                          <span className="text-sm font-medium">
+                                            {csvData.length} members ready to import
+                                          </span>
+                                        </div>
+                                        <Button
+                                          onClick={handleBulkImport}
+                                          disabled={isSubmitting}
+                                          className="w-full"
+                                        >
+                                          {isSubmitting ? 'Importing...' : 'Import Members'}
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    <div className="mt-4">
+                                      <h4 className="text-sm font-medium mb-2">Sample CSV Format</h4>
+                                      <div className="bg-muted p-2 rounded-md text-xs font-mono">
+                                        email,name,initialPoints,tierName<br />
+                                        john@example.com,John Doe,100,Bronze<br />
+                                        jane@example.com,Jane Smith,250,Silver
+                                      </div>
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="mt-2 h-auto p-0"
+                                        onClick={() => {
+                                          const csv = 'email,name,initialPoints,tierName\njohn@example.com,John Doe,100,Bronze\njane@example.com,Jane Smith,250,Silver';
+                                          const blob = new Blob([csv], { type: 'text/csv' });
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = 'sample_members.csv';
+                                          a.click();
+                                          URL.revokeObjectURL(url);
+                                        }}
+                                      >
+                                        <Download className="h-3 w-3 mr-1" />
+                                        Download Sample
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </>
+                        )}
                       </div>
 
-                      {filteredMembers.length > 0 ? (
+                      {(isMembersLoading || isChangingProgram) ? (
+                        <div className="border rounded-md">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Tier</TableHead>
+                                <TableHead>Points</TableHead>
+                                <TableHead>Joined</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {/* Skeleton rows */}
+                              {Array(5).fill(0).map((_, index) => (
+                                <TableRow key={`skeleton-${index}`}>
+                                  <TableCell>
+                                    <div className="h-5 w-24 bg-muted animate-pulse rounded"></div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="h-5 w-32 bg-muted animate-pulse rounded"></div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="h-5 w-16 bg-muted animate-pulse rounded"></div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="h-5 w-12 bg-muted animate-pulse rounded"></div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="h-5 w-20 bg-muted animate-pulse rounded"></div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <div className="h-8 w-8 bg-muted animate-pulse rounded"></div>
+                                      <div className="h-8 w-8 bg-muted animate-pulse rounded"></div>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : filteredMembers.length > 0 ? (
                         <div className="border rounded-md">
                           <Table>
                             <TableHeader>
@@ -768,58 +832,60 @@ export default function ProgramMembersPage() {
             </CardFooter>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Member Management Guidelines</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-medium flex items-center gap-2">
-                  <div className="bg-primary/10 p-1 rounded-full">
-                    <Users className="h-4 w-4 text-primary" />
+          <div className="bg-muted/30 border border-border/40 rounded-lg p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Member Management Guidelines
+              </h3>
+            </div>
+            <div className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <h4 className="font-medium flex items-center gap-1.5 text-muted-foreground">
+                  <div className="bg-muted p-0.5 rounded-full">
+                    <Users className="h-3 w-3" />
                   </div>
                   Add Program Members
-                </h3>
-                <p className="text-sm text-muted-foreground">
+                </h4>
+                <p className="text-muted-foreground/80">
                   Add members to your loyalty program to start testing. Each member can earn and redeem points
                   based on their tier and activity.
                 </p>
               </div>
 
-              <Separator />
+              <Separator className="bg-border/50" />
 
-              <div className="space-y-2">
-                <h3 className="font-medium flex items-center gap-2">
-                  <div className="bg-primary/10 p-1 rounded-full">
-                    <Gift className="h-4 w-4 text-primary" />
+              <div className="space-y-1.5">
+                <h4 className="font-medium flex items-center gap-1.5 text-muted-foreground">
+                  <div className="bg-muted p-0.5 rounded-full">
+                    <Gift className="h-3 w-3" />
                   </div>
                   Assign Tiers
-                </h3>
-                <p className="text-sm text-muted-foreground">
+                </h4>
+                <p className="text-muted-foreground/80">
                   Assign members to different tiers to test tier-specific benefits and rewards.
                   Members can move between tiers as they earn more points.
                 </p>
               </div>
 
-              <Separator />
+              <Separator className="bg-border/50" />
 
-              <div className="space-y-2">
-                <h3 className="font-medium flex items-center gap-2">
-                  <div className="bg-primary/10 p-1 rounded-full">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
+              <div className="space-y-1.5">
+                <h4 className="font-medium flex items-center gap-1.5 text-muted-foreground">
+                  <div className="bg-muted p-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3" />
                   </div>
                   Test Transactions
-                </h3>
-                <p className="text-sm text-muted-foreground">
+                </h4>
+                <p className="text-muted-foreground/80">
                   After adding members, you can test transactions to see how points are earned and redeemed.
                   This helps verify that your loyalty program is working as expected.
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </main>
     </div>
-
   );
 }
