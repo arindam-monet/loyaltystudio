@@ -68,7 +68,6 @@ import { z } from 'zod';
 import { ChecklistService } from '@/services/checklist-service';
 import { useProgramMembers } from '@/hooks/use-program-members';
 import { useProgramTiers } from '@/hooks/use-program-tiers';
-import { useAuthStore } from '@/lib/stores/auth-store';
 
 // Define the form schema for adding a member
 const memberSchema = z.object({
@@ -92,10 +91,13 @@ export default function ProgramMembersPage() {
   const [isChecklistUpdated, setIsChecklistUpdated] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
   const [csvData, setCsvData] = useState<any[]>([]);
-  const { user } = useAuthStore();
-  const { members, isLoading: isMembersLoading, createMember, deleteMember } = useProgramMembers(selectedProgram);
+  const [editingMember, setEditingMember] = useState<any>(null);
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
+  const { members, isLoading: isMembersLoading, createMember, updateMember, deleteMember } = useProgramMembers(selectedProgram);
   const { tiers, isLoading: isTiersLoading } = useProgramTiers(selectedProgram);
 
   const form = useForm<MemberFormData>({
@@ -156,8 +158,8 @@ export default function ProgramMembersPage() {
   // Filter members based on search query
   const filteredMembers = searchQuery
     ? members.filter(member =>
-      member.user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email.toLowerCase().includes(searchQuery.toLowerCase())
     )
     : members;
 
@@ -186,26 +188,15 @@ export default function ProgramMembersPage() {
 
     setIsSubmitting(true);
     try {
-      // Use the current user's ID for now
-      // In a real implementation, we would create a new user based on the email and name
-      let userId = user?.id;
-
-      if (!userId) {
-        toast({ title: 'Error', description: 'No user ID available', variant: 'destructive' });
-        return;
-      }
-
-      // Create the program member
-      // Add email and name to metadata to track this information
+      // Create the program member with the new model
       await createMember.mutateAsync({
-        userId,
+        email: data.email,
+        name: data.name,
         tierId: data.tierId,
         loyaltyProgramId: data.loyaltyProgramId,
         pointsBalance: data.initialPoints,
         metadata: {
-          createdVia: 'merchant-portal',
-          memberEmail: data.email,
-          memberName: data.name
+          createdVia: 'merchant-portal'
         }
       });
 
@@ -226,13 +217,71 @@ export default function ProgramMembersPage() {
     }
   };
 
-  // Delete a member
-  const handleDeleteMember = async (id: string) => {
+  // Open delete confirmation dialog
+  const handleDeleteMember = (id: string) => {
+    setMemberToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm and delete a member
+  const confirmDeleteMember = async () => {
+    if (!memberToDelete) return;
+
     try {
-      await deleteMember.mutateAsync(id);
+      await deleteMember.mutateAsync(memberToDelete);
       toast({ title: 'Success', description: 'Member removed successfully' });
+      setIsDeleteDialogOpen(false);
+      setMemberToDelete(null);
     } catch (error: any) {
       toast({ title: 'Error', description: error.response?.data?.error || error.message || 'Failed to delete member', variant: 'destructive' });
+    }
+  };
+
+  // Handle edit member
+  const handleEditMember = (member: any) => {
+    setEditingMember(member);
+
+    // Set form values for editing
+    form.reset({
+      email: member.email,
+      name: member.name || '',
+      tierId: member.tierId,
+      loyaltyProgramId: selectedProgram,
+      initialPoints: member.pointsBalance
+    });
+
+    setIsEditDialogOpen(true);
+  };
+
+  // Update an existing member
+  const onEditSubmit = async (data: MemberFormData) => {
+    if (!editingMember) return;
+
+    setIsSubmitting(true);
+    try {
+      // Update the program member
+      await updateMember.mutateAsync({
+        id: editingMember.id,
+        data: {
+          name: data.name,
+          tierId: data.tierId,
+          pointsBalance: data.initialPoints,
+          metadata: {
+            ...editingMember.metadata,
+            updatedAt: new Date().toISOString()
+          }
+        }
+      });
+
+      toast({ title: 'Success', description: `Updated ${data.name} in the loyalty program` });
+
+      // Close the dialog
+      setIsEditDialogOpen(false);
+      setEditingMember(null);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.response?.data?.error || error.message || 'Failed to update member', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -346,14 +395,9 @@ export default function ProgramMembersPage() {
       // Process each member
       for (const member of csvData) {
         try {
-          // Use the current user's ID for all members
-          // In a real implementation, we would create a new user for each member
-          if (!user?.id) {
-            throw new Error('No user ID available');
-          }
-
           await createMember.mutateAsync({
-            userId: user.id,
+            email: member.email,
+            name: member.name,
             tierId: member.tierName ?
               tiers.find(t => t.name.toLowerCase() === member.tierName.toLowerCase())?.id || defaultTier.id :
               defaultTier.id,
@@ -361,9 +405,7 @@ export default function ProgramMembersPage() {
             pointsBalance: member.initialPoints,
             metadata: {
               createdVia: 'bulk-import',
-              importedAt: new Date().toISOString(),
-              memberEmail: member.email,
-              memberName: member.name
+              importedAt: new Date().toISOString()
             }
           });
           successCount++;
@@ -643,6 +685,170 @@ export default function ProgramMembersPage() {
                                 </DialogContent>
                               </Dialog>
 
+                              {/* Edit Member Dialog */}
+                              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                                <DialogContent className="sm:max-w-[425px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Edit Member</DialogTitle>
+                                    <DialogDescription>
+                                      Update member information.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <Form {...form}>
+                                    <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
+                                      <FormField
+                                        control={form.control}
+                                        name="email"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} type="email" placeholder="member@example.com" disabled />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Email address is read-only
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Name</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} placeholder="John Doe" />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Member's full name
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="tierId"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Membership Tier</FormLabel>
+                                            {tiers.length > 0 ? (
+                                              <Select
+                                                onValueChange={field.onChange}
+                                                value={field.value}
+                                              >
+                                                <FormControl>
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select a tier" />
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  {tiers.map((tier) => (
+                                                    <SelectItem key={tier.id} value={tier.id}>
+                                                      {tier.name} (Min: {tier.pointsThreshold} points)
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            ) : (
+                                              <div className="flex flex-col gap-2">
+                                                <div className="border rounded-md p-3 bg-muted/20 text-sm text-muted-foreground">
+                                                  No tiers available. Please create a tier first.
+                                                </div>
+                                                <CreateTierDialog
+                                                  loyaltyProgramId={selectedProgram}
+                                                  trigger={
+                                                    <Button
+                                                      type="button"
+                                                      variant="outline"
+                                                      size="sm"
+                                                    >
+                                                      Create Tier
+                                                    </Button>
+                                                  }
+                                                  onSuccess={(newTier: any) => {
+                                                    // Set the newly created tier as the selected tier
+                                                    form.setValue('tierId', newTier.id);
+                                                    // Refresh the tiers list
+                                                    queryClient.invalidateQueries({ queryKey: ['program-tiers', selectedProgram] });
+                                                  }}
+                                                />
+                                              </div>
+                                            )}
+                                            <FormDescription>
+                                              Select the membership tier for this member
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <FormField
+                                        control={form.control}
+                                        name="initialPoints"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Points</FormLabel>
+                                            <FormControl>
+                                              <Input
+                                                type="number"
+                                                {...field}
+                                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                                value={field.value}
+                                              />
+                                            </FormControl>
+                                            <FormDescription>
+                                              Current points balance
+                                            </FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+
+                                      <DialogFooter>
+                                        <Button
+                                          type="submit"
+                                          disabled={isSubmitting}
+                                        >
+                                          {isSubmitting ? 'Updating...' : 'Update Member'}
+                                        </Button>
+                                      </DialogFooter>
+                                    </form>
+                                  </Form>
+                                </DialogContent>
+                              </Dialog>
+
+                              {/* Delete Confirmation Dialog */}
+                              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                                <DialogContent className="sm:max-w-[425px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Confirm Deletion</DialogTitle>
+                                    <DialogDescription>
+                                      Are you sure you want to delete this member? This action cannot be undone.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="flex justify-end space-x-2 pt-4">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setIsDeleteDialogOpen(false)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      onClick={confirmDeleteMember}
+                                      disabled={isSubmitting}
+                                    >
+                                      {isSubmitting ? 'Deleting...' : 'Delete Member'}
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
                               <Dialog open={isBulkImportDialogOpen} onOpenChange={setIsBulkImportDialogOpen}>
                                 <DialogTrigger asChild>
                                   <Button variant="outline" className="gap-2">
@@ -784,8 +990,8 @@ export default function ProgramMembersPage() {
                             <TableBody>
                               {filteredMembers.map((member) => (
                                 <TableRow key={member.id}>
-                                  <TableCell className="font-medium">{member.user.name || 'N/A'}</TableCell>
-                                  <TableCell>{member.user.email}</TableCell>
+                                  <TableCell className="font-medium">{member.name || 'N/A'}</TableCell>
+                                  <TableCell>{member.email}</TableCell>
                                   <TableCell>
                                     <Badge variant="outline">{member.tier.name}</Badge>
                                   </TableCell>
@@ -793,7 +999,11 @@ export default function ProgramMembersPage() {
                                   <TableCell>{new Date(member.joinedAt).toLocaleDateString()}</TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
-                                      <Button variant="ghost" size="icon">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEditMember(member)}
+                                      >
                                         <Edit className="h-4 w-4" />
                                       </Button>
                                       <Button

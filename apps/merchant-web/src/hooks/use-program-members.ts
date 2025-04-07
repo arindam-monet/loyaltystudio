@@ -5,7 +5,10 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 
 export interface ProgramMember {
   id: string;
-  userId: string;
+  email: string;
+  name?: string;
+  phoneNumber?: string;
+  externalId?: string;
   tierId: string;
   pointsBalance: number;
   joinedAt: string;
@@ -13,11 +16,6 @@ export interface ProgramMember {
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-  };
   tier: {
     id: string;
     name: string;
@@ -28,7 +26,10 @@ export interface ProgramMember {
 }
 
 export interface CreateMemberData {
-  userId: string;
+  email: string;
+  name?: string;
+  phoneNumber?: string;
+  externalId?: string;
   tierId: string;
   loyaltyProgramId: string;
   pointsBalance?: number;
@@ -36,6 +37,9 @@ export interface CreateMemberData {
 }
 
 export interface UpdateMemberData {
+  name?: string;
+  phoneNumber?: string;
+  externalId?: string;
   tierId?: string;
   pointsBalance?: number;
   metadata?: Record<string, any>;

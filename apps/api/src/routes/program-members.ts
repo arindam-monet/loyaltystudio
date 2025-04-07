@@ -7,9 +7,12 @@ const prisma = new PrismaClient();
 
 // Schema for API requests
 const memberRequestSchema = z.object({
-  userId: z.string(),
-  loyaltyProgramId: z.string().cuid(),
+  email: z.string().email(),
+  name: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  externalId: z.string().optional(),
   tierId: z.string().cuid(),
+  loyaltyProgramId: z.string().cuid(),
   pointsBalance: z.number().min(0).default(0),
   metadata: z.record(z.any()).optional(),
 });
@@ -39,13 +42,6 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           }
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          },
           tier: true,
         },
         orderBy: {
@@ -69,11 +65,14 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       description: 'Add a member to a loyalty program',
       body: {
         type: 'object',
-        required: ['userId', 'loyaltyProgramId', 'tierId'],
+        required: ['email', 'tierId', 'loyaltyProgramId'],
         properties: {
-          userId: { type: 'string' },
-          loyaltyProgramId: { type: 'string' },
+          email: { type: 'string', format: 'email' },
+          name: { type: 'string' },
+          phoneNumber: { type: 'string' },
+          externalId: { type: 'string' },
           tierId: { type: 'string' },
+          loyaltyProgramId: { type: 'string' },
           pointsBalance: { type: 'number', minimum: 0 },
           metadata: { type: 'object' }
         }
@@ -81,47 +80,64 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     try {
-      // Use the more flexible schema for validation
+      // Use the schema for validation
       const requestData = memberRequestSchema.parse(request.body);
 
-      // Check if the user exists
-      const user = await prisma.user.findUnique({
-        where: { id: requestData.userId }
+      // Check if the tier exists and belongs to the specified loyalty program
+      const tier = await prisma.programTier.findUnique({
+        where: { id: requestData.tierId },
+        include: { loyaltyProgram: true }
       });
 
-      if (!user) {
+      if (!tier) {
         return reply.code(400).send({
-          error: 'User not found',
-          message: 'The specified user ID does not exist'
+          error: 'Tier not found',
+          message: 'The specified tier does not exist'
+        });
+      }
+
+      if (tier.loyaltyProgramId !== requestData.loyaltyProgramId) {
+        return reply.code(400).send({
+          error: 'Invalid tier',
+          message: 'The specified tier does not belong to the specified loyalty program'
+        });
+      }
+
+      // Check if a member with this email already exists in this program
+      const existingMember = await prisma.programMember.findFirst({
+        where: {
+          AND: [
+            { email: { equals: requestData.email } },
+            { tier: { loyaltyProgramId: requestData.loyaltyProgramId } }
+          ]
+        }
+      });
+
+      if (existingMember) {
+        return reply.code(400).send({
+          error: 'Member already exists',
+          message: 'A member with this email already exists in this loyalty program'
         });
       }
 
       // Create the program member
       const member = await prisma.programMember.create({
         data: {
-          userId: user.id, // Use the validated user ID
+          email: requestData.email,
+          name: requestData.name,
+          phoneNumber: requestData.phoneNumber,
+          externalId: requestData.externalId,
           tierId: requestData.tierId,
           pointsBalance: requestData.pointsBalance,
           metadata: requestData.metadata,
           joinedAt: new Date(),
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          },
           tier: true,
         }
       });
 
-      // Get merchant ID from tier
-      const tier = await prisma.programTier.findUnique({
-        where: { id: requestData.tierId },
-        include: { loyaltyProgram: true }
-      });
+      // We already have the tier from earlier
 
       if (tier) {
         // Send webhook asynchronously
@@ -165,7 +181,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const { id } = request.params as { id: string };
     // Use a more flexible schema for updates
-    const data = memberRequestSchema.partial().parse(request.body);
+    const data = memberRequestSchema.partial().omit({ email: true, loyaltyProgramId: true }).parse(request.body);
 
     try {
       // Get original member data for comparison
@@ -174,21 +190,46 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         include: { tier: { include: { loyaltyProgram: true } } }
       });
 
+      if (!originalMember) {
+        return reply.code(404).send({
+          error: 'Member not found',
+          message: 'The specified member does not exist'
+        });
+      }
+
+      // If changing tier, verify the new tier belongs to the same loyalty program
+      if (data.tierId && data.tierId !== originalMember.tierId) {
+        const newTier = await prisma.programTier.findUnique({
+          where: { id: data.tierId },
+          include: { loyaltyProgram: true }
+        });
+
+        if (!newTier) {
+          return reply.code(400).send({
+            error: 'Tier not found',
+            message: 'The specified tier does not exist'
+          });
+        }
+
+        if (newTier.loyaltyProgramId !== originalMember.tier.loyaltyProgramId) {
+          return reply.code(400).send({
+            error: 'Invalid tier',
+            message: 'The new tier must belong to the same loyalty program'
+          });
+        }
+      }
+
       const member = await prisma.programMember.update({
         where: { id },
         data: {
+          name: data.name,
+          phoneNumber: data.phoneNumber,
+          externalId: data.externalId,
           tierId: data.tierId,
           pointsBalance: data.pointsBalance,
           metadata: data.metadata,
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          },
           tier: true,
         }
       });
@@ -210,7 +251,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
             'tier_changed',
             {
               memberId: member.id,
-              userId: member.userId,
+              email: member.email,
               previousTierId: originalMember.tierId,
               newTierId: member.tierId,
               timestamp: new Date().toISOString()
@@ -262,7 +303,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           'member_deleted',
           {
             id: member.id,
-            userId: member.userId,
+            email: member.email,
             tierId: member.tierId,
             deletedAt: new Date().toISOString()
           }
@@ -313,13 +354,6 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           lastActivity: new Date(),
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          },
           tier: true,
         }
       });
@@ -327,13 +361,13 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       // Create points transaction
       await prisma.pointsTransaction.create({
         data: {
-          userId: member.userId,
+          programMemberId: id,
           amount: points,
           type: 'EARN',
           reason: reason || 'Points added',
           metadata: {
             memberId: id,
-            programId: member.tier?.loyaltyProgramId
+            programId: member.tier.loyaltyProgramId
           }
         }
       });
@@ -382,13 +416,6 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
           lastActivity: new Date(),
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            }
-          },
           tier: true,
         }
       });
@@ -396,13 +423,13 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       // Create points transaction
       await prisma.pointsTransaction.create({
         data: {
-          userId: member.userId,
-          amount: points,
+          programMemberId: id,
+          amount: -points,
           type: 'REDEEM',
           reason: reason || 'Points deducted',
           metadata: {
             memberId: id,
-            programId: member.tier?.loyaltyProgramId
+            programId: member.tier.loyaltyProgramId
           }
         }
       });
@@ -433,9 +460,9 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
 
     try {
+      // Check if member exists
       const member = await prisma.programMember.findUnique({
-        where: { id },
-        select: { userId: true }
+        where: { id }
       });
 
       if (!member) {
@@ -446,7 +473,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
 
       const history = await prisma.pointsTransaction.findMany({
         where: {
-          userId: member.userId,
+          programMemberId: id,
         },
         orderBy: {
           createdAt: 'desc',

@@ -130,17 +130,20 @@ model UserDevice {
 }
 
 model PointsTransaction {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  amount    Int
-  type      String   // EARN, REDEEM, ADJUST
-  reason    String
-  metadata  Json?
-  calculations PointsCalculation[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  programMemberId String?
+  programMember   ProgramMember? @relation(fields: [programMemberId], references: [id])
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  amount          Int
+  type            String   // EARN, REDEEM, ADJUST
+  reason          String
+  metadata        Json?
+  calculations    PointsCalculation[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
+  @@index([programMemberId])
   @@index([userId])
   @@index([type])
 }
@@ -182,11 +185,15 @@ model ProgramTier {
   @@index([loyaltyProgramId])
 }
 
-// Program Members with Tier
+// Program Members (customers of merchants)
 model ProgramMember {
   id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  email         String?     // Customer's email
+  name          String?     // Customer's name
+  phoneNumber   String?     // Optional phone number
+  externalId    String?     // Optional ID from merchant's system
   tierId        String
   tier          ProgramTier @relation(fields: [tierId], references: [id])
   pointsBalance Int         @default(0)
@@ -196,9 +203,13 @@ model ProgramMember {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@unique([userId, tierId])
-  @@index([userId])
+  // Relations to other models
+  pointsTransactions PointsTransaction[]
+  rewardRedemptions  RewardRedemption[]
+
   @@index([tierId])
+  @@index([userId])
+  @@index([email])
 }
 
 // Campaigns and Promotions
@@ -301,69 +312,75 @@ model Segment {
 }
 
 model SegmentMember {
-  id          String   @id @default(cuid())
-  segmentId   String
-  segment     Segment  @relation(fields: [segmentId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  joinedAt    DateTime @default(now())
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  segmentId       String
+  segment         Segment  @relation(fields: [segmentId], references: [id])
+  programMemberId String?
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  joinedAt        DateTime @default(now())
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@unique([segmentId, userId])
+  @@unique([segmentId, userId], name: "segmentUserMember")
   @@index([segmentId])
   @@index([userId])
 }
 
 model RewardRedemption {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  rewardId   String
-  reward     Reward   @relation(fields: [rewardId], references: [id])
-  quantity   Int
-  pointsCost Int
-  status     String   // PENDING, COMPLETED, CANCELLED
-  metadata   Json?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String        @id @default(cuid())
+  programMemberId String?
+  programMember   ProgramMember? @relation(fields: [programMemberId], references: [id])
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  rewardId        String
+  reward          Reward        @relation(fields: [rewardId], references: [id])
+  quantity        Int
+  pointsCost      Int
+  status          String        // PENDING, COMPLETED, CANCELLED
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
+  @@index([programMemberId])
   @@index([userId])
   @@index([rewardId])
   @@index([status])
 }
 
 model PointsBalance {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  merchantId String
-  merchant  Merchant @relation(fields: [merchantId], references: [id])
-  balance   Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String        @id @default(cuid())
+  programMemberId String?
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  merchantId      String
+  merchant        Merchant      @relation(fields: [merchantId], references: [id])
+  balance         Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  @@unique([userId, merchantId])
+  @@unique([userId, merchantId], name: "userMerchantBalance")
   @@index([userId])
   @@index([merchantId])
 }
 
 model PointsCalculation {
-  id           String   @id @default(cuid())
-  transactionId String
-  transaction   PointsTransaction @relation(fields: [transactionId], references: [id])
-  merchantId    String
-  merchant      Merchant @relation(fields: [merchantId], references: [id])
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  points        Int?
-  status        String   // PENDING, COMPLETED, FAILED
-  error         String?
-  metadata      Json?    // Store calculation metadata including matched rules
-  completedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  transactionId   String
+  transaction     PointsTransaction @relation(fields: [transactionId], references: [id])
+  merchantId      String
+  merchant        Merchant @relation(fields: [merchantId], references: [id])
+  programMemberId String?
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  points          Int?
+  status          String   // PENDING, COMPLETED, FAILED
+  error           String?
+  metadata        Json?    // Store calculation metadata including matched rules
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([transactionId])
   @@index([merchantId])
