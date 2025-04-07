@@ -25,6 +25,7 @@ import {
   Alert,
   AlertDescription,
   Separator,
+  ScrollArea,
 } from '@loyaltystudio/ui';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,10 +57,14 @@ const tierSchema = z.object({
 
 type TierFormData = z.infer<typeof tierSchema>;
 
-export function TiersManager() {
+interface TiersManagerProps {
+  programId?: string;
+}
+
+export function TiersManager({ programId }: TiersManagerProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tiers = [], createTier, updateTier, deleteTier, isLoading } = useTiers();
+  const { tiers = [], createTier, updateTier, deleteTier, isLoading } = useTiers(programId);
 
   const form = useForm<TierFormData>({
     resolver: zodResolver(tierSchema),
@@ -115,7 +120,7 @@ export function TiersManager() {
           <DialogTrigger asChild>
             <Button>Create Tier</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create Tier</DialogTitle>
               <DialogDescription>
@@ -131,71 +136,15 @@ export function TiersManager() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tier Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter tier name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Enter tier description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pointsThreshold"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Points Threshold</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          placeholder="Enter points threshold"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Benefits</h3>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-6">
                   <FormField
                     control={form.control}
-                    name="benefits.pointsMultiplier"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Points Multiplier</FormLabel>
+                        <FormLabel>Tier Name</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            step="0.1"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            placeholder="Enter points multiplier"
-                          />
+                          <Input {...field} placeholder="Enter tier name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -204,13 +153,137 @@ export function TiersManager() {
 
                   <FormField
                     control={form.control}
-                    name="benefits.prioritySupport"
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} placeholder="Enter tier description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="pointsThreshold"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Points Threshold</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            placeholder="Enter points threshold"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Benefits</h3>
+                    <FormField
+                      control={form.control}
+                      name="benefits.pointsMultiplier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Points Multiplier</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              step="0.1"
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              placeholder="Enter points multiplier"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="benefits.prioritySupport"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Priority Support</FormLabel>
+                            <FormDescription>
+                              Enable priority support for this tier
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Requirements</h3>
+                    <FormField
+                      control={form.control}
+                      name="requirements.minimumSpend"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Minimum Spend</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                              value={field.value ?? ''}
+                              placeholder="Enter minimum spend"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="requirements.minimumOrders"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Minimum Orders</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                              value={field.value ?? ''}
+                              placeholder="Enter minimum orders"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="isActive"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Priority Support</FormLabel>
+                          <FormLabel className="text-base">Active Status</FormLabel>
                           <FormDescription>
-                            Enable priority support for this tier
+                            Enable or disable this tier
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -224,73 +297,7 @@ export function TiersManager() {
                   />
                 </div>
 
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Requirements</h3>
-                  <FormField
-                    control={form.control}
-                    name="requirements.minimumSpend"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Minimum Spend</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                            value={field.value ?? ''}
-                            placeholder="Enter minimum spend"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="requirements.minimumOrders"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Minimum Orders</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                            value={field.value ?? ''}
-                            placeholder="Enter minimum orders"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Active Status</FormLabel>
-                        <FormDescription>
-                          Enable or disable this tier
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end space-x-2">
+                <div className="flex justify-end space-x-2 pt-4 mt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
@@ -333,13 +340,13 @@ export function TiersManager() {
                   <div>
                     <h4 className="font-medium mb-2">Benefits</h4>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      {tier.benefits.pointsMultiplier && (
+                      {tier.benefits?.pointsMultiplier && (
                         <li>• {tier.benefits.pointsMultiplier}x Points Multiplier</li>
                       )}
-                      {tier.benefits.prioritySupport && (
+                      {tier.benefits?.prioritySupport && (
                         <li>• Priority Support</li>
                       )}
-                      {tier.benefits.specialDiscounts && (
+                      {tier.benefits?.specialDiscounts && (
                         <li>• {tier.benefits.specialDiscounts.percentage}% Special Discount</li>
                       )}
                     </ul>
@@ -350,13 +357,13 @@ export function TiersManager() {
                   <div>
                     <h4 className="font-medium mb-2">Requirements</h4>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      {tier.requirements.minimumSpend && (
+                      {tier.requirements?.minimumSpend && (
                         <li>• Minimum Spend: ${tier.requirements.minimumSpend}</li>
                       )}
-                      {tier.requirements.minimumOrders && (
+                      {tier.requirements?.minimumOrders && (
                         <li>• Minimum Orders: {tier.requirements.minimumOrders}</li>
                       )}
-                      {tier.requirements.timeInProgram && (
+                      {tier.requirements?.timeInProgram && (
                         <li>• Time in Program: {tier.requirements.timeInProgram} months</li>
                       )}
                     </ul>
@@ -368,4 +375,4 @@ export function TiersManager() {
       </div>
     </div>
   );
-} 
+}

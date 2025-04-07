@@ -44,7 +44,7 @@ import { z } from "zod";
 import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useMerchantStore } from "@/lib/stores/merchant-store";
-import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle, Eye } from "lucide-react";
 import { GuidedProgramWizard } from "@/components/loyalty-programs/guided-program-wizard";
 
 // API response type
@@ -334,8 +334,8 @@ export default function LoyaltyProgramsPage() {
                               router.push(`/loyalty-programs/${program.id}`)
                             }
                           >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit Program
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Program
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

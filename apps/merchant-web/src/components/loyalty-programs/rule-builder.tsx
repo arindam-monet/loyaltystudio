@@ -32,6 +32,16 @@ interface RuleBuilderProps {
   onNodeDataChange: (nodeId: string, data: any) => void;
 }
 
+interface RuleBuilderProps {
+  programId?: string;
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onConnect: OnConnect;
+  onNodeDataChange: (nodeId: string, data: any) => void;
+}
+
 export function RuleBuilder({
   nodes,
   edges,

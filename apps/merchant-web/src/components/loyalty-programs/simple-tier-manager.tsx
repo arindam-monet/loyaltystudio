@@ -34,6 +34,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  ScrollArea,
 } from "@loyaltystudio/ui";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -130,7 +131,7 @@ export function SimpleTierManager({
               Add Tier
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {editingTier ? "Edit Tier" : "Create Tier"}
@@ -143,82 +144,85 @@ export function SimpleTierManager({
             <Form {...form}>
               <form
                 onSubmit={(e) => {
-                  e.preventDefault(); // Prevent form submission from bubbling up
-                  e.stopPropagation(); // Stop propagation to parent forms
+                  e.preventDefault();
+                  e.stopPropagation();
                   form.handleSubmit((data) => onSubmit(data as TierFormData))(e);
                 }}
                 className="space-y-4"
               >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Tier Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., Silver, Gold, Platinum"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        A name for this membership tier
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }: { field: any }) => (
+                      <FormItem>
+                        <FormLabel>Tier Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., Silver, Gold, Platinum"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          A name for this membership tier
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Describe the benefits of this tier"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Explain what makes this tier special
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }: { field: any }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Describe the benefits of this tier"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Explain what makes this tier special
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="pointsThreshold"
-                  render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Points Threshold</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            field.onChange(Number(e.target.value))
-                          }
-                          placeholder="Enter points required"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Points required to reach this tier
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="pointsThreshold"
+                    render={({ field }: { field: any }) => (
+                      <FormItem>
+                        <FormLabel>Points Threshold</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            placeholder="Enter points required"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Points required to reach this tier
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <div className="flex justify-end space-x-2">
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4 mt-4 border-t">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={(e) => {
-                      e.stopPropagation(); // Stop propagation to parent forms
+                      e.stopPropagation();
                       setOpen(false);
                       form.reset();
                       setEditingTier(null);

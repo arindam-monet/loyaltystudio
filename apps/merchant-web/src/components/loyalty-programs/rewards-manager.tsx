@@ -29,6 +29,7 @@ import {
   Switch,
   Alert,
   AlertDescription,
+  ScrollArea,
 } from '@loyaltystudio/ui';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,10 +53,14 @@ const rewardSchema = z.object({
 
 type RewardFormData = z.infer<typeof rewardSchema>;
 
-export function RewardsManager() {
+interface RewardsManagerProps {
+  programId?: string;
+}
+
+export function RewardsManager({ programId }: RewardsManagerProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { rewards, isLoading, createReward } = useRewards();
+  const { rewards, isLoading, createReward } = useRewards(programId);
   const { setSelectedReward } = useRewardStore();
 
   const form = useForm<RewardFormData>({
@@ -89,7 +94,7 @@ export function RewardsManager() {
           <DialogTrigger asChild>
             <Button>Create Reward</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col max-w-2xl w-full">
             <DialogHeader>
               <DialogTitle>Create Reward</DialogTitle>
               <DialogDescription>
@@ -104,100 +109,105 @@ export function RewardsManager() {
             )}
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reward Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter reward name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+                <ScrollArea className="flex-1 pr-4 overflow-auto" style={{ height: 'calc(80vh - 200px)' }}>
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reward Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Enter reward name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Enter reward description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} placeholder="Enter reward description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reward Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select reward type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="PHYSICAL">Physical</SelectItem>
-                          <SelectItem value="DIGITAL">Digital</SelectItem>
-                          <SelectItem value="EXPERIENCE">Experience</SelectItem>
-                          <SelectItem value="COUPON">Coupon</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reward Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select reward type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="PHYSICAL">Physical</SelectItem>
+                              <SelectItem value="DIGITAL">Digital</SelectItem>
+                              <SelectItem value="EXPERIENCE">Experience</SelectItem>
+                              <SelectItem value="COUPON">Coupon</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="pointsCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Points Cost</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          placeholder="Enter points cost"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="pointsCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Points Cost</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              placeholder="Enter points cost"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Active Status</FormLabel>
-                        <FormDescription>
-                          Enable or disable this reward
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Active Status</FormLabel>
+                            <FormDescription>
+                              Enable or disable this reward
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
 
-                <div className="flex justify-end space-x-2">
+                  </div>
+                </ScrollArea>
+
+                <div className="flex justify-end space-x-2 pt-4 mt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
@@ -241,4 +251,4 @@ export function RewardsManager() {
       </div>
     </div>
   );
-} 
+}

@@ -38,6 +38,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  ScrollArea,
 } from "@loyaltystudio/ui";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -142,7 +143,7 @@ export function SimpleRewardManager({
               Add Reward
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col max-w-2xl w-full">
             <DialogHeader>
               <DialogTitle>
                 {editingReward ? "Edit Reward" : "Create Reward"}
@@ -159,139 +160,144 @@ export function SimpleRewardManager({
                   e.stopPropagation(); // Stop propagation to parent forms
                   form.handleSubmit((data) => onSubmit(data as RewardFormData))(e);
                 }}
-                className="space-y-4"
+                className="flex flex-col h-full"
               >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reward Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., Free Coffee, $10 Discount"
-                        />
-                      </FormControl>
-                      <FormDescription>A name for this reward</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Describe the reward in detail"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Explain what the customer gets with this reward
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Reward Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                <ScrollArea className="flex-1 pr-4 overflow-auto" style={{ height: 'calc(80vh - 200px)' }}>
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reward Name</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select reward type" />
-                            </SelectTrigger>
+                            <Input
+                              {...field}
+                              placeholder="e.g., Free Coffee, $10 Discount"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="PHYSICAL">
-                              Physical Product
-                            </SelectItem>
-                            <SelectItem value="DIGITAL">
-                              Digital Item
-                            </SelectItem>
-                            <SelectItem value="EXPERIENCE">
-                              Experience
-                            </SelectItem>
-                            <SelectItem value="COUPON">
-                              Discount Coupon
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>The type of reward</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormDescription>A name for this reward</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="pointsCost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Points Cost</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
-                            placeholder="e.g., 500"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Points required to redeem this reward
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Describe the reward in detail"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Explain what the customer gets with this reward
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {form.watch("type") === "PHYSICAL" && (
-                  <FormField
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Stock Available (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value
-                                  ? Number(e.target.value)
-                                  : undefined
-                              )
-                            }
-                            placeholder="e.g., 100"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Number of items available (leave empty for unlimited)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Reward Type</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select reward type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="PHYSICAL">
+                                  Physical Product
+                                </SelectItem>
+                                <SelectItem value="DIGITAL">
+                                  Digital Item
+                                </SelectItem>
+                                <SelectItem value="EXPERIENCE">
+                                  Experience
+                                </SelectItem>
+                                <SelectItem value="COUPON">
+                                  Discount Coupon
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>The type of reward</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <div className="flex justify-end space-x-2">
+                      <FormField
+                        control={form.control}
+                        name="pointsCost"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Points Cost</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                onChange={(e) =>
+                                  field.onChange(Number(e.target.value))
+                                }
+                                placeholder="e.g., 500"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Points required to redeem this reward
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {form.watch("type") === "PHYSICAL" && (
+                      <FormField
+                        control={form.control}
+                        name="stock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stock Available (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : undefined
+                                  )
+                                }
+                                placeholder="e.g., 100"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Number of items available (leave empty for unlimited)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                  </div>
+                </ScrollArea>
+
+                <div className="flex justify-end space-x-2 pt-4 mt-4 border-t">
                   <Button
                     type="button"
                     variant="outline"
