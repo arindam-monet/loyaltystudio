@@ -47,13 +47,19 @@ const getNavData = (pathname: string) => ({
       title: 'Loyalty Programs',
       url: '/loyalty-programs',
       icon: Gift,
-      isActive: pathname.includes('/loyalty-programs') || pathname.includes('/tiers') || pathname.includes('/rewards') || pathname.includes('/campaigns'),
+      isActive: pathname.includes('/loyalty-programs') || pathname.includes('/tiers') || pathname.includes('/rewards') || pathname.includes('/campaigns') || pathname.includes('/program-members'),
       items: [
         {
           title: 'Programs',
           url: '/loyalty-programs',
           icon: Gift,
           isActive: pathname === '/loyalty-programs' || pathname.startsWith('/loyalty-programs/'),
+        },
+        {
+          title: 'Members',
+          url: '/program-members',
+          icon: Users,
+          isActive: pathname.startsWith('/program-members'),
         },
         {
           title: 'Tiers',
@@ -74,12 +80,6 @@ const getNavData = (pathname: string) => ({
           isActive: pathname === '/campaigns' || pathname.startsWith('/campaigns/'),
         },
       ],
-    },
-    {
-      title: 'Members',
-      url: '/program-members',
-      icon: Users,
-      isActive: pathname.startsWith('/program-members'),
     },
     {
       title: 'Transactions',
