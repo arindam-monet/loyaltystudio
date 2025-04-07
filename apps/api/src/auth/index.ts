@@ -2,6 +2,7 @@ import fp from 'fastify-plugin';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../db/prisma.js';
+import { env } from '../config/env.js';
 
 interface AuthUser {
   id: string;
@@ -49,8 +50,15 @@ const PUBLIC_PATHS = [
 export const authPlugin = fp(async (fastify: FastifyInstance) => {
   // Initialize Supabase client
   const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_KEY,
+    {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    }
   );
 
   // Decorate fastify with supabase client
@@ -127,11 +135,11 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
           description: userData.role.description || undefined,
         },
       };
-      
+
       console.log('Auth successful for:', request.url);
     } catch (error) {
       console.error('Auth error for:', request.url, error);
       return reply.code(401).send({ error: 'Authentication failed' });
     }
   });
-}); 
+});

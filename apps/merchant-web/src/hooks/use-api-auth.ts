@@ -3,8 +3,33 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 import { apiClient } from '@/lib/api-client';
 import { AxiosError, AxiosInstance } from 'axios';
 
+// Refresh token interval in milliseconds (every 30 minutes)
+const REFRESH_TOKEN_INTERVAL = 30 * 60 * 1000;
+
 export function useApiAuth() {
   const { token, setAuth, clearAuth } = useAuthStore();
+
+  // Set up token refresh interval
+  useEffect(() => {
+    if (!token) return;
+
+    // Refresh token periodically to keep the session alive
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('Refreshing auth token...');
+        const response = await apiClient.post('/auth/refresh-token');
+        if (response.data?.token) {
+          // Update token in auth store
+          setAuth(response.data.token, response.data.user || useAuthStore.getState().user);
+          console.log('Auth token refreshed successfully');
+        }
+      } catch (error) {
+        console.error('Failed to refresh token:', error);
+      }
+    }, REFRESH_TOKEN_INTERVAL);
+
+    return () => clearInterval(refreshInterval);
+  }, [token, setAuth]);
 
   useEffect(() => {
     // Set up axios interceptor to add auth header
@@ -40,9 +65,9 @@ export function useApiAuth() {
         console.error('Invalid response from verify-session:', response);
         return false;
       }
-      
+
       const { user } = response.data;
-      
+
       // Update auth store with fresh user data
       setAuth(token, user);
       return true;
@@ -61,4 +86,4 @@ export function useApiAuth() {
     isAuthenticated: !!token,
     apiClient, // Expose the apiClient instance
   };
-} 
+}
