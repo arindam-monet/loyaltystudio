@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { useMerchants } from '@/hooks/use-merchants';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 import { useMerchantStore } from '@/lib/stores/merchant-store';
+import { useSidebar } from '@loyaltystudio/ui';
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
 
@@ -38,6 +39,7 @@ export default function MerchantSwitcher({
   const { data: merchants = [], isLoading, refetch } = useMerchants();
   const [open, setOpen] = React.useState(false);
   const { selectedMerchant, setSelectedMerchant } = useMerchantStore();
+  const { open: sidebarOpen } = useSidebar();
   const [localSelectedMerchant, setLocalSelectedMerchant] = React.useState<typeof merchants[0] | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = React.useState(false);
 
@@ -92,13 +94,22 @@ export default function MerchantSwitcher({
     return (
       <Button
         variant="default"
-        className={cn('w-full justify-between px-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-sm', className)}
+        className={cn(
+          'bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-sm',
+          sidebarOpen ? 'w-full justify-between px-2' : 'w-full h-9 p-0 flex items-center justify-center',
+          className
+        )}
         onClick={handleCreateMerchant}
+        title={!sidebarOpen ? "Create Merchant" : undefined}
       >
-        <div className="flex items-center gap-2">
+        {sidebarOpen ? (
+          <div className="flex items-center gap-2">
+            <PlusCircledIcon className="h-5 w-5" />
+            <span className="text-sm font-medium">Create Merchant</span>
+          </div>
+        ) : (
           <PlusCircledIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Create Merchant</span>
-        </div>
+        )}
       </Button>
     );
   }
@@ -112,26 +123,47 @@ export default function MerchantSwitcher({
             role="combobox"
             aria-expanded={open}
             aria-label="Select a merchant"
-            className={cn('w-full justify-between px-2 bg-background/90 border-border/50 shadow-inner hover:bg-background', className)}
+            className={cn(
+              'bg-background/90 border-border/50 shadow-inner hover:bg-background',
+              sidebarOpen
+                ? 'w-full justify-between px-2'
+                : 'w-full h-9 p-0 flex items-center justify-center',
+              className
+            )}
+            title={!sidebarOpen ? (selectedMerchant || localSelectedMerchant)?.name : undefined}
           >
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
+            {sidebarOpen ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={(selectedMerchant || localSelectedMerchant)?.branding?.logo}
+                      alt={(selectedMerchant || localSelectedMerchant)?.name}
+                    />
+                    <AvatarFallback>
+                      {(selectedMerchant || localSelectedMerchant)?.name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col items-start text-sm">
+                    <span className="font-medium bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">{(selectedMerchant || localSelectedMerchant)?.name}</span>
+                    {(selectedMerchant || localSelectedMerchant)?.isDefault && (
+                      <span className="text-xs text-muted-foreground">Enterprise</span>
+                    )}
+                  </div>
+                </div>
+                <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+              </>
+            ) : (
+              <Avatar className="h-7 w-7 border-2 border-primary/20">
                 <AvatarImage
                   src={(selectedMerchant || localSelectedMerchant)?.branding?.logo}
                   alt={(selectedMerchant || localSelectedMerchant)?.name}
                 />
-                <AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary">
                   {(selectedMerchant || localSelectedMerchant)?.name?.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col items-start text-sm">
-                <span className="font-medium bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">{(selectedMerchant || localSelectedMerchant)?.name}</span>
-                {(selectedMerchant || localSelectedMerchant)?.isDefault && (
-                  <span className="text-xs text-muted-foreground">Enterprise</span>
-                )}
-              </div>
-            </div>
-            <CaretSortIcon className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+            )}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">

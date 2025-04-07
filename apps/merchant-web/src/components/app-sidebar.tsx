@@ -28,6 +28,7 @@ import {
   SidebarHeader,
   SidebarRail,
   useSidebar,
+  cn,
 } from '@loyaltystudio/ui';
 
 // Define navigation data
@@ -150,13 +151,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             )}
           </div>
         </div>
-        <div className="mt-3 p-1.5 rounded-md bg-background/80 shadow-sm border border-border/40">
+        <div className={cn(
+          "mt-3 bg-background/80 shadow-sm border border-border/40",
+          isOpen ? "p-1.5 rounded-md" : "p-1 rounded-full flex justify-center"
+        )}>
           <MerchantSwitcher />
         </div>
         {!hasMerchants && (
-          <div className={`mt-3 p-2.5 rounded-md bg-amber-50/90 border border-amber-200 shadow-sm ${!isOpen ? 'flex justify-center' : ''}`}>
+          <div className={cn(
+            "mt-3 bg-amber-50/90 border border-amber-200 shadow-sm",
+            isOpen ? "p-2.5 rounded-md" : "p-1.5 rounded-full flex justify-center"
+          )}>
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <AlertCircle className={cn(
+                "text-amber-500 flex-shrink-0",
+                isOpen ? "h-4 w-4 mt-0.5" : "h-5 w-5"
+              )} />
               {isOpen && (
                 <div className="text-xs font-medium text-amber-800">
                   Create a merchant to get started with your loyalty program
