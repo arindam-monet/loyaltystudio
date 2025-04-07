@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Separator, SidebarInset, SidebarProvider, SidebarTrigger } from '@loyaltystudio/ui';
 import { AppSidebar } from '@/components/app-sidebar';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 // Helper function to generate breadcrumbs based on pathname
 function getBreadcrumbs(pathname: string) {
@@ -68,29 +69,40 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                {breadcrumbs.map((crumb, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && <BreadcrumbSeparator />}
-                    {crumb.isActive ? (
-                      <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbItem>
-                        <Link href={crumb.url}>{crumb.title}</Link>
-                      </BreadcrumbItem>
-                    )}
-                  </React.Fragment>
-                ))}
-              </BreadcrumbList>
-            </Breadcrumb>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-gradient-to-r from-background via-muted/30 to-background border-b shadow-sm sticky top-0 z-10 backdrop-blur-[2px] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)]">
+          <div className="flex items-center gap-2 px-4 w-full">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb className="overflow-hidden">
+                <BreadcrumbList className="animate-in fade-in duration-500">
+                  {breadcrumbs.map((crumb, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && <BreadcrumbSeparator className="text-muted-foreground/50" />}
+                      {crumb.isActive ? (
+                        <BreadcrumbPage className="font-semibold text-primary bg-primary/5 px-2 py-1 rounded-md">{crumb.title}</BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbItem>
+                          <Link href={crumb.url} className="hover:text-primary transition-colors hover:bg-muted/50 px-2 py-1 rounded-md">{crumb.title}</Link>
+                        </BreadcrumbItem>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+            <div className="ml-auto flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-xs font-medium text-primary">LS</span>
+                </div>
+                <span className="text-sm font-medium">Loyalty Studio</span>
+              </div>
+              <ThemeToggle />
+            </div>
           </div>
         </header>
-        <div className="flex flex-1 p-4 pt-0">
+        <div className="flex flex-1 p-6 pt-4">
           {children}
         </div>
       </SidebarInset>

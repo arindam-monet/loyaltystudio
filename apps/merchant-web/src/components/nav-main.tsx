@@ -11,6 +11,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@loyaltystudio/ui';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { useMerchants } from '@/hooks/use-merchants';
 
 interface NavMainProps {
   items: {
@@ -31,11 +32,26 @@ export function NavMain({ items }: NavMainProps) {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   // Get sidebar state to conditionally render elements
   const { open: sidebarOpen } = useSidebar();
+  // Get merchants data to conditionally render navigation items
+  const { data: merchants = [] } = useMerchants();
+  const hasMerchants = merchants.length > 0;
+
+  // Don't filter items, but mark them as disabled if no merchants
+  const processedItems = items.map(item => ({
+    ...item,
+    disabled: !hasMerchants && !(
+      // These items are always enabled
+      item.title === 'Dashboard' ||
+      item.title === 'Settings' ||
+      item.title === 'Help' ||
+      item.title === 'API Docs'
+    )
+  }));
 
   return (
     <div className="space-y-4">
       <SidebarMenu className="px-2 space-y-1 pt-2">
-        {items.map((item, index) => {
+        {processedItems.map((item, index) => {
           const Icon = item.icon;
           const isOpen = openMenus[item.title] || false;
 
@@ -50,7 +66,7 @@ export function NavMain({ items }: NavMainProps) {
                 >
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton
-                      className="w-full justify-between"
+                      className={`w-full justify-between ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       isActive={item.isActive}
                     >
                       <div className="flex items-center">
@@ -71,10 +87,14 @@ export function NavMain({ items }: NavMainProps) {
                       {item.items.map((subItem, subIndex) => (
                         <SidebarMenuItem key={`${index}-${subIndex}`}>
                           <Link
-                            href={subItem.url}
+                            href={item.disabled ? '#' : subItem.url}
                             title={!sidebarOpen ? subItem.title : undefined}
+                            onClick={(e) => item.disabled && e.preventDefault()}
                           >
-                            <SidebarMenuButton isActive={subItem.isActive}>
+                            <SidebarMenuButton
+                              className={item.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                              isActive={subItem.isActive}
+                            >
                               {subItem.icon && <subItem.icon className="h-4 w-4 mr-2" aria-hidden="true" />}
                               {sidebarOpen && subItem.title}
                             </SidebarMenuButton>
@@ -91,10 +111,14 @@ export function NavMain({ items }: NavMainProps) {
           return (
             <SidebarMenuItem key={index}>
               <Link
-                href={item.url || '#'}
+                href={item.disabled ? '#' : (item.url || '#')}
                 title={!sidebarOpen ? item.title : undefined}
+                onClick={(e) => item.disabled && e.preventDefault()}
               >
-                <SidebarMenuButton isActive={item.isActive}>
+                <SidebarMenuButton
+                  className={item.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  isActive={item.isActive}
+                >
                   <Icon className="h-5 w-5" aria-hidden="true" />
                   {sidebarOpen && <span className="ml-2">{item.title}</span>}
                 </SidebarMenuButton>

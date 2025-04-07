@@ -13,13 +13,29 @@ export default function HomePage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if user is authenticated and redirect to dashboard
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth-storage');
+      if (token) {
+        try {
+          const authData = JSON.parse(token);
+          if (authData.state && authData.state.isAuthenticated) {
+            router.push('/dashboard');
+            return;
+          }
+        } catch (error) {
+          console.error('Error parsing auth data:', error);
+        }
+      }
+    }
+
     // Only handle email verification success
     const hash = window.location.hash;
     if (hash) {
       try {
         const params = new URLSearchParams(hash.substring(1));
         const type = params.get('type');
-        
+
         if (type === 'signup') {
           toast({
             title: "Email Verified Successfully!",
@@ -146,7 +162,7 @@ export default function HomePage() {
               <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">50M+</div>
               <div className="text-sm font-medium text-muted-foreground">API Requests/Day</div>
             </div>
-      <div className="text-center">
+            <div className="text-center">
               <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">800M+</div>
               <div className="text-sm font-medium text-muted-foreground">Loyalty Events/Year</div>
             </div>
@@ -375,8 +391,8 @@ export default function HomePage() {
           <div className="mt-16 pt-8 border-t text-center">
             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} LoyaltyStudio. All rights reserved.</p>
           </div>
-      </div>
+        </div>
       </footer>
     </div>
   );
-} 
+}

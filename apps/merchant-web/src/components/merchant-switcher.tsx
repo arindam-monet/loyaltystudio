@@ -87,6 +87,22 @@ export default function MerchantSwitcher({
     );
   }
 
+  // If there are no merchants, show a button to create one instead of the merchant switcher
+  if (merchants.length === 0) {
+    return (
+      <Button
+        variant="default"
+        className={cn('w-full justify-between px-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-sm', className)}
+        onClick={handleCreateMerchant}
+      >
+        <div className="flex items-center gap-2">
+          <PlusCircledIcon className="h-5 w-5" />
+          <span className="text-sm font-medium">Create Merchant</span>
+        </div>
+      </Button>
+    );
+  }
+
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
@@ -96,7 +112,7 @@ export default function MerchantSwitcher({
             role="combobox"
             aria-expanded={open}
             aria-label="Select a merchant"
-            className={cn('w-full justify-between px-2 bg-muted/50 border-dashed', className)}
+            className={cn('w-full justify-between px-2 bg-background/90 border-border/50 shadow-inner hover:bg-background', className)}
           >
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
@@ -109,7 +125,7 @@ export default function MerchantSwitcher({
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start text-sm">
-                <span className="font-medium text-primary">{(selectedMerchant || localSelectedMerchant)?.name}</span>
+                <span className="font-medium bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">{(selectedMerchant || localSelectedMerchant)?.name}</span>
                 {(selectedMerchant || localSelectedMerchant)?.isDefault && (
                   <span className="text-xs text-muted-foreground">Enterprise</span>
                 )}
