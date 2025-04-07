@@ -89,9 +89,49 @@ export function useLoyaltyPrograms() {
 
   const deleteLoyaltyProgram = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.delete(`/loyalty-programs/${id}`);
-      if (response.status !== 200 && response.status !== 204) {
-        throw new Error('Failed to delete loyalty program');
+      try {
+        console.log(`Deleting loyalty program with ID: ${id}`);
+
+        // Use fetch API with specific options to avoid Content-Type issues
+        const token = useAuthStore.getState().token;
+
+        // Create headers without Content-Type
+        const headers = new Headers();
+        headers.append('Authorization', `Bearer ${token}`);
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/loyalty-programs/${id}`, {
+          method: 'DELETE',
+          headers: headers,
+          // Don't include a body
+        });
+
+        console.log('Delete response status:', response.status);
+
+        if (response.status >= 200 && response.status < 300) {
+          return {}; // Return empty object for successful deletion
+        } else {
+          let errorMessage = 'Failed to delete loyalty program';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            // Ignore JSON parse error
+          }
+          throw new Error(errorMessage);
+        }
+      } catch (error: any) {
+        console.error('Error deleting loyalty program:', error);
+
+        // Provide more specific error messages based on the error
+        if (error.message && error.message.includes('foreign key constraint')) {
+          throw new Error('Cannot delete this loyalty program because it has related data. Please delete all associated members, rewards, and tiers first.');
+        } else if (error.message && error.message.includes('not found')) {
+          throw new Error('The loyalty program could not be found. It may have been already deleted.');
+        } else if (error.message && error.message.includes('permission')) {
+          throw new Error('You do not have permission to delete this loyalty program.');
+        } else {
+          throw new Error(error.message || 'Failed to delete loyalty program. Please try again later.');
+        }
       }
     },
     onSuccess: () => {

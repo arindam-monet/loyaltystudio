@@ -28,10 +28,11 @@ export * from './components/badge';
 export * from './components/switch';
 export * from './components/stepper';
 export * from './components/table';
-export * from './components/tooltip'; 
-export * from './components/sheet';  
+export * from './components/tooltip';
+export * from './components/sheet';
 export * from './components/scroll-area';
 export * from './components/area-chart';
+export * from './components/alert-dialog';
 
 
 export { default as Navbar } from './components/layout/Navbar';

@@ -386,11 +386,28 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
         properties: {
           id: { type: 'string' }
         }
+      },
+      // Explicitly set body to be optional
+      body: {
+        type: ['object', 'null'],
+        additionalProperties: true
       }
     },
     handler: async (request: FastifyRequest, reply) => {
+      // Set CORS headers explicitly for this endpoint
+      reply.header('Access-Control-Allow-Origin', '*');
+      reply.header('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
+      reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+      // Handle preflight OPTIONS request
+      if (request.method === 'OPTIONS') {
+        return reply.code(204).send();
+      }
+
       const { id } = request.params as { id: string };
       const merchantId = (request.user as AuthUser).merchantId;
+
+      console.log(`Deleting loyalty program: ${id} for merchant: ${merchantId}`);
 
       try {
         // Check if program exists and belongs to merchant
@@ -405,13 +422,102 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: 'Loyalty program not found' });
         }
 
-        // Delete program and all related data
+        // First delete all related data
+        // Delete program tiers and their members
+        const tiers = await prisma.programTier.findMany({
+          where: { loyaltyProgramId: id },
+          include: { members: true }
+        });
+
+        // Delete program members first
+        for (const tier of tiers) {
+          if (tier.members.length > 0) {
+            await prisma.programMember.deleteMany({
+              where: { tierId: tier.id }
+            });
+          }
+        }
+
+        // Delete tiers
+        await prisma.programTier.deleteMany({
+          where: { loyaltyProgramId: id }
+        });
+
+        // Delete points rules
+        await prisma.pointsRule.deleteMany({
+          where: { loyaltyProgramId: id }
+        });
+
+        // Delete rewards (first check for redemptions)
+        const rewards = await prisma.reward.findMany({
+          where: { loyaltyProgramId: id },
+          include: { redemptions: true }
+        });
+
+        // Delete reward redemptions first
+        for (const reward of rewards) {
+          if (reward.redemptions.length > 0) {
+            await prisma.rewardRedemption.deleteMany({
+              where: { rewardId: reward.id }
+            });
+          }
+        }
+
+        // Delete rewards
+        await prisma.reward.deleteMany({
+          where: { loyaltyProgramId: id }
+        });
+
+        // Delete segments and their members
+        const segments = await prisma.segment.findMany({
+          where: { loyaltyProgramId: id },
+          include: { members: true }
+        });
+
+        // Delete segment members first
+        for (const segment of segments) {
+          if (segment.members.length > 0) {
+            await prisma.segmentMember.deleteMany({
+              where: { segmentId: segment.id }
+            });
+          }
+        }
+
+        // Delete segments
+        await prisma.segment.deleteMany({
+          where: { loyaltyProgramId: id }
+        });
+
+        // Delete campaigns and their participants
+        const campaigns = await prisma.campaign.findMany({
+          where: { loyaltyProgramId: id },
+          include: { participants: true }
+        });
+
+        // Delete campaign participants first
+        for (const campaign of campaigns) {
+          if (campaign.participants.length > 0) {
+            await prisma.campaignParticipant.deleteMany({
+              where: { campaignId: campaign.id }
+            });
+          }
+        }
+
+        // Delete campaigns
+        await prisma.campaign.deleteMany({
+          where: { loyaltyProgramId: id }
+        });
+
+        // Finally delete the loyalty program
         await prisma.loyaltyProgram.delete({
           where: { id }
         });
 
+        console.log(`Successfully deleted loyalty program: ${id}`);
+
         return reply.code(204).send();
       } catch (error) {
+        console.error(`Error deleting loyalty program: ${id}`, error);
         request.log.error(error);
         return reply.code(500).send({ error: 'Failed to delete loyalty program' });
       }

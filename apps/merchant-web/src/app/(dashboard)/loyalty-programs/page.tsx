@@ -30,10 +30,18 @@ import {
   TableHeader,
   TableHead,
   TableRow,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  useToast,
 } from "@loyaltystudio/ui";
 import { z } from "zod";
 import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
-
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useMerchantStore } from "@/lib/stores/merchant-store";
 import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle } from "lucide-react";
@@ -109,7 +117,11 @@ export default function LoyaltyProgramsPage() {
   useAuthGuard();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { loyaltyPrograms, createLoyaltyProgram } = useLoyaltyPrograms();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [programToDelete, setProgramToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+  const { loyaltyPrograms, createLoyaltyProgram, deleteLoyaltyProgram } = useLoyaltyPrograms();
   const { selectedMerchant } = useMerchantStore();
 
   // Debug log for merchant selection
@@ -297,7 +309,8 @@ export default function LoyaltyProgramsPage() {
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => {
-                              // Handle delete
+                              setProgramToDelete(program.id);
+                              setDeleteDialogOpen(true);
                             }}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -323,6 +336,53 @@ export default function LoyaltyProgramsPage() {
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the loyalty program
+              and all associated data including points, rewards, and member information.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!programToDelete) return;
+
+                try {
+                  setIsDeleting(true);
+                  await deleteLoyaltyProgram.mutateAsync(programToDelete);
+                  toast({
+                    title: "Program deleted",
+                    description: "The loyalty program has been successfully deleted.",
+                    duration: 5000, // Auto-dismiss after 5 seconds
+                  });
+                } catch (error: any) {
+                  console.error("Failed to delete program:", error);
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to delete the loyalty program. Please try again.",
+                    variant: "destructive",
+                    duration: 7000, // Auto-dismiss after 7 seconds
+                  });
+                } finally {
+                  setIsDeleting(false);
+                  setDeleteDialogOpen(false);
+                  setProgramToDelete(null);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Program"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

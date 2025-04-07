@@ -52,6 +52,7 @@ const getNavData = (pathname: string) => ({
         {
           title: 'Programs',
           url: '/loyalty-programs',
+          icon: Gift,
           isActive: pathname === '/loyalty-programs' || pathname.startsWith('/loyalty-programs/'),
         },
         {

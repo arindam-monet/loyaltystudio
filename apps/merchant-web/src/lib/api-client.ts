@@ -17,6 +17,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 }) as CustomAxiosInstance;
 
 // Add request interceptor for auth
