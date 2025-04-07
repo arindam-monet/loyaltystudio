@@ -180,7 +180,11 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
     }
   };
 
-  const onFormSubmit = form.handleSubmit((data) => handleSubmit(data as ProgramFormData));
+  // This will only be called when the user explicitly clicks the "Launch Program" button
+  const onFormSubmit = form.handleSubmit((data) => {
+    console.log('Submitting form with data:', data);
+    return handleSubmit(data as ProgramFormData);
+  });
 
   const nextStep = () => {
     calculateCompletion();
@@ -292,7 +296,14 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
         {/* Step Content */}
         <div className="flex-1">
           <Form {...form}>
-            <form onSubmit={onFormSubmit} className="space-y-6">
+            <form onSubmit={(e) => {
+              // Only allow form submission on the final step
+              if (currentStep !== steps.length - 1) {
+                e.preventDefault();
+                return;
+              }
+              onFormSubmit(e);
+            }} className="space-y-6">
               {/* Step 1: Basic Information */}
               {currentStep === 0 && (
                 <div className="space-y-4">
@@ -631,8 +642,19 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
                 </Button>
 
                 {currentStep === steps.length - 1 ? (
-                  <Button type="submit" disabled={isLoading || !canProceed}>
-                    {isLoading ? "Creating..." : "Create Program"}
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !canProceed}
+                    onClick={(e) => {
+                      // This is just for extra safety to ensure we only submit on explicit click
+                      if (currentStep !== steps.length - 1) {
+                        e.preventDefault();
+                        return;
+                      }
+                      // Let the form submission happen naturally
+                    }}
+                  >
+                    {isLoading ? "Creating..." : "Launch Program"}
                   </Button>
                 ) : (
                   <Button

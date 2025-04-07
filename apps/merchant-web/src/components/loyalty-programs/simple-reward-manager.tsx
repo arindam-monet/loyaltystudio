@@ -137,7 +137,7 @@ export function SimpleRewardManager({
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" type="button">
               <Plus className="mr-2 h-4 w-4" />
               Add Reward
             </Button>
@@ -154,7 +154,11 @@ export function SimpleRewardManager({
 
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit((data) => onSubmit(data as RewardFormData))}
+                onSubmit={(e) => {
+                  e.preventDefault(); // Prevent form submission from bubbling up
+                  e.stopPropagation(); // Stop propagation to parent forms
+                  form.handleSubmit((data) => onSubmit(data as RewardFormData))(e);
+                }}
                 className="space-y-4"
               >
                 <FormField
@@ -291,7 +295,8 @@ export function SimpleRewardManager({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Stop propagation to parent forms
                       setOpen(false);
                       form.reset();
                       setEditingReward(null);
@@ -300,7 +305,7 @@ export function SimpleRewardManager({
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" onClick={(e) => e.stopPropagation()}>
                     {editingReward ? "Update Reward" : "Create Reward"}
                   </Button>
                 </div>
@@ -320,6 +325,7 @@ export function SimpleRewardManager({
             <Button
               variant="outline"
               className="mt-4"
+              type="button"
               onClick={() => setOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" />

@@ -125,7 +125,7 @@ export function SimpleTierManager({
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" type="button">
               <Plus className="mr-2 h-4 w-4" />
               Add Tier
             </Button>
@@ -142,7 +142,11 @@ export function SimpleTierManager({
 
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit((data) => onSubmit(data as TierFormData))}
+                onSubmit={(e) => {
+                  e.preventDefault(); // Prevent form submission from bubbling up
+                  e.stopPropagation(); // Stop propagation to parent forms
+                  form.handleSubmit((data) => onSubmit(data as TierFormData))(e);
+                }}
                 className="space-y-4"
               >
                 <FormField
@@ -213,7 +217,8 @@ export function SimpleTierManager({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Stop propagation to parent forms
                       setOpen(false);
                       form.reset();
                       setEditingTier(null);
@@ -222,7 +227,7 @@ export function SimpleTierManager({
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" onClick={(e) => e.stopPropagation()}>
                     {editingTier ? "Update Tier" : "Create Tier"}
                   </Button>
                 </div>
@@ -242,6 +247,7 @@ export function SimpleTierManager({
             <Button
               variant="outline"
               className="mt-4"
+              type="button"
               onClick={() => setOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" />

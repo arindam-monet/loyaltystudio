@@ -157,12 +157,22 @@ export default function LoyaltyProgramsPage() {
         settings: data.basicInfo.settings,
         isActive: data.basicInfo.isActive,
         merchantId: selectedMerchant?.id, // Use the selected merchant ID
-        defaultTiers: data?.tiers?.map(tier => ({
-          name: tier.name,
-          description: tier.description || "",
-          pointsThreshold: tier.pointsThreshold,
-          benefits: tier.benefits || {}
-        })),
+        defaultTiers: data?.tiers?.map(tier => {
+          // Convert benefits array to an object to match API expectations
+          const benefitsObj = {};
+          if (Array.isArray(tier.benefits)) {
+            tier.benefits.forEach((benefit, index) => {
+              benefitsObj[`benefit_${index + 1}`] = benefit;
+            });
+          }
+
+          return {
+            name: tier.name,
+            description: tier.description || "",
+            pointsThreshold: tier.pointsThreshold,
+            benefits: Object.keys(benefitsObj).length > 0 ? benefitsObj : {}
+          };
+        }),
         defaultRewards: data?.rewards?.map(reward => ({
           name: reward.name,
           description: reward.description,
@@ -176,11 +186,33 @@ export default function LoyaltyProgramsPage() {
         defaultRules: transformedRules
       };
 
-      await createLoyaltyProgram.mutateAsync(apiData);
+      const result = await createLoyaltyProgram.mutateAsync(apiData);
       setOpen(false);
-    } catch (error) {
+
+      // Show success toast
+      toast({
+        title: "Success",
+        description: `Loyalty program "${result.name}" has been created successfully.`,
+        variant: "default",
+      });
+    } catch (error: any) {
       console.error("Failed to create program:", error);
-      setError(error instanceof Error ? error.message : "Failed to create program");
+
+      // Handle API validation errors
+      if (error.response?.data) {
+        const apiError = error.response.data;
+        console.error('API error details:', apiError);
+
+        // Format validation errors for better user feedback
+        if (apiError.code === 'FST_ERR_VALIDATION') {
+          const errorMessage = apiError.message || 'Validation error';
+          setError(`Validation error: ${errorMessage}`);
+        } else {
+          setError(apiError.message || apiError.error || 'Failed to create program');
+        }
+      } else {
+        setError(error instanceof Error ? error.message : "Failed to create program");
+      }
     }
   };
 
