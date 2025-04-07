@@ -35,6 +35,8 @@ const app = fastify({
 app.register(cors, {
   origin: env.CORS_ORIGIN,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 });
 
 // Register custom logger first

@@ -50,38 +50,15 @@ export function useTiers(programId?: string) {
         throw new Error('No loyalty program selected or not authenticated');
       }
 
+      console.log(`Updating tier with ID: ${id}`, data);
+
       try {
-        console.log(`Updating tier with ID: ${id}`, data);
-
-        // Use fetch API with specific options to avoid Content-Type issues
-        const token = useAuthStore.getState().token;
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/program-tiers/${id}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
-
-        console.log('Update response status:', response.status);
-
-        if (response.status >= 200 && response.status < 300) {
-          return await response.json();
-        } else {
-          let errorMessage = 'Failed to update tier';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch (e) {
-            // Ignore JSON parse error
-          }
-          throw new Error(errorMessage);
-        }
+        const response = await apiClient.patch(`/program-tiers/${id}`, data);
+        console.log('Update response:', response);
+        return response.data;
       } catch (error: any) {
         console.error('Error updating tier:', error);
-        throw new Error(error.message || 'Failed to update tier. Please try again later.');
+        throw new Error(error.response?.data?.error || error.message || 'Failed to update tier');
       }
     },
     onSuccess: () => {
@@ -95,39 +72,16 @@ export function useTiers(programId?: string) {
         throw new Error('No loyalty program selected or not authenticated');
       }
 
+      console.log(`Deleting tier with ID: ${id}`);
+
       try {
-        console.log(`Deleting tier with ID: ${id}`);
-
-        // Use fetch API with specific options to avoid Content-Type issues
-        const token = useAuthStore.getState().token;
-
-        // Create headers without Content-Type
-        const headers = new Headers();
-        headers.append('Authorization', `Bearer ${token}`);
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/program-tiers/${id}`, {
-          method: 'DELETE',
-          headers: headers,
-          // Don't include a body
-        });
-
-        console.log('Delete response status:', response.status);
-
-        if (response.status >= 200 && response.status < 300) {
-          return {}; // Return empty object for successful deletion
-        } else {
-          let errorMessage = 'Failed to delete tier';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch (e) {
-            // Ignore JSON parse error
-          }
-          throw new Error(errorMessage);
-        }
+        // Use axios with default configuration
+        const response = await apiClient.delete(`/program-tiers/${id}`);
+        console.log('Delete response:', response);
+        return {}; // Return empty object for successful deletion
       } catch (error: any) {
         console.error('Error deleting tier:', error);
-        throw new Error(error.message || 'Failed to delete tier. Please try again later.');
+        throw new Error(error.response?.data?.error || error.message || 'Failed to delete tier');
       }
     },
     onSuccess: () => {

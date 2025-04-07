@@ -49,6 +49,7 @@ import {
   SelectValue,
   Label,
   AlertTitle,
+  useToast,
 } from '@loyaltystudio/ui';
 import { AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -60,6 +61,7 @@ import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
 import { useLoyaltyProgramStore } from '@/lib/stores/loyalty-program-store';
+// Remove unused imports
 
 // Match the schema exactly with the API types
 const tierSchema = z.object({
@@ -87,7 +89,9 @@ const tierSchema = z.object({
 type TierFormData = z.infer<typeof tierSchema>;
 
 export default function TiersPage() {
+  // No need for queryClient here
   const { isLoading: isAuthLoading } = useAuthGuard();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingTier, setEditingTier] = useState<Tier | null>(null);
@@ -166,9 +170,20 @@ export default function TiersPage() {
       };
 
       if (editingTier) {
+        // Use the hook's updateTier function
         await updateTier.mutateAsync({ id: editingTier.id, data: apiData });
+        toast({
+          title: "Tier Updated",
+          description: `The tier "${data.name}" has been successfully updated.`,
+          duration: 3000,
+        });
       } else {
         await createTier.mutateAsync(apiData);
+        toast({
+          title: "Tier Created",
+          description: `The tier "${data.name}" has been successfully created.`,
+          duration: 3000,
+        });
       }
 
       setOpen(false);
@@ -177,6 +192,14 @@ export default function TiersPage() {
     } catch (error) {
       console.error('Failed to save tier:', error);
       setError(error instanceof Error ? error.message : 'Failed to save tier');
+
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to save tier',
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 
@@ -231,12 +254,29 @@ export default function TiersPage() {
       // Log the request details for debugging
       console.log('Deleting tier with ID:', tierToDelete);
 
+      // Use the hook's deleteTier function
       await deleteTier.mutateAsync(tierToDelete);
+
+      // Show success toast
+      toast({
+        title: "Tier Deleted",
+        description: "The tier has been successfully deleted.",
+        duration: 3000,
+      });
+
       setDeleteDialogOpen(false);
       setTierToDelete(null);
     } catch (error) {
       console.error('Failed to delete tier:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete tier');
+
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete tier',
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsDeleting(false);
     }
