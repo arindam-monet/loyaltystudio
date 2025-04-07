@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { CreateTierDialog } from '@/components/tiers/create-tier-dialog';
 import {
   Card,
   CardContent,
@@ -81,6 +83,7 @@ type MemberFormData = z.infer<typeof memberSchema>;
 
 export default function ProgramMembersPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
   const [selectedProgram, setSelectedProgram] = useState<string>('');
@@ -183,23 +186,27 @@ export default function ProgramMembersPage() {
 
     setIsSubmitting(true);
     try {
-      // First, create a user if needed
+      // Use the current user's ID for now
+      // In a real implementation, we would create a new user based on the email and name
       let userId = user?.id;
 
       if (!userId) {
-        // In a real implementation, we would create a user
-        // For now, we'll use the current user's ID
         toast({ title: 'Error', description: 'No user ID available', variant: 'destructive' });
         return;
       }
 
       // Create the program member
+      // Add email and name to metadata to track this information
       await createMember.mutateAsync({
         userId,
         tierId: data.tierId,
         loyaltyProgramId: data.loyaltyProgramId,
         pointsBalance: data.initialPoints,
-        metadata: { createdVia: 'merchant-portal' }
+        metadata: {
+          createdVia: 'merchant-portal',
+          memberEmail: data.email,
+          memberName: data.name
+        }
       });
 
       toast({ title: 'Success', description: `Added ${data.name} to the loyalty program` });
@@ -339,8 +346,14 @@ export default function ProgramMembersPage() {
       // Process each member
       for (const member of csvData) {
         try {
+          // Use the current user's ID for all members
+          // In a real implementation, we would create a new user for each member
+          if (!user?.id) {
+            throw new Error('No user ID available');
+          }
+
           await createMember.mutateAsync({
-            userId: user?.id || '',
+            userId: user.id,
             tierId: member.tierName ?
               tiers.find(t => t.name.toLowerCase() === member.tierName.toLowerCase())?.id || defaultTier.id :
               defaultTier.id,
@@ -349,8 +362,8 @@ export default function ProgramMembersPage() {
             metadata: {
               createdVia: 'bulk-import',
               importedAt: new Date().toISOString(),
-              email: member.email,
-              name: member.name
+              memberEmail: member.email,
+              memberName: member.name
             }
           });
           successCount++;
@@ -567,17 +580,24 @@ export default function ProgramMembersPage() {
                                                 <div className="border rounded-md p-3 bg-muted/20 text-sm text-muted-foreground">
                                                   No tiers available. Please create a tier first.
                                                 </div>
-                                                <Button
-                                                  type="button"
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                    setIsAddDialogOpen(false);
-                                                    router.push('/settings/tiers');
+                                                <CreateTierDialog
+                                                  loyaltyProgramId={selectedProgram}
+                                                  trigger={
+                                                    <Button
+                                                      type="button"
+                                                      variant="outline"
+                                                      size="sm"
+                                                    >
+                                                      Create Tier
+                                                    </Button>
+                                                  }
+                                                  onSuccess={(newTier: any) => {
+                                                    // Set the newly created tier as the selected tier
+                                                    form.setValue('tierId', newTier.id);
+                                                    // Refresh the tiers list
+                                                    queryClient.invalidateQueries({ queryKey: ['program-tiers', selectedProgram] });
                                                   }}
-                                                >
-                                                  Create Tier
-                                                </Button>
+                                                />
                                               </div>
                                             )}
                                             <FormDescription>

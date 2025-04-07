@@ -5,8 +5,9 @@ import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
 
-const memberSchema = z.object({
-  userId: z.string().cuid(),
+// Schema for API requests
+const memberRequestSchema = z.object({
+  userId: z.string(),
   loyaltyProgramId: z.string().cuid(),
   tierId: z.string().cuid(),
   pointsBalance: z.number().min(0).default(0),
@@ -79,15 +80,29 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request, reply) => {
-    const data = memberSchema.parse(request.body);
-
     try {
+      // Use the more flexible schema for validation
+      const requestData = memberRequestSchema.parse(request.body);
+
+      // Check if the user exists
+      const user = await prisma.user.findUnique({
+        where: { id: requestData.userId }
+      });
+
+      if (!user) {
+        return reply.code(400).send({
+          error: 'User not found',
+          message: 'The specified user ID does not exist'
+        });
+      }
+
+      // Create the program member
       const member = await prisma.programMember.create({
         data: {
-          userId: data.userId,
-          tierId: data.tierId,
-          pointsBalance: data.pointsBalance,
-          metadata: data.metadata,
+          userId: user.id, // Use the validated user ID
+          tierId: requestData.tierId,
+          pointsBalance: requestData.pointsBalance,
+          metadata: requestData.metadata,
           joinedAt: new Date(),
         },
         include: {
@@ -104,7 +119,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
 
       // Get merchant ID from tier
       const tier = await prisma.programTier.findUnique({
-        where: { id: data.tierId },
+        where: { id: requestData.tierId },
         include: { loyaltyProgram: true }
       });
 
@@ -149,7 +164,8 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const data = memberSchema.partial().parse(request.body);
+    // Use a more flexible schema for updates
+    const data = memberRequestSchema.partial().parse(request.body);
 
     try {
       // Get original member data for comparison
