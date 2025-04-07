@@ -1,128 +1,118 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// Tenant model for multi-tenancy
 model Tenant {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  domain    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
+  domain    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   merchants Merchant[]
+  users     User[]
 }
 
-// User model for authentication
 model User {
-  id                String              @id @default(cuid())
-  email             String              @unique
-  name              String?
-  password          String?  // Made optional since we're using Supabase for auth
-  tenantId          String
-  tenant            Tenant              @relation(fields: [tenantId], references: [id])
-  roleId            String?
-  role              Role?               @relation(fields: [roleId], references: [id])
-  devices           UserDevice[]        // Replace sessions with devices
-  pointsTransactions PointsTransaction[]
-  rewardRedemptions RewardRedemption[]
-  pointsBalances    PointsBalance[]
-  pointsCalculations PointsCalculation[]
-  programMemberships ProgramMember[]
+  id                     String                @id @default(cuid())
+  email                  String                @unique
+  name                   String?
+  password               String?
+  tenantId               String
+  roleId                 String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  emailVerified          Boolean               @default(false)
   campaignParticipations CampaignParticipant[]
-  segmentMemberships SegmentMember[]
-  emailVerified     Boolean             @default(false)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  pointsBalances         PointsBalance[]
+  pointsCalculations     PointsCalculation[]
+  pointsTransactions     PointsTransaction[]
+  programMemberships     ProgramMember[]
+  rewardRedemptions      RewardRedemption[]
+  segmentMemberships     SegmentMember[]
+  role                   Role?                 @relation(fields: [roleId], references: [id])
+  tenant                 Tenant                @relation(fields: [tenantId], references: [id])
+  devices                UserDevice[]
 }
 
-// Merchant model for loyalty program management
 model Merchant {
-  id              String         @id @default(cuid())
-  name            String
-  subdomain       String?        @unique  // Optional unique subdomain
-  email           String
-  phone           String?
-  address         String?
-  city            String?
-  state           String?
-  country         String?
-  zipCode         String?
-  currency        String         @default("USD")  // Default to USD
-  timezone        String         @default("UTC")  // Default to UTC
-  tenantId        String
-  tenant          Tenant        @relation(fields: [tenantId], references: [id])
-  loyaltyPrograms LoyaltyProgram[]
-  pointsBalances  PointsBalance[]
+  id                 String              @id @default(cuid())
+  name               String
+  tenantId           String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  subdomain          String?             @unique
+  address            String?
+  city               String?
+  country            String?
+  email              String
+  phone              String?
+  state              String?
+  zipCode            String?
+  branding           Json?               @default("{}")
+  currency           String              @default("USD")
+  timezone           String              @default("UTC")
+  apiKeys            ApiKey[]
+  loyaltyPrograms    LoyaltyProgram[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  pointsBalances     PointsBalance[]
   pointsCalculations PointsCalculation[]
-  apiKeys         ApiKey[]
-  webhooks        Webhook[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  branding        Json?         @default("{}")
+  webhooks           Webhook[]
 
   @@index([subdomain])
   @@index([tenantId])
 }
 
-// Permission model for granular access control
 model Permission {
   id          String           @id @default(cuid())
   name        String
+  description String?
   resource    String
   action      String
-  description String?
-  roles       RolePermission[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  roles       RolePermission[]
 
   @@unique([resource, action])
 }
 
-// Role model for access control
 model Role {
-  id          String       @id @default(cuid())
-  name        String       @unique
+  id          String           @id @default(cuid())
+  name        String           @unique
   description String?
-  users       User[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   permissions RolePermission[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  users       User[]
 }
 
-// Many-to-many relationship between Role and Permission
 model RolePermission {
   id           String     @id @default(cuid())
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
 
   @@unique([roleId, permissionId])
 }
 
-// Replace UserSession model with UserDevice model
 model UserDevice {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  deviceId      String   // Unique device identifier
-  deviceInfo    Json     // Device information
-  ipAddress     String?
-  lastActiveAt  DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  deviceId     String
+  deviceInfo   Json
+  ipAddress    String?
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, deviceId])
   @@index([userId])
@@ -130,81 +120,76 @@ model UserDevice {
 }
 
 model PointsTransaction {
-  id              String   @id @default(cuid())
-  programMemberId String?
-  programMember   ProgramMember? @relation(fields: [programMemberId], references: [id])
+  id              String              @id @default(cuid())
   userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
   amount          Int
-  type            String   // EARN, REDEEM, ADJUST
+  type            String
   reason          String
   metadata        Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  programMemberId String?
   calculations    PointsCalculation[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  programMember   ProgramMember?      @relation(fields: [programMemberId], references: [id])
+  user            User?               @relation(fields: [userId], references: [id])
 
   @@index([programMemberId])
   @@index([userId])
   @@index([type])
 }
 
-// Loyalty Program model
 model LoyaltyProgram {
-  id              String         @id @default(cuid())
-  name            String
-  description     String?
-  merchantId      String
-  merchant        Merchant       @relation(fields: [merchantId], references: [id])
-  pointsRules     PointsRule[]
-  rewards         Reward[]
-  tiers           ProgramTier[]
-  campaigns       Campaign[]
-  segments        Segment[]
-  settings        Json?         // Program-wide settings
-  isActive        Boolean       @default(true)
-  metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  merchantId  String
+  isActive    Boolean       @default(true)
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  settings    Json?
+  campaigns   Campaign[]
+  merchant    Merchant      @relation(fields: [merchantId], references: [id])
+  pointsRules PointsRule[]
+  tiers       ProgramTier[]
+  rewards     Reward[]
+  segments    Segment[]
 
   @@index([merchantId])
 }
 
-// Program Tiers
 model ProgramTier {
-  id              String         @id @default(cuid())
-  name            String
-  description     String?
-  pointsThreshold Int           // Points required to reach this tier
-  benefits        Json?         // Tier-specific benefits
+  id               String          @id @default(cuid())
+  name             String
+  description      String?
+  pointsThreshold  Int
+  benefits         Json?
   loyaltyProgramId String
-  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
-  members         ProgramMember[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  members          ProgramMember[]
+  loyaltyProgram   LoyaltyProgram  @relation(fields: [loyaltyProgramId], references: [id])
 
   @@index([loyaltyProgramId])
 }
 
-// Program Members (customers of merchants)
 model ProgramMember {
-  id            String      @id @default(cuid())
-  userId        String?
-  user          User?       @relation(fields: [userId], references: [id])
-  email         String?     // Customer's email
-  name          String?     // Customer's name
-  phoneNumber   String?     // Optional phone number
-  externalId    String?     // Optional ID from merchant's system
-  tierId        String
-  tier          ProgramTier @relation(fields: [tierId], references: [id])
-  pointsBalance Int         @default(0)
-  joinedAt      DateTime    @default(now())
-  lastActivity  DateTime?
-  metadata      Json?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  // Relations to other models
+  id                 String              @id @default(cuid())
+  userId             String?
+  tierId             String
+  pointsBalance      Int                 @default(0)
+  joinedAt           DateTime            @default(now())
+  lastActivity       DateTime?
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  email              String?
+  externalId         String?
+  name               String?
+  phoneNumber        String?
   pointsTransactions PointsTransaction[]
+  tier               ProgramTier         @relation(fields: [tierId], references: [id])
+  user               User?               @relation(fields: [userId], references: [id])
   rewardRedemptions  RewardRedemption[]
 
   @@index([tierId])
@@ -212,22 +197,21 @@ model ProgramMember {
   @@index([email])
 }
 
-// Campaigns and Promotions
 model Campaign {
-  id              String         @id @default(cuid())
-  name            String
-  description     String?
-  type            String        // POINTS_MULTIPLIER, BONUS_POINTS, SPECIAL_REWARD
-  startDate       DateTime
-  endDate         DateTime?
-  conditions      Json?         // Campaign conditions
-  rewards         Json?         // Campaign rewards
-  isActive        Boolean       @default(true)
+  id               String                @id @default(cuid())
+  name             String
+  description      String?
+  type             String
+  startDate        DateTime
+  endDate          DateTime?
+  conditions       Json?
+  rewards          Json?
+  isActive         Boolean               @default(true)
   loyaltyProgramId String
-  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
-  participants    CampaignParticipant[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  loyaltyProgram   LoyaltyProgram        @relation(fields: [loyaltyProgramId], references: [id])
+  participants     CampaignParticipant[]
 
   @@index([loyaltyProgramId])
   @@index([startDate])
@@ -235,78 +219,75 @@ model Campaign {
 }
 
 model CampaignParticipant {
-  id          String   @id @default(cuid())
-  campaignId  String
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  status      String   // ELIGIBLE, PARTICIPATING, COMPLETED
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  campaignId String
+  userId     String
+  status     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
   @@unique([campaignId, userId])
   @@index([campaignId])
   @@index([userId])
 }
 
-// Enhanced Points Rules
 model PointsRule {
-  id              String         @id @default(cuid())
-  name            String
-  description     String?
-  type            String        // FIXED, PERCENTAGE, DYNAMIC
-  conditions      Json          // Array of conditions for points calculation
-  points          Int
-  maxPoints       Int?          // Maximum points per transaction
-  minAmount       Decimal?      // Minimum transaction amount
-  categoryRules   Json?         // Category-specific rules
-  timeRules       Json?         // Time-based rules (happy hours, etc.)
-  metadata        Json?
-  isActive        Boolean       @default(true)
+  id               String         @id @default(cuid())
+  name             String
+  description      String?
+  conditions       Json
+  points           Int
+  metadata         Json?
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   loyaltyProgramId String
-  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  categoryRules    Json?
+  maxPoints        Int?
+  minAmount        Decimal?
+  timeRules        Json?
+  type             String
+  loyaltyProgram   LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
 
   @@index([loyaltyProgramId])
 }
 
-// Enhanced Rewards System
 model Reward {
-  id              String         @id @default(cuid())
-  name            String
-  description     String
-  type            String        // PHYSICAL, DIGITAL, EXPERIENCE, COUPON
-  pointsCost      Int
-  stock           Int?          // For physical rewards
-  validityPeriod  Int?          // Days until expiration
-  redemptionLimit Int?          // Maximum redemptions per user
-  conditions      Json?         // Redemption conditions
-  metadata        Json?
-  isActive        Boolean       @default(true)
+  id               String             @id @default(cuid())
+  name             String
+  description      String
+  pointsCost       Int
+  type             String
+  metadata         Json?
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   loyaltyProgramId String
-  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
-  redemptions     RewardRedemption[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  conditions       Json?
+  redemptionLimit  Int?
+  stock            Int?
+  validityPeriod   Int?
+  loyaltyProgram   LoyaltyProgram     @relation(fields: [loyaltyProgramId], references: [id])
+  redemptions      RewardRedemption[]
 
   @@index([loyaltyProgramId])
 }
 
-// Segments for Member Targeting
 model Segment {
-  id              String         @id @default(cuid())
-  name            String
-  description     String?
-  type            String        // STATIC, DYNAMIC, HYBRID
-  criteria        Json          // Segment criteria/rules
-  isActive        Boolean       @default(true)
+  id               String          @id @default(cuid())
+  name             String
+  description      String?
+  type             String
+  criteria         Json
+  isActive         Boolean         @default(true)
   loyaltyProgramId String
-  loyaltyProgram  LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id])
-  members         SegmentMember[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  loyaltyProgram   LoyaltyProgram  @relation(fields: [loyaltyProgramId], references: [id])
+  members          SegmentMember[]
 
   @@index([loyaltyProgramId])
 }
@@ -314,14 +295,14 @@ model Segment {
 model SegmentMember {
   id              String   @id @default(cuid())
   segmentId       String
-  segment         Segment  @relation(fields: [segmentId], references: [id])
-  programMemberId String?
   userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
   joinedAt        DateTime @default(now())
   metadata        Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  programMemberId String?
+  segment         Segment  @relation(fields: [segmentId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
 
   @@unique([segmentId, userId], name: "segmentUserMember")
   @@index([segmentId])
@@ -329,19 +310,19 @@ model SegmentMember {
 }
 
 model RewardRedemption {
-  id              String        @id @default(cuid())
-  programMemberId String?
-  programMember   ProgramMember? @relation(fields: [programMemberId], references: [id])
+  id              String         @id @default(cuid())
   userId          String?
-  user            User?         @relation(fields: [userId], references: [id])
   rewardId        String
-  reward          Reward        @relation(fields: [rewardId], references: [id])
   quantity        Int
   pointsCost      Int
-  status          String        // PENDING, COMPLETED, CANCELLED
+  status          String
   metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  programMemberId String?
+  programMember   ProgramMember? @relation(fields: [programMemberId], references: [id])
+  reward          Reward         @relation(fields: [rewardId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
 
   @@index([programMemberId])
   @@index([userId])
@@ -350,15 +331,15 @@ model RewardRedemption {
 }
 
 model PointsBalance {
-  id              String        @id @default(cuid())
-  programMemberId String?
+  id              String   @id @default(cuid())
   userId          String?
-  user            User?         @relation(fields: [userId], references: [id])
   merchantId      String
-  merchant        Merchant      @relation(fields: [merchantId], references: [id])
-  balance         Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  balance         Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  programMemberId String?
+  merchant        Merchant @relation(fields: [merchantId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
 
   @@unique([userId, merchantId], name: "userMerchantBalance")
   @@index([userId])
@@ -366,21 +347,21 @@ model PointsBalance {
 }
 
 model PointsCalculation {
-  id              String   @id @default(cuid())
+  id              String            @id @default(cuid())
   transactionId   String
-  transaction     PointsTransaction @relation(fields: [transactionId], references: [id])
   merchantId      String
-  merchant        Merchant @relation(fields: [merchantId], references: [id])
-  programMemberId String?
   userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
   points          Int?
-  status          String   // PENDING, COMPLETED, FAILED
+  status          String
   error           String?
-  metadata        Json?    // Store calculation metadata including matched rules
+  metadata        Json?
   completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  programMemberId String?
+  merchant        Merchant          @relation(fields: [merchantId], references: [id])
+  transaction     PointsTransaction @relation(fields: [transactionId], references: [id])
+  user            User?             @relation(fields: [userId], references: [id])
 
   @@index([transactionId])
   @@index([merchantId])
@@ -388,57 +369,87 @@ model PointsCalculation {
   @@index([status])
 }
 
-// API Key model for merchant API access
 model ApiKey {
-  id          String       @id @default(cuid())
-  key         String       @unique
-  name        String
-  merchantId  String
-  merchant    Merchant     @relation(fields: [merchantId], references: [id])
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  usageLogs   ApiKeyUsageLog[]
-  rateLimits  ApiKeyRateLimit[]
+  id         String            @id @default(cuid())
+  key        String            @unique
+  name       String
+  merchantId String
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  isActive   Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  merchant   Merchant          @relation(fields: [merchantId], references: [id])
+  rateLimits ApiKeyRateLimit[]
+  usageLogs  ApiKeyUsageLog[]
 
   @@index([merchantId])
   @@index([key])
 }
 
-// API Key Usage Log for tracking usage
 model ApiKeyUsageLog {
   id        String   @id @default(cuid())
   apiKeyId  String
-  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
   endpoint  String
   method    String
-  status    Int      // HTTP status code
-  duration  Int      // Request duration in ms
+  status    Int
+  duration  Int
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
 
   @@index([apiKeyId])
   @@index([createdAt])
 }
 
-// API Key Rate Limit configuration
 model ApiKeyRateLimit {
   id        String   @id @default(cuid())
   apiKeyId  String
-  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
-  window    Int      // Time window in seconds
-  limit     Int      // Request limit per window
+  window    Int
+  limit     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
 
   @@unique([apiKeyId, window])
   @@index([apiKeyId])
 }
 
-// Webhook event types
+model Webhook {
+  id           String               @id @default(cuid())
+  merchantId   String
+  url          String
+  events       WebhookEventType[]
+  secret       String
+  description  String?
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  merchant     Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  deliveryLogs WebhookDeliveryLog[]
+
+  @@index([merchantId])
+}
+
+model WebhookDeliveryLog {
+  id         String           @id @default(cuid())
+  webhookId  String
+  eventType  WebhookEventType
+  payload    Json
+  statusCode Int?
+  response   String?
+  error      String?
+  attempts   Int              @default(0)
+  successful Boolean
+  createdAt  DateTime         @default(now())
+  webhook    Webhook          @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([eventType])
+  @@index([successful])
+}
+
 enum WebhookEventType {
   transaction_created
   points_earned
@@ -455,40 +466,4 @@ enum WebhookEventType {
   campaign_started
   campaign_ended
   campaign_updated
-}
-
-// Webhook model for event notifications
-model Webhook {
-  id          String   @id @default(cuid())
-  merchantId  String
-  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  url         String
-  events      WebhookEventType[]
-  secret      String
-  description String?
-  isActive    Boolean  @default(true)
-  deliveryLogs WebhookDeliveryLog[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([merchantId])
-}
-
-// Webhook delivery log for tracking and debugging
-model WebhookDeliveryLog {
-  id          String   @id @default(cuid())
-  webhookId   String
-  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
-  eventType   WebhookEventType
-  payload     Json
-  statusCode  Int?
-  response    String?
-  error       String?
-  attempts    Int      @default(0)
-  successful  Boolean
-  createdAt   DateTime @default(now())
-
-  @@index([webhookId])
-  @@index([eventType])
-  @@index([successful])
 }
