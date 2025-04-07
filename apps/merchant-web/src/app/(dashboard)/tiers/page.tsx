@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
   Form,
   FormControl,
   FormDescription,
@@ -92,6 +93,9 @@ export default function TiersPage() {
   const [editingTier, setEditingTier] = useState<Tier | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [isChangingProgram, setIsChangingProgram] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tierToDelete, setTierToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
   const { setSelectedProgram: setGlobalSelectedProgram } = useLoyaltyProgramStore();
   const { tiers = [], createTier, updateTier, deleteTier, isLoading: isTiersLoading } = useTiers(selectedProgram);
@@ -140,18 +144,25 @@ export default function TiersPage() {
       }
 
       // Transform the data to match the API requirements
-      const apiData = {
-        ...data,
+      // Convert requirements to a field in benefits to match the API structure
+      const apiData: any = {
+        name: data.name,
+        description: data.description,
+        pointsThreshold: data.pointsThreshold,
+        isActive: data.isActive,
         benefits: {
           ...data.benefits,
           specialDiscounts: data.benefits.specialDiscounts || undefined,
+          // Store requirements as part of benefits since the API doesn't have a separate requirements field
+          requirements: {
+            minimumSpend: data.requirements?.minimumSpend || undefined,
+            minimumOrders: data.requirements?.minimumOrders || undefined,
+            timeInProgram: data.requirements?.timeInProgram || undefined,
+          }
         },
-        requirements: {
-          minimumSpend: data.requirements.minimumSpend || undefined,
-          minimumOrders: data.requirements.minimumOrders || undefined,
-          timeInProgram: data.requirements.timeInProgram || undefined,
-        },
-        loyaltyProgramId: selectedProgram
+        loyaltyProgramId: selectedProgram,
+        // Add an empty requirements object to satisfy the type checker
+        requirements: {}
       };
 
       if (editingTier) {
@@ -171,35 +182,69 @@ export default function TiersPage() {
 
   const handleEdit = (tier: Tier) => {
     setEditingTier(tier);
+
+    // Check if tier has the expected structure and provide defaults if not
+    const benefits = tier.benefits || {};
+
+    // The requirements might be stored in the benefits object from the API
+    // or as a separate object in the local state
+    // Use type assertion since the benefits structure might vary between API and client
+    const benefitsAny = benefits as any;
+    const requirementsFromBenefits = benefitsAny.requirements || {};
+    const requirements = tier.requirements || requirementsFromBenefits || {};
+
+    console.log('Editing tier:', tier);
+    console.log('Benefits:', benefits);
+    console.log('Requirements:', requirements);
+
     form.reset({
       ...tier,
       benefits: {
-        pointsMultiplier: tier.benefits.pointsMultiplier,
-        exclusiveRewards: tier.benefits.exclusiveRewards || [],
-        specialDiscounts: tier.benefits.specialDiscounts || null,
-        prioritySupport: tier.benefits.prioritySupport || false,
+        pointsMultiplier: benefits.pointsMultiplier,
+        exclusiveRewards: benefits.exclusiveRewards || [],
+        specialDiscounts: benefits.specialDiscounts || null,
+        prioritySupport: benefits.prioritySupport || false,
       },
       requirements: {
-        minimumSpend: tier.requirements.minimumSpend || null,
-        minimumOrders: tier.requirements.minimumOrders || null,
-        timeInProgram: tier.requirements.timeInProgram || null,
+        minimumSpend: requirements.minimumSpend || null,
+        minimumOrders: requirements.minimumOrders || null,
+        timeInProgram: requirements.timeInProgram || null,
       },
+      isActive: tier.isActive !== undefined ? tier.isActive : true,
+      loyaltyProgramId: selectedProgram,
     });
     setOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = (id: string) => {
+    setTierToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!tierToDelete) return;
+
     try {
-      await deleteTier.mutateAsync(id);
+      setIsDeleting(true);
+      setError(null);
+
+      // Log the request details for debugging
+      console.log('Deleting tier with ID:', tierToDelete);
+
+      await deleteTier.mutateAsync(tierToDelete);
+      setDeleteDialogOpen(false);
+      setTierToDelete(null);
     } catch (error) {
       console.error('Failed to delete tier:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete tier');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   if (isAuthLoading || isLoyaltyProgramsLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen w-full">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
@@ -207,6 +252,39 @@ export default function TiersPage() {
 
   return (
     <div className="container py-6 space-y-6">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Tier</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this tier? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Membership Tiers</h1>
@@ -555,7 +633,7 @@ export default function TiersPage() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive"
-                                onClick={() => handleDelete(tier.id)}
+                                onClick={() => confirmDelete(tier.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
