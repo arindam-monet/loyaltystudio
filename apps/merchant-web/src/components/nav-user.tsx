@@ -1,7 +1,9 @@
 'use client';
 
 import { UserInfo } from './user-info';
+import { useSidebar } from '@loyaltystudio/ui';
 
 export function NavUser() {
-  return <UserInfo />;
+  const { open: sidebarOpen } = useSidebar();
+  return <UserInfo compact={!sidebarOpen} />;
 }
