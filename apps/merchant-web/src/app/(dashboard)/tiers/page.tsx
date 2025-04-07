@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -40,7 +40,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Skeleton,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+  AlertTitle,
 } from '@loyaltystudio/ui';
+import { AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -48,6 +57,8 @@ import { useTiers } from '@/hooks/use-tiers';
 import { Tier } from '@/lib/stores/tier-store';
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
+import { useLoyaltyProgramStore } from '@/lib/stores/loyalty-program-store';
 
 // Match the schema exactly with the API types
 const tierSchema = z.object({
@@ -69,6 +80,7 @@ const tierSchema = z.object({
     timeInProgram: z.number().nullish(),
   }),
   isActive: z.boolean(),
+  loyaltyProgramId: z.string().optional(),
 });
 
 type TierFormData = z.infer<typeof tierSchema>;
@@ -78,7 +90,11 @@ export default function TiersPage() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingTier, setEditingTier] = useState<Tier | null>(null);
-  const { tiers = [], createTier, updateTier, deleteTier, isLoading } = useTiers();
+  const [selectedProgram, setSelectedProgram] = useState<string>('');
+  const [isChangingProgram, setIsChangingProgram] = useState(false);
+  const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
+  const { setSelectedProgram: setGlobalSelectedProgram } = useLoyaltyProgramStore();
+  const { tiers = [], createTier, updateTier, deleteTier, isLoading: isTiersLoading } = useTiers(selectedProgram);
 
   const form = useForm<TierFormData>({
     resolver: zodResolver(tierSchema),
@@ -101,9 +117,28 @@ export default function TiersPage() {
     },
   });
 
+  // Update form when program is selected
+  useEffect(() => {
+    if (selectedProgram) {
+      form.setValue('loyaltyProgramId', selectedProgram);
+
+      // Update the global store
+      const program = loyaltyPrograms?.find(p => p.id === selectedProgram);
+      if (program) {
+        setGlobalSelectedProgram(program);
+      }
+    }
+  }, [selectedProgram, loyaltyPrograms, form, setGlobalSelectedProgram]);
+
   const onSubmit = async (data: TierFormData) => {
     try {
       setError(null);
+
+      if (!selectedProgram) {
+        setError('Please select a loyalty program first');
+        return;
+      }
+
       // Transform the data to match the API requirements
       const apiData = {
         ...data,
@@ -116,6 +151,7 @@ export default function TiersPage() {
           minimumOrders: data.requirements.minimumOrders || undefined,
           timeInProgram: data.requirements.timeInProgram || undefined,
         },
+        loyaltyProgramId: selectedProgram
       };
 
       if (editingTier) {
@@ -123,7 +159,7 @@ export default function TiersPage() {
       } else {
         await createTier.mutateAsync(apiData);
       }
-      
+
       setOpen(false);
       form.reset();
       setEditingTier(null);
@@ -161,7 +197,7 @@ export default function TiersPage() {
     }
   };
 
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading || isLoyaltyProgramsLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -185,18 +221,20 @@ export default function TiersPage() {
             form.reset();
           }
         }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Tier
-            </Button>
-          </DialogTrigger>
+          {selectedProgram && (
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Tier
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingTier ? 'Edit Tier' : 'Create Tier'}</DialogTitle>
               <DialogDescription>
-                {editingTier 
-                  ? 'Update the details of this membership tier' 
+                {editingTier
+                  ? 'Update the details of this membership tier'
                   : 'Add a new membership tier to your loyalty program'}
               </DialogDescription>
             </DialogHeader>
@@ -351,7 +389,81 @@ export default function TiersPage() {
       </div>
 
       <div className="space-y-4">
-        {tiers.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <Label htmlFor="program">Select Loyalty Program</Label>
+              <Select
+                value={selectedProgram}
+                onValueChange={(value) => {
+                  if (value !== selectedProgram) {
+                    setIsChangingProgram(true);
+                    setSelectedProgram(value);
+                    setTimeout(() => setIsChangingProgram(false), 300);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a loyalty program" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loyaltyPrograms?.map((program: any) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {!selectedProgram ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>No loyalty program selected</AlertTitle>
+                <AlertDescription>
+                  Please select a loyalty program to manage its tiers.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : isChangingProgram || isTiersLoading ? (
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-7 w-48 mb-2" />
+              <Skeleton className="h-4 w-72" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                    <Skeleton className="h-5 w-24" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : tiers.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center p-6">
               <div className="text-center space-y-2">
@@ -359,8 +471,8 @@ export default function TiersPage() {
                 <p className="text-sm text-muted-foreground">
                   Create your first membership tier to start segmenting your customers
                 </p>
-                <Button 
-                  className="mt-4" 
+                <Button
+                  className="mt-4"
                   onClick={() => setOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
