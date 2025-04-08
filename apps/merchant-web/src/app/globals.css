@@ -13,17 +13,26 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Default primary color - can be overridden by merchant branding */
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Default secondary color - can be overridden by merchant branding */
+    --secondary: #0ea5e9;
+    --secondary-foreground: #ffffff;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Default accent color - can be overridden by merchant branding */
+    --accent: #f59e0b;
+    --accent-foreground: #ffffff;
+
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -33,7 +42,6 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
-
   }
 
   .dark {
@@ -46,17 +54,25 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Dark mode uses the same custom brand colors but with adjusted contrast */
+    /* These will be overridden by the same JavaScript that sets the light mode colors */
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: #0ea5e9;
+    --secondary-foreground: #ffffff;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: #f59e0b;
+    --accent-foreground: #ffffff;
+
+    --success: 142.1 70.0% 45.0%;
+    --success-foreground: 144.9 80.4% 10%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
@@ -77,4 +93,13 @@
   }
 }
 
-/*  */
+/* Custom Badge Variants */
+.badge-success {
+  background-color: hsl(var(--success));
+  color: hsl(var(--success-foreground));
+}
+
+.badge-warning {
+  background-color: hsl(var(--warning));
+  color: hsl(var(--warning-foreground));
+}

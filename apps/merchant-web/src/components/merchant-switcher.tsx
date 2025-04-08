@@ -8,7 +8,7 @@ import {
   AvatarImage,
   Button,
   Command,
-  CommandEmpty,
+  // CommandEmpty, // Not used
   CommandGroup,
   CommandItem,
   CommandList,
@@ -20,7 +20,7 @@ import {
   CheckIcon,
   PlusCircledIcon,
 } from '@loyaltystudio/ui';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { useMerchants } from '@/hooks/use-merchants';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 import { useMerchantStore } from '@/lib/stores/merchant-store';
@@ -35,8 +35,8 @@ interface MerchantSwitcherProps extends PopoverTriggerProps {
 export default function MerchantSwitcher({
   className,
 }: MerchantSwitcherProps) {
-  const router = useRouter();
-  const { data: merchants = [], isLoading, refetch } = useMerchants();
+  // const router = useRouter();
+  const { data: merchants = [], isLoading } = useMerchants();
   const [open, setOpen] = React.useState(false);
   const { selectedMerchant, setSelectedMerchant } = useMerchantStore();
   const { open: sidebarOpen } = useSidebar();
@@ -45,16 +45,32 @@ export default function MerchantSwitcher({
 
   // Update selected merchant when merchants data loads
   React.useEffect(() => {
-    if (merchants.length > 0) {
-      const defaultMerchant = merchants.find((m) => m.isDefault) || merchants[0];
-      setLocalSelectedMerchant(defaultMerchant);
+    if (merchants.length === 0) return;
 
-      // Only set the global merchant if it's not already set
-      if (!selectedMerchant) {
-        setSelectedMerchant(defaultMerchant);
-      }
+    // Only run this effect when merchants change or when there's no selected merchant
+    if (!selectedMerchant) {
+      // If no merchant is selected, select the default or first one
+      const defaultMerchant = merchants.find((m) => m.isDefault) || merchants[0];
+      console.log('No merchant selected, selecting default:', defaultMerchant.name);
+      setLocalSelectedMerchant(defaultMerchant);
+      setSelectedMerchant(defaultMerchant);
+      return;
     }
-  }, [merchants, selectedMerchant, setSelectedMerchant]);
+
+    // Check if the selected merchant exists in the merchants list
+    const currentMerchant = merchants.find(m => m.id === selectedMerchant.id);
+    if (!currentMerchant) {
+      // If the selected merchant is not in the list, select the default or first one
+      const defaultMerchant = merchants.find((m) => m.isDefault) || merchants[0];
+      console.log('Selected merchant not found, selecting default:', defaultMerchant.name);
+      setLocalSelectedMerchant(defaultMerchant);
+      setSelectedMerchant(defaultMerchant);
+    } else {
+      // Just update the local state to match the current merchant
+      // This won't trigger an infinite loop since we're not updating selectedMerchant
+      setLocalSelectedMerchant(currentMerchant);
+    }
+  }, [merchants, selectedMerchant?.id, setSelectedMerchant]);
 
   const handleMerchantSelect = (merchant: typeof merchants[0]) => {
     setLocalSelectedMerchant(merchant);
@@ -68,7 +84,8 @@ export default function MerchantSwitcher({
   };
 
   const handleOnboardingSuccess = () => {
-    refetch();
+    // Refresh merchants data
+    window.location.reload();
   };
 
   if (isLoading) {
@@ -137,7 +154,7 @@ export default function MerchantSwitcher({
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
                     <AvatarImage
-                      src={(selectedMerchant || localSelectedMerchant)?.branding?.logo}
+                      src={(selectedMerchant || localSelectedMerchant)?.branding?.logoUrl || ((selectedMerchant || localSelectedMerchant)?.branding as any)?.logo}
                       alt={(selectedMerchant || localSelectedMerchant)?.name}
                     />
                     <AvatarFallback>
@@ -156,7 +173,7 @@ export default function MerchantSwitcher({
             ) : (
               <Avatar className="h-7 w-7 border-2 border-primary/20">
                 <AvatarImage
-                  src={(selectedMerchant || localSelectedMerchant)?.branding?.logo}
+                  src={(selectedMerchant || localSelectedMerchant)?.branding?.logoUrl || ((selectedMerchant || localSelectedMerchant)?.branding as any)?.logo}
                   alt={(selectedMerchant || localSelectedMerchant)?.name}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
@@ -178,7 +195,7 @@ export default function MerchantSwitcher({
                   >
                     <Avatar className="mr-2 h-5 w-5">
                       <AvatarImage
-                        src={merchant.branding?.logo}
+                        src={merchant.branding?.logoUrl || (merchant.branding as any)?.logo}
                         alt={merchant.name}
                       />
                       <AvatarFallback>

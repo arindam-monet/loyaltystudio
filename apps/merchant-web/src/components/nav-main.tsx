@@ -90,7 +90,7 @@ export function NavMain({ items }: NavMainProps) {
                           className={`w-full justify-between ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           isActive={item.isActive}
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-1">
                             <Icon className="h-5 w-5" aria-hidden="true" />
                             <span className="ml-2">{item.title}</span>
                           </div>

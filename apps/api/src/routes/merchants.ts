@@ -45,6 +45,39 @@ const brandingSchema = z.object({
   timezone: z.string().optional(),
 });
 
+// Extended branding schema to include text colors
+const extendedBrandingSchema = z.object({
+  logo: z.string().url().optional().or(z.literal('')),
+  logoUrl: z.string().url().optional().or(z.literal('')),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  primaryTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  secondaryTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  accentTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  currency: z.string().regex(/^[A-Z]{3}$/).optional().or(z.literal('')),
+  timezone: z.string().optional(),
+});
+
+// Extended merchant schema for updates
+const merchantUpdateSchema = z.object({
+  name: z.string().min(3).max(100).optional(),
+  description: z.string().optional(),
+  website: z.string().url().optional().or(z.literal('')),
+  contactEmail: z.string().email().optional(),
+  contactPhone: z.string().optional(),
+  address: z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postalCode: z.string().optional(),
+    country: z.string().optional(),
+  }).optional(),
+  branding: extendedBrandingSchema.optional(),
+  industry: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
 export async function merchantRoutes(fastify: FastifyInstance) {
   // Get all merchants for a tenant
   fastify.get('/merchants', {
@@ -270,6 +303,252 @@ export async function merchantRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // Get merchant by ID
+  fastify.get('/merchants/:id', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Get merchant details by ID',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            description: { type: 'string' },
+            website: { type: 'string' },
+            contactEmail: { type: 'string' },
+            contactPhone: { type: 'string' },
+            address: {
+              type: 'object',
+              properties: {
+                street: { type: 'string' },
+                city: { type: 'string' },
+                state: { type: 'string' },
+                postalCode: { type: 'string' },
+                country: { type: 'string' }
+              }
+            },
+            industry: { type: 'string' },
+            subdomain: { type: 'string' },
+            isDefault: { type: 'boolean' },
+            branding: {
+              type: 'object',
+              properties: {
+                logo: { type: 'string' },
+                logoUrl: { type: 'string' },
+                primaryColor: { type: 'string' },
+                primaryTextColor: { type: 'string' },
+                secondaryColor: { type: 'string' },
+                secondaryTextColor: { type: 'string' },
+                accentColor: { type: 'string' },
+                accentTextColor: { type: 'string' }
+              }
+            },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const authenticatedRequest = request as AuthenticatedRequest;
+      const tenantId = authenticatedRequest.user?.tenantId;
+
+      if (!tenantId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Tenant ID not found',
+        });
+      }
+
+      try {
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id,
+            tenantId,
+          },
+        });
+
+        if (!merchant) {
+          return reply.code(404).send({
+            error: 'Merchant not found',
+          });
+        }
+
+        // Format the response to match the expected structure
+        const formattedMerchant = {
+          ...merchant,
+          // Extract address fields from the merchant object
+          address: {
+            street: merchant.address || '',
+            city: merchant.city || '',
+            state: merchant.state || '',
+            postalCode: merchant.zipCode || '',
+            country: merchant.country || '',
+          },
+          // Add any additional fields needed by the frontend
+          website: '',
+          contactEmail: merchant.email,
+          contactPhone: merchant.phone || '',
+          industry: '',
+          isDefault: false, // This would need to be determined based on your business logic
+        };
+
+        return reply.send(formattedMerchant);
+      } catch (error) {
+        console.error('Failed to fetch merchant:', error);
+        return reply.code(500).send({
+          error: 'Failed to fetch merchant',
+        });
+      }
+    },
+  });
+
+  // Update merchant by ID
+  fastify.patch('/merchants/:id', {
+    schema: {
+      tags: ['merchants'],
+      description: 'Update merchant details by ID',
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 3, maxLength: 100 },
+          description: { type: 'string' },
+          website: { type: 'string' },
+          contactEmail: { type: 'string', format: 'email' },
+          contactPhone: { type: 'string' },
+          address: {
+            type: 'object',
+            properties: {
+              street: { type: 'string' },
+              city: { type: 'string' },
+              state: { type: 'string' },
+              postalCode: { type: 'string' },
+              country: { type: 'string' }
+            }
+          },
+          industry: { type: 'string' },
+          isActive: { type: 'boolean' },
+          branding: {
+            type: 'object',
+            properties: {
+              logo: { type: 'string' },
+              logoUrl: { type: 'string' },
+              primaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              primaryTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              secondaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              secondaryTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              accentColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              accentTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' }
+            }
+          }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        }
+      }
+    },
+    handler: async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const data = merchantUpdateSchema.parse(request.body);
+      const authenticatedRequest = request as AuthenticatedRequest;
+      const tenantId = authenticatedRequest.user?.tenantId;
+
+      if (!tenantId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Tenant ID not found',
+        });
+      }
+
+      try {
+        // First check if the merchant exists and belongs to the tenant
+        const existingMerchant = await prisma.merchant.findFirst({
+          where: {
+            id,
+            tenantId,
+          },
+        });
+
+        if (!existingMerchant) {
+          return reply.code(404).send({
+            error: 'Merchant not found',
+          });
+        }
+
+        // Prepare the update data
+        const updateData: any = {};
+
+        // Update basic fields
+        if (data.name) updateData.name = data.name;
+        if (data.description) updateData.description = data.description;
+
+        // Update contact information
+        if (data.contactEmail) updateData.email = data.contactEmail;
+        if (data.contactPhone) updateData.phone = data.contactPhone;
+
+        // Update address fields
+        if (data.address) {
+          if (data.address.street) updateData.address = data.address.street;
+          if (data.address.city) updateData.city = data.address.city;
+          if (data.address.state) updateData.state = data.address.state;
+          if (data.address.postalCode) updateData.zipCode = data.address.postalCode;
+          if (data.address.country) updateData.country = data.address.country;
+        }
+
+        // Update branding
+        if (data.branding) {
+          // Merge with existing branding to preserve fields not included in the update
+          const existingBranding = existingMerchant.branding as Record<string, any> || {};
+          updateData.branding = {
+            ...existingBranding,
+            ...data.branding,
+          };
+        }
+
+        // Update the merchant
+        const updatedMerchant = await prisma.merchant.update({
+          where: { id },
+          data: updateData,
+        });
+
+        return reply.send({
+          id: updatedMerchant.id,
+          name: updatedMerchant.name,
+          updatedAt: updatedMerchant.updatedAt,
+        });
+      } catch (error) {
+        console.error('Failed to update merchant:', error);
+        return reply.code(500).send({
+          error: 'Failed to update merchant',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+  });
+
   // Delete a merchant
   fastify.delete('/merchants/:id', {
     schema: {
@@ -472,4 +751,4 @@ export async function merchantRoutes(fastify: FastifyInstance) {
       }
     },
   });
-} 
+}
