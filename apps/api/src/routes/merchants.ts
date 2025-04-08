@@ -113,8 +113,18 @@ export async function merchantRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const authenticatedRequest = request as AuthenticatedRequest;
     const tenantId = authenticatedRequest.user?.tenantId;
+    const userRole = authenticatedRequest.user?.role?.name;
 
-    if (!tenantId) {
+    console.log('Merchant request from user:', {
+      userId: authenticatedRequest.user?.id,
+      email: authenticatedRequest.user?.email,
+      tenantId,
+      role: userRole
+    });
+
+    // Super admins can see all merchants
+    if (!tenantId && userRole !== 'SUPER_ADMIN') {
+      console.error('Tenant ID not found for non-super admin user');
       return reply.code(401).send({
         error: 'Unauthorized',
         message: 'Tenant ID not found',
@@ -122,15 +132,29 @@ export async function merchantRoutes(fastify: FastifyInstance) {
     }
 
     try {
+      // Build the query - super admins can see all merchants
+      const whereClause = userRole === 'SUPER_ADMIN' && !tenantId
+        ? {} // No filter for super admins
+        : { tenantId }; // Filter by tenant ID for regular users
+
+      console.log('Merchant query where clause:', whereClause);
+
       const merchants = await prisma.merchant.findMany({
-        where: {
-          tenantId,
-        },
+        where: whereClause,
         orderBy: {
           createdAt: 'desc',
         },
+        include: {
+          tenant: {
+            select: {
+              name: true,
+              domain: true
+            }
+          }
+        }
       });
 
+      console.log(`Found ${merchants.length} merchants`);
       return reply.send(merchants);
     } catch (error) {
       console.error('Failed to fetch merchants:', error);

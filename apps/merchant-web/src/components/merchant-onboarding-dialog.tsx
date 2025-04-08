@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription, Dialog, DialogContent, DialogHeader, DialogTitle } from '@loyaltystudio/ui';
 import { Loader2, Building2, Palette, CheckCircle2, X } from 'lucide-react';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import React from 'react';
 
 type OnboardingData = {
   business: {
@@ -69,6 +68,11 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
   const [error, setError] = useState<string | null>(null);
   const onboarding = useOnboarding();
+
+  // Log when the dialog opens or closes
+  React.useEffect(() => {
+    console.log('MerchantOnboardingDialog open state changed:', open);
+  }, [open]);
 
   const updateFields = (fields: Partial<OnboardingData>) => {
     setData(prev => ({ ...prev, ...fields }));
@@ -269,8 +273,24 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
     }
   };
 
+  // Force re-render when open changes
+  React.useEffect(() => {
+    if (open) {
+      console.log('Dialog is now open, resetting form state');
+      setCurrentStep(0);
+      setData(INITIAL_DATA);
+      setError(null);
+    }
+  }, [open]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        console.log(`Dialog onOpenChange called with: ${newOpen}`);
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent className="max-w-2xl backdrop-blur">
         <DialogHeader>
           <div className="flex flex-col-reverse lg:flex-row lg:items-center justify-between mb-4">

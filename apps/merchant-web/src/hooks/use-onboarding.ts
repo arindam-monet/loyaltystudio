@@ -34,6 +34,11 @@ export function useOnboarding() {
       }
 
       try {
+        console.log('Starting merchant creation with user:', {
+          email: user.email,
+          tenantId: user.tenantId
+        });
+
         // Create merchant with data from auth context
         const merchantData = {
           name: data.business.name,
@@ -47,6 +52,8 @@ export function useOnboarding() {
             secondaryColor: data.branding.secondaryColor,
           }
         };
+
+        console.log('Sending merchant creation request with data:', merchantData);
 
         // Create merchant
         const { data: merchant } = await apiClient.post('/merchants', merchantData);
@@ -64,9 +71,23 @@ export function useOnboarding() {
 
         return merchant;
       } catch (error) {
+        console.error('Error during merchant creation:', error);
+
+        // Check for specific API error responses
+        if (error && typeof error === 'object' && 'response' in error) {
+          const apiError = error as { response?: { data?: { error?: string, message?: string } } };
+          const errorMessage = apiError.response?.data?.message || apiError.response?.data?.error;
+
+          if (errorMessage) {
+            console.error('API error message:', errorMessage);
+            throw new Error(errorMessage);
+          }
+        }
+
         if (error instanceof Error) {
           throw error;
         }
+
         throw new Error('Failed to complete merchant onboarding');
       }
     },
@@ -77,4 +98,4 @@ export function useOnboarding() {
 async function convertFileToUrl(file: File): Promise<string> {
   // TODO: Implement file upload to get URL
   return 'placeholder-url';
-} 
+}

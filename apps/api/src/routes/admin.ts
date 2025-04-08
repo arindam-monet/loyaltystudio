@@ -105,7 +105,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Update user status and role
+      // Update user status and role in our database
       const updatedUser = await prisma.user.update({
         where: { id },
         data: {
@@ -115,7 +115,29 @@ export async function adminRoutes(fastify: FastifyInstance) {
           status: 'APPROVED',
           roleId: adminRole.id, // Set role to ADMIN
         },
+        include: {
+          tenant: true,
+        },
       });
+
+      // Update user metadata in Supabase
+      const { error: updateError } = await fastify.supabase.auth.admin.updateUserById(
+        id,
+        {
+          user_metadata: {
+            role: 'ADMIN',
+            tenant_id: updatedUser.tenantId,
+            name: updatedUser.name,
+          },
+        }
+      );
+
+      if (updateError) {
+        console.error('Failed to update user metadata in Supabase:', updateError);
+        // Continue anyway, as the user is updated in our database
+      } else {
+        console.log('Updated user metadata in Supabase');
+      }
 
       // In development mode, we'll skip the actual password reset
       if (process.env.NODE_ENV !== 'development') {
@@ -321,7 +343,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
         options: {
           data: {
             tenant_id: tenantId,
-            role: 'admin',
+            role: 'ADMIN', // Use uppercase to match the role names in the database
+            name: data.name, // Include the name in the metadata
           },
         },
       });
