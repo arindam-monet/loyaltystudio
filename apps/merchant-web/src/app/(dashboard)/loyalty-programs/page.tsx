@@ -39,13 +39,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   useToast,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@loyaltystudio/ui";
 import { z } from "zod";
 import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useMerchantStore } from "@/lib/stores/merchant-store";
-import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle, Eye } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, AlertCircle, Eye, Sparkles, ListChecks } from "lucide-react";
 import { GuidedProgramWizard } from "@/components/loyalty-programs/guided-program-wizard";
+import { AIProgramGenerator } from "@/components/loyalty-programs/ai-program-generator";
 
 // API response type
 interface LoyaltyProgram {
@@ -266,10 +271,39 @@ export default function LoyaltyProgramsPage() {
                     </Alert>
                   )}
 
-                  <GuidedProgramWizard
-                    onSubmit={handleCreateProgram}
-                    onCancel={() => setOpen(false)}
-                  />
+                  <Tabs defaultValue="ai" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="ai" className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        AI Generator
+                      </TabsTrigger>
+                      <TabsTrigger value="manual" className="flex items-center gap-2">
+                        <ListChecks className="h-4 w-4" />
+                        Manual Setup
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="ai" className="mt-0">
+                      <div className="flex flex-col gap-4">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Create a complete loyalty program in seconds using AI. Our AI will analyze your business details and create a customized program with appropriate rules, tiers, and rewards.
+                        </p>
+                        <AIProgramGenerator onClose={() => setOpen(false)} />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="manual" className="mt-0">
+                      <div className="flex flex-col gap-4">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Build your loyalty program step by step with our guided wizard. This gives you complete control over every aspect of your program.
+                        </p>
+                        <GuidedProgramWizard
+                          onSubmit={handleCreateProgram}
+                          onCancel={() => setOpen(false)}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               </DialogContent>
             </Dialog>

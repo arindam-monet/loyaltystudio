@@ -65,6 +65,9 @@ const envSchema = z.object({
   // Trigger.dev Configuration
   TRIGGER_API_KEY: z.string().default('development-key'),
   TRIGGER_API_URL: z.string().default('https://api.trigger.dev'),
+
+  // AI Configuration
+  GEMINI_API_KEY: z.string().optional().default(''),
 });
 
 const _env = envSchema.safeParse(process.env);
