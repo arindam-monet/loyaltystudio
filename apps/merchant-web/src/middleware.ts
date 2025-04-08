@@ -5,10 +5,11 @@ import type { NextRequest } from 'next/server';
 const publicPaths = [
   '/',
   '/login',
-  '/register',
+  '/request-demo',
   '/verify-email',
   '/forgot-password',
   '/reset-password',
+  '/accept-invitation',
   '/api/auth',
 ];
 
@@ -32,6 +33,12 @@ export async function middleware(request: NextRequest) {
     method: request.method,
   });
 
+  // Redirect register page to demo request page
+  if (pathname === '/register') {
+    console.log('Redirecting register to demo request page');
+    return NextResponse.redirect(new URL('/request-demo', request.url));
+  }
+
   // Allow public paths
   if (publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'))) {
     console.log('Allowing public path:', pathname);
@@ -54,4 +61,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
-}; 
+};

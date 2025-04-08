@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@calcom/embed-react": "^1.5.2",
     "@hookform/resolvers": "^5.0.1",
     "@loyaltystudio/ui": "workspace:*",
     "@prisma/client": "^5.10.2",

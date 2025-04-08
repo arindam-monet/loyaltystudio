@@ -13,7 +13,8 @@ export default function HomePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is authenticated and redirect to dashboard
+    // Only redirect authenticated users to dashboard
+    // Do not redirect unauthenticated users away from the landing page
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth-storage');
       if (token) {
@@ -25,6 +26,8 @@ export default function HomePage() {
           }
         } catch (error) {
           console.error('Error parsing auth data:', error);
+          // Clear invalid auth data
+          localStorage.removeItem('auth-storage');
         }
       }
     }
@@ -58,7 +61,19 @@ export default function HomePage() {
       <nav className="border-b py-4 px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="font-semibold text-xl">
+            <Link href="/" className="font-semibold text-xl flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6 mr-2 text-primary"
+              >
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
               LoyaltyStudio
             </Link>
             <div className="hidden md:flex items-center gap-8">
@@ -78,20 +93,27 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button variant="ghost" className="font-medium">Sign In</Button>
+              <Button variant="outline" className="font-medium hidden sm:inline-flex">Sign In</Button>
             </Link>
-            <Link href="/register">
-              <Button className="font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
+            <Link href="/request-demo">
+              <Button size="lg" className="font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
                 Book a Demo
               </Button>
             </Link>
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" x2="20" y1="12" y2="12" />
+                <line x1="4" x2="20" y1="6" y2="6" />
+                <line x1="4" x2="20" y1="18" y2="18" />
+              </svg>
+            </Button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="py-24 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+      <section className="py-24 px-6 relative overflow-hidden bg-gradient-to-b from-primary/5 via-background/95 to-background">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <div className="max-w-7xl mx-auto relative">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -99,37 +121,37 @@ export default function HomePage() {
                 <Star className="w-4 h-4" />
                 <span className="text-sm font-medium">Recognized by Google and Deloitte</span>
               </div>
-              <h1 className="text-6xl font-bold leading-tight mb-6 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                API-first loyalty software
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
+                <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">API-first</span> loyalty platform
               </h1>
-              <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+              <p className="text-xl text-muted-foreground mb-8 leading-relaxed max-w-xl">
                 Build and scale your loyalty program with our powerful API-first platform. Drive customer retention and growth with customizable rewards.
               </p>
-              <div className="flex gap-4">
-                <Link href="/register">
-                  <Button size="lg" className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/request-demo" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
                     Book a Demo
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href="/docs">
-                  <Button variant="outline" size="lg">
-                    Get Product Sheet
+                <Link href="/login" className="w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                    Sign In
                   </Button>
                 </Link>
               </div>
               <div className="mt-12 pt-12 border-t">
                 <p className="text-sm text-muted-foreground mb-4">Trusted by great companies</p>
-                <div className="grid grid-cols-4 gap-8">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                   {/* Replace with actual company logos */}
-                  <div className="h-8 bg-muted/20 rounded" />
-                  <div className="h-8 bg-muted/20 rounded" />
-                  <div className="h-8 bg-muted/20 rounded" />
-                  <div className="h-8 bg-muted/20 rounded" />
+                  <div className="h-8 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">Company 1</div>
+                  <div className="h-8 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">Company 2</div>
+                  <div className="h-8 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">Company 3</div>
+                  <div className="h-8 bg-muted/20 rounded flex items-center justify-center text-xs text-muted-foreground">Company 4</div>
                 </div>
               </div>
             </div>
-            <div className="relative">
+            <div className="relative hidden lg:block">
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-3xl blur-3xl" />
               <div className="relative bg-card border rounded-2xl shadow-2xl overflow-hidden">
                 <Image
@@ -141,6 +163,8 @@ export default function HomePage() {
                   priority
                 />
               </div>
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-primary/20 rounded-full blur-2xl" />
+              <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
             </div>
           </div>
         </div>
@@ -326,21 +350,29 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="py-24 px-6 bg-gradient-to-r from-primary/10 to-primary/5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -left-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+
+        <div className="max-w-4xl mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-8">
+            <Zap className="w-4 h-4" />
+            <span className="text-sm font-medium">Get started in minutes</span>
+          </div>
           <h2 className="text-4xl font-bold mb-6">Ready to transform your loyalty program?</h2>
-          <p className="text-xl text-muted-foreground mb-8">
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Join thousands of businesses using LoyaltyStudio to drive customer retention and growth.
           </p>
-          <div className="flex gap-4 justify-center">
-            <Link href="/register">
-              <Button size="lg" className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/request-demo">
+              <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
                 Book a Demo
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
             <Link href="/contact">
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">
                 Contact Sales
               </Button>
             </Link>
@@ -351,6 +383,41 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t py-16 px-6">
         <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between mb-12">
+            <div className="mb-8 md:mb-0">
+              <Link href="/" className="font-semibold text-xl flex items-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-6 w-6 mr-2 text-primary"
+                >
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                </svg>
+                LoyaltyStudio
+              </Link>
+              <p className="text-sm text-muted-foreground mt-4 max-w-xs">
+                API-first loyalty platform for businesses of all sizes. Drive customer retention and growth.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/request-demo">
+                <Button className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
+                  Book a Demo
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="outline" className="w-full sm:w-auto">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div>
               <h3 className="font-semibold mb-4">Product</h3>

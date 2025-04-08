@@ -61,14 +61,28 @@ export default function LoginPage() {
       router.push(redirect);
     } catch (error) {
       console.error('Login failed:', error);
-      
+
       // Handle API errors
       if (error instanceof AxiosError) {
         const response = error.response?.data;
-        
+
         // Handle email verification case (403 status)
         if (error.response?.status === 403 && response?.requiresVerification) {
           router.push(`/verify-email?email=${encodeURIComponent(response.user.email)}`);
+          return;
+        }
+
+        // Handle account approval status
+        if (error.response?.status === 403 && response?.error === 'Account pending approval') {
+          const message = response?.demoRequestStatus === 'REJECTED'
+            ? 'Your demo request was rejected. Please contact support for assistance.'
+            : 'Your account is pending approval. We will contact you once your account is approved.';
+          setError(message);
+          return;
+        }
+
+        if (error.response?.status === 403 && response?.error === 'Account not approved') {
+          setError('Your account has not been approved. Please contact support for assistance.');
           return;
         }
 
@@ -150,4 +164,4 @@ export default function LoginPage() {
       </Card>
     </div>
   );
-} 
+}
