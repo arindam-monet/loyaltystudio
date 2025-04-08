@@ -69,7 +69,7 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-gradient-to-r from-background via-muted/30 to-background border-b shadow-sm sticky top-0 z-10 backdrop-blur-[2px] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)]">
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-card border-b shadow-sm sticky top-0 z-10">
           <div className="flex items-center gap-2 px-4 w-full">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />

@@ -159,7 +159,7 @@ export default function LoyaltyProgramsPage() {
         merchantId: selectedMerchant?.id, // Use the selected merchant ID
         defaultTiers: data?.tiers?.map(tier => {
           // Convert benefits array to an object to match API expectations
-          const benefitsObj = {};
+          const benefitsObj: Record<string, any> = {};
           if (Array.isArray(tier.benefits)) {
             tier.benefits.forEach((benefit, index) => {
               benefitsObj[`benefit_${index + 1}`] = benefit;

@@ -73,11 +73,15 @@ export function useLoyaltyPrograms() {
 
   const updateLoyaltyProgram = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<LoyaltyProgram> }) => {
-      const response = await apiClient.patch<LoyaltyProgram>(`/loyalty-programs/${id}`, data);
-      if (response.status !== 200) {
-        throw new Error('Failed to update loyalty program');
+      try {
+        console.log(`Updating loyalty program ${id} with data:`, data);
+        const response = await apiClient.patch<LoyaltyProgram>(`/loyalty-programs/${id}`, data);
+        console.log('Update response:', response);
+        return response.data;
+      } catch (error) {
+        console.error('Error updating loyalty program:', error);
+        throw error;
       }
-      return response.data;
     },
     onSuccess: (data, variables) => {
       console.log('Update successful:', data);
@@ -85,6 +89,9 @@ export function useLoyaltyPrograms() {
       queryClient.invalidateQueries({ queryKey: ['loyalty-programs'] });
       queryClient.invalidateQueries({ queryKey: ['loyalty-program', variables.id] });
     },
+    onError: (error) => {
+      console.error('Mutation error:', error);
+    }
   });
 
   const deleteLoyaltyProgram = useMutation({

@@ -169,6 +169,7 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                   <option value="America/Los_Angeles">Pacific Time (PT)</option>
                   <option value="Europe/London">London (GMT)</option>
                   <option value="Europe/Paris">Central European Time (CET)</option>
+                  <option value="Asia/Kolkata">India (IST)</option>
                   <option value="Asia/Tokyo">Japan Time (JST)</option>
                   <option value="Asia/Shanghai">China Time (CST)</option>
                   <option value="Australia/Sydney">Australian Eastern Time (AET)</option>
@@ -246,13 +247,13 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                 <div className="flex items-center gap-4">
                   <span className="font-medium">Colors:</span>
                   <div className="flex gap-2">
-                    <div 
-                      className="w-8 h-8 rounded-full border" 
+                    <div
+                      className="w-8 h-8 rounded-full border"
                       style={{ backgroundColor: data.branding.primaryColor }}
                       title={`Primary: ${data.branding.primaryColor}`}
                     />
-                    <div 
-                      className="w-8 h-8 rounded-full border" 
+                    <div
+                      className="w-8 h-8 rounded-full border"
                       style={{ backgroundColor: data.branding.secondaryColor }}
                       title={`Secondary: ${data.branding.secondaryColor}`}
                     />
@@ -325,4 +326,4 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
       </DialogContent>
     </Dialog>
   );
-} 
+}

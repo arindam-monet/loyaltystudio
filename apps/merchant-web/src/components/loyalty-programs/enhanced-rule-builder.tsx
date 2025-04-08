@@ -48,7 +48,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MoreHorizontal, Pencil, Plus, Trash2, X, Gift, Award } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, X, Gift, Award, Power } from "lucide-react";
 import { useProgramTiers } from "@/hooks/use-program-tiers";
 import { useProgramRewards } from "@/hooks/use-program-rewards";
 
@@ -310,42 +310,57 @@ export function EnhancedRuleBuilder({
       ) : (
         <div className="space-y-4">
           {rules.map((rule, index) => (
-            <Card key={index} className={!rule.isActive ? "opacity-70" : ""}>
+            <Card key={index} className={!rule.isActive ? "opacity-70 border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/10"}>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-lg">
                       {rule.name}
-                      <Badge variant={rule.isActive ? "default" : "secondary"} className="ml-2">
-                        {rule.isActive ? "Active" : "Inactive"}
-                      </Badge>
                     </CardTitle>
                     {rule.description && (
                       <p className="text-sm text-muted-foreground mt-1">{rule.description}</p>
                     )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleEdit(rule, index)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(index)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={rule.isActive ?
+                        "border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700" :
+                        "border-red-300 text-red-500 hover:bg-red-50 hover:text-red-600"}
+                      onClick={() => {
+                        const updatedRules = [...rules];
+                        updatedRules[index] = { ...rule, isActive: !rule.isActive };
+                        setRules(updatedRules);
+                      }}
+                    >
+                      <Power className={`h-4 w-4 ${rule.isActive ? "text-green-600" : "text-red-500"}`} />
+                      <span className="ml-2 text-xs font-medium">{rule.isActive ? "Active" : "Inactive"}</span>
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleEdit(rule, index)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteClick(index)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -391,7 +406,7 @@ export function EnhancedRuleBuilder({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingIndex !== null ? "Edit Rule" : "Add New Rule"}</DialogTitle>
             <DialogDescription>
@@ -401,43 +416,19 @@ export function EnhancedRuleBuilder({
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rule Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g., Gold Tier Bonus" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active</FormLabel>
-                        <FormDescription>
-                          Enable or disable this rule
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="accent-primary h-4 w-4"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rule Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., Gold Tier Bonus" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

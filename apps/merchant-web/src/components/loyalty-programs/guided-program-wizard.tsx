@@ -436,6 +436,40 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
 
                   <FormField
                     control={form.control}
+                    name="basicInfo.settings.timezone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Timezone</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                            <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                            <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                            <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                            <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                            <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                            <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The primary timezone for your program
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="basicInfo.isActive"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
