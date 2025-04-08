@@ -29,6 +29,7 @@ import { aiProgramGeneratorRoutes } from './routes/ai-program-generator.js';
 import { demoRequestRoutes } from './routes/demo-requests.js';
 import { invitationRoutes } from './routes/invitations.js';
 import { adminRoutes } from './routes/admin.js';
+import { healthRoutes } from './routes/health.js';
 
 const app = fastify({
   logger: {
@@ -86,7 +87,8 @@ app.register(swagger, {
     tags: [
       { name: 'auth', description: 'Authentication endpoints' },
       { name: 'users', description: 'User management endpoints' },
-      { name: 'admin', description: 'Super-admin endpoints' }
+      { name: 'admin', description: 'Super-admin endpoints' },
+      { name: 'health', description: 'Health check endpoints' }
     ],
     securityDefinitions: {
       bearerAuth: {
@@ -130,6 +132,7 @@ app.register(aiProgramGeneratorRoutes);
 app.register(demoRequestRoutes, { prefix: '/api' });
 app.register(invitationRoutes);
 app.register(adminRoutes);
+app.register(healthRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
@@ -137,22 +140,9 @@ app.register(dbPlugin);
 // Register API key middleware
 app.register(apiKeyPlugin);
 
-// Health check endpoint
-app.get('/health', async () => {
-  try {
-    // Check Redis connection
-    await app.cache.get('health-check');
-    return {
-      status: 'ok',
-      redis: 'connected'
-    };
-  } catch (error) {
-    return {
-      status: 'error',
-      redis: 'disconnected',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
+// Legacy health check endpoint (redirects to the new simple health check)
+app.get('/health', async (_, reply) => {
+  return reply.redirect('/health/simple');
 });
 
 // Serve OpenAPI spec
