@@ -44,7 +44,9 @@ const PUBLIC_PATHS = [
   '/auth/resend-verification',
   '/auth/forgot-password',
   '/auth/reset-password',
-  '/auth/verify-session'
+  '/auth/verify-session',
+  '/demo-requests',  // Allow public access to demo requests
+  '/api/demo-requests' // Allow public access to demo requests with /api prefix
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {

@@ -26,6 +26,8 @@ import { programMemberRoutes } from './routes/program-members.js';
 import { campaignRoutes } from './routes/campaigns.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { aiProgramGeneratorRoutes } from './routes/ai-program-generator.js';
+import { demoRequestRoutes } from './routes/demo-requests.js';
+import { invitationRoutes } from './routes/invitations.js';
 
 const app = fastify({
   logger: {
@@ -109,6 +111,8 @@ app.register(campaignRoutes);
 app.register(apiKeyRoutes);
 app.register(webhookRoutes);
 app.register(aiProgramGeneratorRoutes);
+app.register(demoRequestRoutes, { prefix: '/api' });
+app.register(invitationRoutes);
 
 // Register db plugin
 app.register(dbPlugin);

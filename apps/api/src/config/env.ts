@@ -68,6 +68,18 @@ const envSchema = z.object({
 
   // AI Configuration
   GEMINI_API_KEY: z.string().optional().default(''),
+
+  // Admin Configuration
+  ADMIN_EMAIL: z.string().email().default('admin@loyaltystudio.ai'),
+  ADMIN_PORTAL_URL: z.string().url().default('http://localhost:3003'),
+  MERCHANT_WEB_URL: z.string().url().default('http://localhost:3001'),
+
+  // Email Configuration
+  RESEND_API_KEY: z.string().default('re_123456789'),
+  EMAIL_FROM: z.string().email().default('noreply@loyaltystudio.ai'),
+
+  // Cal.com Configuration
+  CAL_BOOKING_URL: z.string().url().default('https://cal.com/loyaltystudio/demo'),
 });
 
 const _env = envSchema.safeParse(process.env);

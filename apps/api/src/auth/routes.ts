@@ -370,6 +370,27 @@ export async function authRoutes(fastify: FastifyInstance) {
         user.emailVerified = true;
       }
 
+      // Check if user is approved
+      if (!user.isApproved && user.status !== 'APPROVED') {
+        // Check if user has a demo request
+        const demoRequest = await prisma.demoRequest.findUnique({
+          where: { userId: user.id }
+        });
+
+        if (demoRequest) {
+          return reply.code(403).send({
+            error: 'Account pending approval',
+            message: 'Your account is pending approval. You will receive an email when your account is approved.',
+            demoRequestStatus: demoRequest.status
+          });
+        } else {
+          return reply.code(403).send({
+            error: 'Account not approved',
+            message: 'Your account has not been approved. Please contact support for assistance.'
+          });
+        }
+      }
+
       // Track the user's device
       await trackUserDevice(user.id, request);
 
@@ -381,6 +402,8 @@ export async function authRoutes(fastify: FastifyInstance) {
           name: user.name,
           tenantId: user.tenantId,
           emailVerified: user.emailVerified,
+          isApproved: user.isApproved,
+          status: user.status,
           role: user.role
         }
       };
@@ -437,168 +460,179 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request, reply) => {
+    // Direct registration is disabled, users must request a demo first
+    return reply.code(403).send({
+      error: 'Registration disabled',
+      message: 'Direct registration is disabled. Please request a demo to get access to the platform.',
+      redirectTo: '/request-demo'
+    });
+  });
+
+  /* Original registration code (disabled)
+  fastify.post('/auth/register-original', async (request, reply) => {
     try {
       const { email, password, name, roleId } = registerSchema.parse(request.body);
-
+  
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
         where: { email }
       });
-
+  
       if (existingUser) {
-        return reply.code(400).send({ error: 'User already exists' });
-      }
-
-      // Get default role (USER) if no role is specified
-      const defaultRole = await prisma.role.findFirst({
-        where: { name: 'USER' }
-      });
-
-      if (!defaultRole) {
-        console.error('Default USER role not found in database');
-        return reply.code(500).send({ error: 'System configuration error: Default role not found' });
-      }
-
-      const finalRoleId = roleId || defaultRole.id;
-
-      // Create tenant first with a unique domain
-      const baseDomain = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-      let domain = `${baseDomain}.loyaltystudio.ai`;
-      let counter = 1;
-
-      // Keep trying until we find a unique domain
-      while (true) {
-        const existingTenant = await prisma.tenant.findUnique({
-          where: { domain }
-        });
-
-        if (!existingTenant) {
-          break;
-        }
-
-        domain = `${baseDomain}-${counter}.loyaltystudio.ai`;
-        counter++;
-      }
-
-      // Create tenant with UUID
-      const tenant = await prisma.tenant.create({
-        data: {
-          name: `${name}'s Organization`,
-          domain
-        }
-      }).catch(error => {
-        console.error('Failed to create tenant:', error);
-        throw new Error('Failed to create tenant');
-      });
-
-      // Create user in Supabase
-      const { data: supabaseUser, error: supabaseError } = await fastify.supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            tenant_id: tenant.id,
-            role: 'user'
-          },
-          emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/`
-        }
-      });
-
-      // Log JWT expiry time for debugging
-      if (supabaseUser?.session) {
-        const expiresAt = new Date(supabaseUser.session.expires_at || '');
-        console.log(`Registration: JWT token created with expiry: ${expiresAt.toISOString()}`);
-
-        // Set a longer session by refreshing the token
-        // This will extend the session beyond the default JWT expiry
-        try {
-          const { data: refreshData } = await fastify.supabase.auth.refreshSession();
-          if (refreshData?.session) {
-            console.log(`Registration: Session refreshed, new expiry: ${new Date(refreshData.session.expires_at || '').toISOString()}`);
-          }
-        } catch (refreshError) {
-          console.error('Failed to refresh session after registration:', refreshError);
-        }
-      }
-
-      if (supabaseError) {
-        // Rollback tenant creation if user creation fails
-        await prisma.tenant.delete({ where: { id: tenant.id } });
-        console.error('Supabase user creation failed:', supabaseError);
-        return reply.code(400).send({ error: supabaseError.message });
-      }
-
-      if (!supabaseUser.user?.id) {
-        // Rollback tenant creation if no user ID returned
-        await prisma.tenant.delete({ where: { id: tenant.id } });
-        console.error('No user ID returned from Supabase');
-        return reply.code(500).send({ error: 'Failed to create user account' });
-      }
-
-      // Create user in our database
-      const user = await prisma.user.create({
-        data: {
-          id: supabaseUser.user.id,
-          email,
-          name,
-          tenantId: tenant.id,
-          roleId: finalRoleId,
-          emailVerified: false // Set initial email verification status
-        },
-        include: {
-          role: true
-        }
-      }).catch(async (error) => {
-        console.error('Failed to create user in database:', error);
-        // Rollback tenant creation
-        await prisma.tenant.delete({ where: { id: tenant.id } });
-        throw new Error('Failed to create user in database');
-      });
-
-      // Sign in the user immediately after registration
-      const { data: signInData, error: signInError } = await fastify.supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (signInError) {
-        console.error('Failed to sign in after registration:', signInError);
-        return reply.code(201).send({
-          message: 'Registration successful! Please check your email to verify your account.',
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            tenantId: user.tenantId,
-            emailVerified: false,
-            role: user.role
-          },
-          requiresVerification: true
-        });
-      }
-
-      // Return success response with user data and token
-      return reply.code(201).send({
-        message: 'Registration successful! Please check your email to verify your account.',
-        token: signInData.session?.access_token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          tenantId: user.tenantId,
-          emailVerified: false,
-          role: user.role
-        },
-        requiresVerification: true
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      if (error instanceof z.ZodError) {
-        return reply.code(400).send({ error: 'Invalid input data', details: error.errors });
-      }
-      return reply.code(500).send({ error: 'Registration failed', message: error instanceof Error ? error.message : 'Unknown error' });
+    return reply.code(400).send({ error: 'User already exists' });
+  }
+  
+  // Get default role (USER) if no role is specified
+  const defaultRole = await prisma.role.findFirst({
+    where: { name: 'USER' }
+  });
+  
+  if (!defaultRole) {
+    console.error('Default USER role not found in database');
+    return reply.code(500).send({ error: 'System configuration error: Default role not found' });
+  }
+  
+  const finalRoleId = roleId || defaultRole.id;
+  
+  // Create tenant first with a unique domain
+  const baseDomain = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  let domain = `${baseDomain}.loyaltystudio.ai`;
+  let counter = 1;
+  
+  // Keep trying until we find a unique domain
+  while (true) {
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { domain }
+    });
+  
+    if (!existingTenant) {
+      break;
+    }
+  
+    domain = `${baseDomain}-${counter}.loyaltystudio.ai`;
+    counter++;
+  }
+  
+  // Create tenant with UUID
+  const tenant = await prisma.tenant.create({
+    data: {
+      name: `${name}'s Organization`,
+      domain
+    }
+  }).catch(error => {
+    console.error('Failed to create tenant:', error);
+    throw new Error('Failed to create tenant');
+  });
+  
+  // Create user in Supabase
+  const { data: supabaseUser, error: supabaseError } = await fastify.supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        tenant_id: tenant.id,
+        role: 'user'
+      },
+      emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/`
     }
   });
+  
+  // Log JWT expiry time for debugging
+  if (supabaseUser?.session) {
+    const expiresAt = new Date(supabaseUser.session.expires_at || '');
+    console.log(`Registration: JWT token created with expiry: ${expiresAt.toISOString()}`);
+  
+    // Set a longer session by refreshing the token
+    // This will extend the session beyond the default JWT expiry
+    try {
+      const { data: refreshData } = await fastify.supabase.auth.refreshSession();
+      if (refreshData?.session) {
+        console.log(`Registration: Session refreshed, new expiry: ${new Date(refreshData.session.expires_at || '').toISOString()}`);
+      }
+    } catch (refreshError) {
+      console.error('Failed to refresh session after registration:', refreshError);
+    }
+  }
+  
+  if (supabaseError) {
+    // Rollback tenant creation if user creation fails
+    await prisma.tenant.delete({ where: { id: tenant.id } });
+    console.error('Supabase user creation failed:', supabaseError);
+    return reply.code(400).send({ error: supabaseError.message });
+  }
+  
+  if (!supabaseUser.user?.id) {
+    // Rollback tenant creation if no user ID returned
+    await prisma.tenant.delete({ where: { id: tenant.id } });
+    console.error('No user ID returned from Supabase');
+    return reply.code(500).send({ error: 'Failed to create user account' });
+  }
+  
+  // Create user in our database
+  const user = await prisma.user.create({
+    data: {
+      id: supabaseUser.user.id,
+      email,
+      name,
+      tenantId: tenant.id,
+      roleId: finalRoleId,
+      emailVerified: false // Set initial email verification status
+    },
+    include: {
+      role: true
+    }
+  }).catch(async (error) => {
+    console.error('Failed to create user in database:', error);
+    // Rollback tenant creation
+    await prisma.tenant.delete({ where: { id: tenant.id } });
+    throw new Error('Failed to create user in database');
+  });
+  
+  // Sign in the user immediately after registration
+  const { data: signInData, error: signInError } = await fastify.supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+  
+  if (signInError) {
+    console.error('Failed to sign in after registration:', signInError);
+    return reply.code(201).send({
+      message: 'Registration successful! Please check your email to verify your account.',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        tenantId: user.tenantId,
+        emailVerified: false,
+        role: user.role
+      },
+      requiresVerification: true
+    });
+  }
+  
+  // Return success response with user data and token
+  return reply.code(201).send({
+    message: 'Registration successful! Please check your email to verify your account.',
+    token: signInData.session?.access_token,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      tenantId: user.tenantId,
+      emailVerified: false,
+      role: user.role
+    },
+    requiresVerification: true
+  });
+  } catch (error) {
+  console.error('Registration error:', error);
+  if (error instanceof z.ZodError) {
+    return reply.code(400).send({ error: 'Invalid input data', details: error.errors });
+  }
+  return reply.code(500).send({ error: 'Registration failed', message: error instanceof Error ? error.message : 'Unknown error' });
+  }
+  });
+  */
 
   // Logout endpoint
   fastify.post('/auth/logout', {

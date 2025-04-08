@@ -5,6 +5,7 @@ import { Navbar as BaseNavbar } from "@loyaltystudio/ui";
 
 const adminLinks = [
   { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/demo-requests", label: "Demo Requests" },
   { href: "/admin/tenants", label: "Tenants" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/settings", label: "Settings" },

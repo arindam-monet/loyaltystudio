@@ -10,13 +10,14 @@ datasource db {
 }
 
 model Tenant {
-  id        String     @id @default(cuid())
-  name      String
-  domain    String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  merchants Merchant[]
-  users     User[]
+  id          String           @id @default(cuid())
+  name        String
+  domain      String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  merchants   Merchant[]
+  users       User[]
+  invitations UserInvitation[]
 }
 
 model User {
@@ -29,6 +30,10 @@ model User {
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
   emailVerified          Boolean               @default(false)
+  isApproved             Boolean               @default(false)
+  approvedAt             DateTime?
+  approvedBy             String?
+  status                 UserStatus            @default(PENDING)
   campaignParticipations CampaignParticipant[]
   pointsBalances         PointsBalance[]
   pointsCalculations     PointsCalculation[]
@@ -39,6 +44,65 @@ model User {
   role                   Role?                 @relation(fields: [roleId], references: [id])
   tenant                 Tenant                @relation(fields: [tenantId], references: [id])
   devices                UserDevice[]
+  demoRequest            DemoRequest?
+  invitedUsers           UserInvitation[]      @relation("InvitedBy")
+  invitedBy              UserInvitation?       @relation("InvitedUser")
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+model DemoRequest {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  companyName     String
+  companySize     String
+  industry        String
+  phoneNumber     String?
+  jobTitle        String?
+  message         String?
+  status          DemoRequestStatus @default(PENDING)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  processedAt     DateTime?
+  processedBy     String?
+  rejectionReason String?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum DemoRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model UserInvitation {
+  id              String    @id @default(cuid())
+  email           String
+  invitedById     String
+  invitedUserId   String?   @unique
+  token           String    @unique
+  roleId          String
+  tenantId        String
+  expiresAt       DateTime
+  status          InvitationStatus @default(PENDING)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  invitedBy       User      @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedUser     User?     @relation("InvitedUser", fields: [invitedUserId], references: [id])
+  role            Role      @relation(fields: [roleId], references: [id])
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 model Merchant {
@@ -90,6 +154,7 @@ model Role {
   updatedAt   DateTime         @updatedAt
   permissions RolePermission[]
   users       User[]
+  invitations UserInvitation[]
 }
 
 model RolePermission {
