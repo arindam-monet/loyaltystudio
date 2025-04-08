@@ -7,22 +7,11 @@ import { webhookService } from '../services/webhook.js';
 const prisma = new PrismaClient();
 const pointsService = new PointsCalculationService();
 
+// Points transaction schema
 const pointsTransactionSchema = z.object({
   amount: z.number(),
   type: z.enum(['EARN', 'REDEEM', 'ADJUST']),
   reason: z.string(),
-  metadata: z.record(z.any()).optional(),
-});
-
-const ruleSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  conditions: z.array(z.object({
-    field: z.string(),
-    operator: z.string(),
-    value: z.any(),
-  })),
-  points: z.number(),
   metadata: z.record(z.any()).optional(),
 });
 
@@ -303,94 +292,6 @@ export async function pointsRoutes(fastify: FastifyInstance) {
       } catch (error) {
         request.log.error(error);
         return reply.code(500).send({ error: 'Failed to fetch transaction history' });
-      }
-    },
-  });
-
-  // Create points rule
-  fastify.post('/points/rules', {
-    schema: {
-      description: 'Create a points rule',
-      tags: ['points'],
-      security: [{ bearerAuth: [] }],
-      body: {
-        type: 'object',
-        required: ['name', 'conditions', 'points'],
-        properties: {
-          name: { type: 'string' },
-          description: { type: 'string' },
-          conditions: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['field', 'operator', 'value'],
-              properties: {
-                field: { type: 'string' },
-                operator: {
-                  type: 'string',
-                  enum: ['equals', 'greaterThan', 'lessThan', 'contains']
-                },
-                value: {
-                  oneOf: [
-                    { type: 'string' },
-                    { type: 'number' },
-                    { type: 'boolean' },
-                    { type: 'array' },
-                    { type: 'object' }
-                  ]
-                }
-              }
-            }
-          },
-          points: { type: 'number' },
-          metadata: { type: 'object', additionalProperties: true }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            conditions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  field: { type: 'string' },
-                  operator: { type: 'string' },
-                  value: {
-                    oneOf: [
-                      { type: 'string' },
-                      { type: 'number' },
-                      { type: 'boolean' },
-                      { type: 'array' },
-                      { type: 'object' }
-                    ]
-                  }
-                }
-              }
-            },
-            points: { type: 'number' },
-            metadata: { type: 'object' },
-            createdAt: { type: 'string' },
-          },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      try {
-        const data = ruleSchema.parse(request.body);
-
-        const rule = await prisma.pointsRule.create({
-          data,
-        });
-
-        return reply.code(201).send(rule);
-      } catch (error) {
-        request.log.error(error);
-        return reply.code(500).send({ error: 'Failed to create points rule' });
       }
     },
   });

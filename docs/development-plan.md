@@ -48,27 +48,16 @@
       - [ ] Device-specific session controls
 ✅ Core Loyalty Program Features
   - ✅ Points/Rewards calculation engine
-  - [ ] Rule Builder Interface
-    - [ ] Base Loyalty Program Rules
-      - [ ] Setup React Flow Infrastructure
-        - [ ] Install and configure React Flow
-        - [ ] Set up base canvas component
-        - [ ] Create node type registration system
-      - [ ] Basic Rule Nodes
-        - [ ] Base Points Node (points per spend)
-        - [ ] Category Multiplier Node
-        - [ ] Minimum Purchase Node
-        - [ ] Maximum Points Cap Node
-      - [ ] Core Components
-        - [ ] Node Selector Sidebar
-        - [ ] Properties Panel
-        - [ ] Rule Validation Display
-        - [ ] Rule Testing Panel
-      - [ ] Rule Management
-        - [ ] Rule Serialization
-        - [ ] Rule Storage in Database
-        - [ ] Rule Loading and Editing
-        - [ ] Rule Templates
+  - [x] Rule Builder Interface
+    - [x] Base Loyalty Program Rules
+      - [x] Simple Form-Based Rule Builder
+        - [x] Implement condition-effect model
+        - [x] Create intuitive UI with dropdowns
+        - [x] Support multiple conditions and effects
+      - [x] Rule Management
+        - [x] Rule creation and editing
+        - [x] Rule storage in database
+        - [x] Rule loading and validation
     - [ ] Campaign Rules Extension
       - [ ] Advanced Rule Nodes
         - [ ] Time Period Node (happy hours, seasonal)
@@ -86,9 +75,8 @@
         - [ ] Rule Duplication
         - [ ] Rule Analytics
     - [ ] Shared Infrastructure
-      - [ ] Rule Validation Engine
-      - [ ] Visual Rule Flow Designer
-      - [ ] Rule Testing Framework
+      - [x] Rule Validation Engine
+      - [x] Rule Testing Framework
       - [ ] Rule Version Control
       - [ ] Rule Performance Analytics
   - [ ] Reward redemption system

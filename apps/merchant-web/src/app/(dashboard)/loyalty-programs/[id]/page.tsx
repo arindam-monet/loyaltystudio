@@ -8,13 +8,6 @@ import {
   CardHeader,
   CardTitle,
   Button,
-
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-  SidebarTrigger,
   Separator,
   Alert,
   AlertDescription,
@@ -26,14 +19,12 @@ import {
 } from "@loyaltystudio/ui";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { useLoyaltyProgram } from "@/hooks/use-loyalty-program";
-import { RuleBuilder } from "@/components/loyalty-programs/rule-builder";
 import { RewardsManager } from "@/components/loyalty-programs/rewards-manager";
 import { TiersManager } from "@/components/loyalty-programs/tiers-manager";
 import { CampaignsManager } from "@/components/loyalty-programs/campaigns-manager";
 import { ProgramEditDialog } from "@/components/loyalty-programs/program-edit-dialog";
-import { ReactFlowProvider } from "reactflow";
-import { ArrowLeft, Edit, Users, Gift, Award, Settings, ChevronDown, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { ProgramRulesPage } from "@/components/loyalty-programs/program-rules-page";
+import { Edit, Users, Gift, Award, Settings, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 /**
@@ -124,39 +115,23 @@ export default function LoyaltyProgramDetailsPage() {
   return (
     <>
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-          <div className="container flex h-14 items-center">
-            <SidebarTrigger />
-            <Breadcrumb className="ml-4">
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <Link href="/loyalty-programs" className="flex items-center gap-1">
-                    <ArrowLeft className="h-4 w-4" />
-                    Loyalty Programs
-                  </Link>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbPage>{program.name}</BreadcrumbPage>
-              </BreadcrumbList>
-            </Breadcrumb>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Edit Program
-              </Button>
-            </div>
-          </div>
-        </header>
         <main className="flex-1 overflow-auto">
           <div className="container py-6 space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>{program.name}</CardTitle>
-                <CardDescription>{program.description}</CardDescription>
+              <CardHeader className="flex sm:flex-row sm:items-center justify-between">
+                <div> <CardTitle>{program.name}</CardTitle>
+                  <CardDescription>{program.description}</CardDescription>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Program
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="w-full space-y-8">
@@ -338,17 +313,7 @@ export default function LoyaltyProgramDetailsPage() {
                       )}
                     </CollapsibleTrigger>
                     <CollapsibleContent className="p-4">
-                      <ReactFlowProvider>
-                        <RuleBuilder
-                          programId={program.id}
-                          nodes={[]}
-                          edges={[]}
-                          onNodesChange={() => { }}
-                          onEdgesChange={() => { }}
-                          onConnect={() => { }}
-                          onNodeDataChange={() => { }}
-                        />
-                      </ReactFlowProvider>
+                      <ProgramRulesPage />
                     </CollapsibleContent>
                   </Collapsible>
 
