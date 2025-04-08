@@ -348,7 +348,12 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       // Check if email is verified
       const { data: supabaseUser } = await fastify.supabase.auth.getUser(data.session?.access_token);
-      if (!supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
+
+      // Check if user is a super admin - super admins can bypass email verification
+      const isSuperAdmin = user.role?.name === 'SUPER_ADMIN';
+
+      // If not a super admin and email is not verified, return error
+      if (!isSuperAdmin && !supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
         return reply.code(403).send({
           error: 'Email not verified',
           message: 'Please verify your email before logging in. Check your inbox for the verification link.',
@@ -362,7 +367,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       // If Supabase shows email is verified but our DB doesn't, update our DB
-      if (supabaseUser.user?.email_confirmed_at && !user.emailVerified) {
+      // Also, if user is a super admin, mark email as verified regardless
+      if ((supabaseUser.user?.email_confirmed_at && !user.emailVerified) || isSuperAdmin) {
         await prisma.user.update({
           where: { id: user.id },
           data: { emailVerified: true }
@@ -472,47 +478,47 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/auth/register-original', async (request, reply) => {
     try {
       const { email, password, name, roleId } = registerSchema.parse(request.body);
-  
+
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
         where: { email }
       });
-  
+
       if (existingUser) {
     return reply.code(400).send({ error: 'User already exists' });
   }
-  
+
   // Get default role (USER) if no role is specified
   const defaultRole = await prisma.role.findFirst({
     where: { name: 'USER' }
   });
-  
+
   if (!defaultRole) {
     console.error('Default USER role not found in database');
     return reply.code(500).send({ error: 'System configuration error: Default role not found' });
   }
-  
+
   const finalRoleId = roleId || defaultRole.id;
-  
+
   // Create tenant first with a unique domain
   const baseDomain = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   let domain = `${baseDomain}.loyaltystudio.ai`;
   let counter = 1;
-  
+
   // Keep trying until we find a unique domain
   while (true) {
     const existingTenant = await prisma.tenant.findUnique({
       where: { domain }
     });
-  
+
     if (!existingTenant) {
       break;
     }
-  
+
     domain = `${baseDomain}-${counter}.loyaltystudio.ai`;
     counter++;
   }
-  
+
   // Create tenant with UUID
   const tenant = await prisma.tenant.create({
     data: {
@@ -523,7 +529,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     console.error('Failed to create tenant:', error);
     throw new Error('Failed to create tenant');
   });
-  
+
   // Create user in Supabase
   const { data: supabaseUser, error: supabaseError } = await fastify.supabase.auth.signUp({
     email,
@@ -536,12 +542,12 @@ export async function authRoutes(fastify: FastifyInstance) {
       emailRedirectTo: `${process.env.MERCHANT_WEB_URL}/`
     }
   });
-  
+
   // Log JWT expiry time for debugging
   if (supabaseUser?.session) {
     const expiresAt = new Date(supabaseUser.session.expires_at || '');
     console.log(`Registration: JWT token created with expiry: ${expiresAt.toISOString()}`);
-  
+
     // Set a longer session by refreshing the token
     // This will extend the session beyond the default JWT expiry
     try {
@@ -553,21 +559,21 @@ export async function authRoutes(fastify: FastifyInstance) {
       console.error('Failed to refresh session after registration:', refreshError);
     }
   }
-  
+
   if (supabaseError) {
     // Rollback tenant creation if user creation fails
     await prisma.tenant.delete({ where: { id: tenant.id } });
     console.error('Supabase user creation failed:', supabaseError);
     return reply.code(400).send({ error: supabaseError.message });
   }
-  
+
   if (!supabaseUser.user?.id) {
     // Rollback tenant creation if no user ID returned
     await prisma.tenant.delete({ where: { id: tenant.id } });
     console.error('No user ID returned from Supabase');
     return reply.code(500).send({ error: 'Failed to create user account' });
   }
-  
+
   // Create user in our database
   const user = await prisma.user.create({
     data: {
@@ -587,13 +593,13 @@ export async function authRoutes(fastify: FastifyInstance) {
     await prisma.tenant.delete({ where: { id: tenant.id } });
     throw new Error('Failed to create user in database');
   });
-  
+
   // Sign in the user immediately after registration
   const { data: signInData, error: signInError } = await fastify.supabase.auth.signInWithPassword({
     email,
     password
   });
-  
+
   if (signInError) {
     console.error('Failed to sign in after registration:', signInError);
     return reply.code(201).send({
@@ -609,7 +615,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       requiresVerification: true
     });
   }
-  
+
   // Return success response with user data and token
   return reply.code(201).send({
     message: 'Registration successful! Please check your email to verify your account.',

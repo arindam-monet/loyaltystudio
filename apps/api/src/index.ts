@@ -80,7 +80,7 @@ app.register(swagger, {
         email: 'support@loyaltystudio.ai'
       }
     },
-    host: process.env.API_URL || 'localhost:3003',
+    host: 'localhost:3003',
     schemes: ['http'],
     consumes: ['application/json'],
     produces: ['application/json'],
@@ -145,9 +145,12 @@ app.get('/health', async (_, reply) => {
   return reply.redirect('/health/simple');
 });
 
-// Serve OpenAPI spec
-app.get('/openapi.json', async () => {
+// Serve OpenAPI spec with CORS headers
+app.get('/openapi.json', async (_, reply) => {
   console.log('Serving OpenAPI spec');
+  reply.header('Access-Control-Allow-Origin', '*');
+  reply.header('Access-Control-Allow-Methods', 'GET');
+  reply.header('Access-Control-Allow-Headers', 'Content-Type');
   return app.swagger();
 });
 

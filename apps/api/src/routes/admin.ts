@@ -23,7 +23,8 @@ const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
   tenantId: z.string().optional(), // Optional: if not provided, will create a new tenant
-  tenantName: z.string().optional(), // Required if tenantId is not provided
+  tenantName: z.string().optional(), // Optional: name for the new tenant
+  createNewTenant: z.boolean().optional(), // Optional: force creation of a new tenant
 });
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -186,8 +187,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
         properties: {
           email: { type: 'string', format: 'email' },
           name: { type: 'string', minLength: 2 },
-          tenantId: { type: 'string' },
-          tenantName: { type: 'string' },
+          tenantId: { type: 'string', description: 'Existing tenant ID (optional if tenantName is provided)' },
+          tenantName: { type: 'string', description: 'Name for a new tenant (optional if tenantId is provided)' },
+          createNewTenant: { type: 'boolean', description: 'Force creation of a new tenant even if tenantId is provided' },
         },
       },
       response: {
@@ -204,6 +206,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 tenantId: { type: 'string' },
                 status: { type: 'string' },
                 isApproved: { type: 'boolean' },
+              },
+            },
+            tenant: {
+              type: 'object',
+              nullable: true,
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                domain: { type: 'string' },
               },
             },
           },
@@ -247,44 +258,57 @@ export async function adminRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Determine tenant ID
+      // Determine tenant ID and name
       let tenantId = data.tenantId;
-      
-      // If no tenant ID provided, create a new tenant
-      if (!tenantId) {
-        if (!data.tenantName) {
-          return reply.code(400).send({
-            error: 'Bad request',
-            message: 'Either tenantId or tenantName must be provided',
-          });
-        }
+      let tenantName = data.tenantName;
+
+      // If neither tenantId nor tenantName is provided, create a default tenant name based on user's name
+      if (!tenantId && !tenantName) {
+        tenantName = `${data.name.replace(/\s+/g, '')}'s Organization`;
+        console.log(`No tenant information provided. Creating default tenant: "${tenantName}"`);
+      }
+
+      // If createNewTenant is true or no tenantId is provided, create a new tenant
+      if (data.createNewTenant || !tenantId) {
+        // Use provided tenant name or default
+        const nameToUse = tenantName || `${data.name.replace(/\s+/g, '')}'s Organization`;
 
         // Create a new tenant with a unique domain
         const timestamp = Date.now();
+        const sanitizedName = nameToUse.toLowerCase().replace(/[^a-z0-9]/g, '');
         const domain = process.env.NODE_ENV === 'development'
-          ? `${data.tenantName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${timestamp}.${env.BASE_DOMAIN}`
-          : `${data.tenantName.toLowerCase().replace(/[^a-z0-9]/g, '')}.${env.BASE_DOMAIN}`;
+          ? `${sanitizedName}-${timestamp}.${env.BASE_DOMAIN}`
+          : `${sanitizedName}.${env.BASE_DOMAIN}`;
+
+        console.log(`Creating new tenant: "${nameToUse}" with domain: ${domain}`);
 
         const newTenant = await prisma.tenant.create({
           data: {
-            name: data.tenantName,
+            name: nameToUse,
             domain,
           },
         });
 
         tenantId = newTenant.id;
+        tenantName = nameToUse;
+
+        console.log(`New tenant created with ID: ${tenantId}`);
       } else {
         // Verify the tenant exists
         const tenant = await prisma.tenant.findUnique({
           where: { id: tenantId },
+          select: { id: true, name: true, domain: true }
         });
 
         if (!tenant) {
           return reply.code(400).send({
             error: 'Bad request',
-            message: 'Tenant not found',
+            message: `Tenant with ID ${tenantId} not found. Please provide a valid tenantId or set createNewTenant=true to create a new tenant.`,
           });
         }
+
+        console.log(`Using existing tenant: "${tenant.name}" (${tenant.domain})`);
+        tenantName = tenant.name;
       }
 
       // Generate a random password
@@ -364,6 +388,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
         `,
       });
 
+      // Get tenant details for the response
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { id: true, name: true, domain: true }
+      });
+
       return reply.code(201).send({
         message: 'User created successfully',
         user: {
@@ -374,6 +404,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
           status: newUser.status,
           isApproved: newUser.isApproved,
         },
+        tenant: tenant ? {
+          id: tenant.id,
+          name: tenant.name,
+          domain: tenant.domain
+        } : null
       });
     } catch (error) {
       console.error('Failed to create user:', error);
