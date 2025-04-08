@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useResetPassword } from '@/hooks/use-auth';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Alert, AlertDescription } from '@loyaltystudio/ui';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, Label } from '@loyaltystudio/ui';
+import { PasswordInput } from '@loyaltystudio/ui';
 import { Loader2, Lock, ArrowLeft } from 'lucide-react';
 
 export default function ResetPasswordPage() {
@@ -146,9 +147,10 @@ export default function ResetPasswordPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Input
-                  type="password"
-                  placeholder="New password"
+                <Label htmlFor="password">New Password</Label>
+                <PasswordInput
+                  id="password"
+                  placeholder="Enter new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -157,8 +159,9 @@ export default function ResetPasswordPage() {
               </div>
 
               <div className="space-y-2">
-                <Input
-                  type="password"
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <PasswordInput
+                  id="confirmPassword"
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
