@@ -85,6 +85,7 @@ const conditionSchema = z.object({
   type: z.enum(conditionTypes.map(c => c.value) as [string, ...string[]]),
   operator: z.enum(operators.map(o => o.value) as [string, ...string[]]),
   value: z.string().min(1, "Value is required"),
+  tierId: z.string().optional(),
 });
 
 // Define schema for a single effect
@@ -138,6 +139,21 @@ export function EnhancedRuleBuilder({
       effects: [{ type: "addPoints", value: "" }],
     },
   });
+
+  // Get appropriate operators based on condition type
+  const getOperatorsForConditionType = (conditionType: string) => {
+    switch (conditionType) {
+      case 'loyaltyTier':
+        return operators.filter(op => ['equals', 'in'].includes(op.value));
+      case 'purchaseCategory':
+        return operators.filter(op => ['equals', 'contains'].includes(op.value));
+      case 'dayOfWeek':
+      case 'timeOfDay':
+        return operators.filter(op => ['equals'].includes(op.value));
+      default:
+        return operators;
+    }
+  };
 
   const handleAddCondition = () => {
     const currentConditions = form.getValues("conditions") || [];
@@ -225,6 +241,12 @@ export function EnhancedRuleBuilder({
   const getConditionLabel = (condition: any) => {
     const typeLabel = conditionTypes.find(t => t.value === condition.type)?.label || condition.type;
     const operatorLabel = operators.find(o => o.value === condition.operator)?.label || condition.operator;
+
+    if (condition.type === 'loyaltyTier' && condition.tierId) {
+      const tierName = tiers.find(t => t.id === condition.tierId)?.name || condition.value;
+      return `${typeLabel} ${operatorLabel} ${tierName}`;
+    }
+
     return `${typeLabel} ${operatorLabel} ${condition.value}`;
   };
 
@@ -460,7 +482,14 @@ export function EnhancedRuleBuilder({
                               <FormItem>
                                 <Select
                                   value={field.value}
-                                  onValueChange={field.onChange}
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    // Reset operator when condition type changes
+                                    const availableOperators = getOperatorsForConditionType(value);
+                                    if (availableOperators.length > 0) {
+                                      form.setValue(`conditions.${index}.operator`, availableOperators[0].value);
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select condition" />
@@ -490,7 +519,7 @@ export function EnhancedRuleBuilder({
                                     <SelectValue placeholder="Select operator" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {operators.map((op) => (
+                                    {getOperatorsForConditionType(form.watch(`conditions.${index}.type`)).map((op) => (
                                       <SelectItem key={op.value} value={op.value}>
                                         {op.label}
                                       </SelectItem>
@@ -501,18 +530,62 @@ export function EnhancedRuleBuilder({
                               </FormItem>
                             )}
                           />
-                          <FormField
-                            control={form.control}
-                            name={`conditions.${index}.value`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input {...field} placeholder="Value" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          {form.watch(`conditions.${index}.type`) === "loyaltyTier" ? (
+                            <FormField
+                              control={form.control}
+                              name={`conditions.${index}.tierId`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    value={field.value || ""}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      // Also update the value field with the tier name for backward compatibility
+                                      const tier = tiers.find(t => t.id === value);
+                                      if (tier) {
+                                        form.setValue(`conditions.${index}.value`, tier.name);
+                                      }
+                                    }}
+                                    disabled={tiersLoading || tiers.length === 0}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a tier" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {tiersLoading ? (
+                                        <SelectItem value="loading" disabled>Loading tiers...</SelectItem>
+                                      ) : tiers.length === 0 ? (
+                                        <SelectItem value="none" disabled>No tiers available</SelectItem>
+                                      ) : (
+                                        tiers.map(tier => (
+                                          <SelectItem key={tier.id} value={tier.id}>
+                                            <div className="flex items-center">
+                                              <Award className="mr-2 h-4 w-4" />
+                                              {tier.name} ({tier.pointsThreshold} points)
+                                            </div>
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name={`conditions.${index}.value`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Value" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
                         </div>
                         {form.watch("conditions").length > 1 && (
                           <Button
