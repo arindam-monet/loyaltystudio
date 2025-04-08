@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Separator, SidebarInset, SidebarProvider, SidebarTrigger } from '@loyaltystudio/ui';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useAuthGuard } from '@/hooks/use-auth-guard';
+import { Loader2 } from 'lucide-react';
 
 // Helper function to generate breadcrumbs based on pathname
 function getBreadcrumbs(pathname: string) {
@@ -62,8 +64,23 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Add auth guard to protect all dashboard pages
+  const { isLoading: isAuthLoading } = useAuthGuard();
+
   const pathname = usePathname();
   const breadcrumbs = getBreadcrumbs(pathname);
+
+  // Show loading state during authentication check
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

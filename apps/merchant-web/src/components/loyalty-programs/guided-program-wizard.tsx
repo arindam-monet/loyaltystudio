@@ -181,9 +181,19 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
   };
 
   // This will only be called when the user explicitly clicks the "Launch Program" button
+  // Track whether the user has explicitly clicked the Launch Program button
+  const [launchClicked, setLaunchClicked] = useState(false);
+
   const onFormSubmit = form.handleSubmit((data) => {
-    console.log('Submitting form with data:', data);
-    return handleSubmit(data as ProgramFormData);
+    // Only proceed if the user has explicitly clicked the Launch Program button
+    if (currentStep === steps.length - 1 && launchClicked) {
+      console.log('Submitting form with data:', data);
+      return handleSubmit(data as ProgramFormData);
+    } else {
+      console.log('Form submission prevented - not on final step or launch not clicked');
+      // Reset the launch clicked state
+      setLaunchClicked(false);
+    }
   });
 
   const nextStep = () => {
@@ -297,12 +307,14 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
         <div className="flex-1">
           <Form {...form}>
             <form onSubmit={(e) => {
-              // Only allow form submission on the final step
-              if (currentStep !== steps.length - 1) {
+              // Prevent form submission unless explicitly triggered by the Launch Program button
+              if (currentStep !== steps.length - 1 || !launchClicked) {
                 e.preventDefault();
                 return;
               }
               onFormSubmit(e);
+              // Reset the launch clicked state after submission
+              setLaunchClicked(false);
             }} className="space-y-6">
               {/* Step 1: Basic Information */}
               {currentStep === 0 && (
@@ -680,12 +692,17 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
                     type="submit"
                     disabled={isLoading || !canProceed}
                     onClick={(e) => {
-                      // This is just for extra safety to ensure we only submit on explicit click
+                      // Only allow submission on the final step and with explicit click
                       if (currentStep !== steps.length - 1) {
                         e.preventDefault();
                         return;
                       }
-                      // Let the form submission happen naturally
+
+                      // Set the launch clicked state to true to indicate explicit user action
+                      setLaunchClicked(true);
+
+                      // Form submission will be handled by the form's onSubmit handler
+                      // which now checks for launchClicked
                     }}
                   >
                     {isLoading ? "Creating..." : "Launch Program"}

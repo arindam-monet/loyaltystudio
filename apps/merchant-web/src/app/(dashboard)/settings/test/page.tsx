@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider } from '@loyaltystudio/ui';
-import { useAuthGuard } from '@/hooks/use-auth-guard';
+// Auth guard is now handled at the dashboard layout level
 import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -81,7 +81,7 @@ type TestResult = {
 
 export default function TestProgramPage() {
   const router = useRouter();
-  const { isLoading: isAuthLoading } = useAuthGuard();
+  // Auth guard is now handled at the dashboard layout level
   const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [testResults, setTestResults] = useState<TestResult[]>([]);
@@ -238,18 +238,18 @@ export default function TestProgramPage() {
       await ChecklistService.completeTestStep();
       setIsTestCompleted(true);
 
-      toast.success('Test completed successfully! Your checklist has been updated.');
+      toast({ title: 'Success', description: 'Test completed successfully! Your checklist has been updated.' });
 
       // Navigate back to dashboard after a short delay
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
     } catch (error) {
-      toast.error('Failed to mark test as completed');
+      toast({ title: 'Error', description: 'Failed to mark test as completed', variant: 'destructive' });
     }
   };
 
-  if (isAuthLoading || isLoyaltyProgramsLoading) {
+  if (isLoyaltyProgramsLoading) {
     return <div>Loading...</div>;
   }
 
