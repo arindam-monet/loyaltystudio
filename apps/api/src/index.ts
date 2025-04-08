@@ -28,6 +28,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { aiProgramGeneratorRoutes } from './routes/ai-program-generator.js';
 import { demoRequestRoutes } from './routes/demo-requests.js';
 import { invitationRoutes } from './routes/invitations.js';
+import { adminRoutes } from './routes/admin.js';
 
 const app = fastify({
   logger: {
@@ -84,7 +85,8 @@ app.register(swagger, {
     produces: ['application/json'],
     tags: [
       { name: 'auth', description: 'Authentication endpoints' },
-      { name: 'users', description: 'User management endpoints' }
+      { name: 'users', description: 'User management endpoints' },
+      { name: 'admin', description: 'Super-admin endpoints' }
     ],
     securityDefinitions: {
       bearerAuth: {
@@ -127,6 +129,7 @@ app.register(webhookRoutes);
 app.register(aiProgramGeneratorRoutes);
 app.register(demoRequestRoutes, { prefix: '/api' });
 app.register(invitationRoutes);
+app.register(adminRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
