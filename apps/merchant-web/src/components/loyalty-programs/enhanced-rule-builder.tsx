@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Card,
@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogTrigger,
   Form,
   FormControl,
@@ -24,12 +25,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +48,9 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, X, Gift, Award } from "lucide-react";
+import { useProgramTiers } from "@/hooks/use-program-tiers";
+import { useProgramRewards } from "@/hooks/use-program-rewards";
 
 // Define condition types
 const conditionTypes = [
@@ -72,6 +77,7 @@ const effectTypes = [
   { value: "addPoints", label: "Add loyalty points" },
   { value: "applyDiscount", label: "Apply discount" },
   { value: "giveReward", label: "Give reward" },
+  { value: "upgradeTier", label: "Upgrade to tier" },
 ] as const;
 
 // Define schema for a single condition
@@ -86,6 +92,8 @@ const effectSchema = z.object({
   type: z.enum(effectTypes.map(e => e.value) as [string, ...string[]]),
   value: z.string().min(1, "Value is required"),
   formula: z.string().optional(),
+  rewardId: z.string().optional(),
+  tierId: z.string().optional(),
 });
 
 // Define schema for the entire rule
@@ -110,10 +118,15 @@ export function EnhancedRuleBuilder({
   initialRules = [],
   onSave
 }: EnhancedRuleBuilderProps) {
+  // Fetch tiers and rewards for the program
+  const { tiers, isLoading: tiersLoading } = useProgramTiers(programId);
+  const { rewards, isLoading: rewardsLoading } = useProgramRewards(programId);
   const [rules, setRules] = useState<RuleFormData[]>(initialRules);
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   const form = useForm<RuleFormData>({
     resolver: zodResolver(ruleSchema),
@@ -183,10 +196,19 @@ export function EnhancedRuleBuilder({
     setOpen(true);
   };
 
-  const handleDelete = (index: number) => {
-    const updatedRules = [...rules];
-    updatedRules.splice(index, 1);
-    setRules(updatedRules);
+  const handleDeleteClick = (index: number) => {
+    setDeleteIndex(index);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (deleteIndex !== null) {
+      const updatedRules = [...rules];
+      updatedRules.splice(deleteIndex, 1);
+      setRules(updatedRules);
+      setDeleteIndex(null);
+    }
+    setDeleteConfirmOpen(false);
   };
 
   const handleSaveRules = async () => {
@@ -213,6 +235,12 @@ export function EnhancedRuleBuilder({
       return `${typeLabel}: ${effect.value} points`;
     } else if (effect.type === 'applyDiscount') {
       return `${typeLabel}: ${effect.value}%`;
+    } else if (effect.type === 'giveReward') {
+      const rewardName = rewards.find(r => r.id === effect.rewardId)?.name || effect.value;
+      return `${typeLabel}: ${rewardName}`;
+    } else if (effect.type === 'upgradeTier') {
+      const tierName = tiers.find(t => t.id === effect.tierId)?.name || effect.value;
+      return `${typeLabel}: ${tierName}`;
     } else {
       return `${typeLabel}: ${effect.value}`;
     }
@@ -258,92 +286,90 @@ export function EnhancedRuleBuilder({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Loyalty Program Rules</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rule Name</TableHead>
-                  <TableHead>Conditions</TableHead>
-                  <TableHead>Effects</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rules.map((rule, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">
-                      <div>{rule.name}</div>
-                      {rule.description && (
-                        <div className="text-xs text-muted-foreground">{rule.description}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {rule.conditions.map((condition, i) => (
-                          <div key={i} className="text-sm">
-                            {i === 0 ? "If: " : "And: "}
-                            <Badge variant="outline" className="ml-1">
-                              {getConditionLabel(condition)}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {rule.effects.map((effect, i) => (
-                          <div key={i} className="text-sm">
-                            <Badge variant="outline">
-                              {getEffectLabel(effect)}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={rule.isActive ? "default" : "secondary"}>
+        <div className="space-y-4">
+          {rules.map((rule, index) => (
+            <Card key={index} className={!rule.isActive ? "opacity-70" : ""}>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {rule.name}
+                      <Badge variant={rule.isActive ? "default" : "secondary"} className="ml-2">
                         {rule.isActive ? "Active" : "Inactive"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEdit(rule, index)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(index)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </CardTitle>
+                    {rule.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{rule.description}</p>
+                    )}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleEdit(rule, index)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteClick(index)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Conditions Section */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-muted-foreground">Conditions</h4>
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                      {rule.conditions.map((condition, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="min-w-[40px] text-xs font-medium text-muted-foreground pt-0.5">
+                            {i === 0 ? "IF:" : "AND:"}
+                          </div>
+                          <div className="bg-background rounded border px-3 py-2 text-sm flex-1">
+                            {getConditionLabel(condition)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Effects Section */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-muted-foreground">Effects</h4>
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                      {rule.effects.map((effect, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="min-w-[40px] text-xs font-medium text-muted-foreground pt-0.5">
+                            {i === 0 ? "THEN:" : "AND:"}
+                          </div>
+                          <div className="bg-background rounded border px-3 py-2 text-sm flex-1">
+                            {getEffectLabel(effect)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingIndex !== null ? "Edit Rule" : "Add New Rule"}</DialogTitle>
             <DialogDescription>
@@ -583,6 +609,94 @@ export function EnhancedRuleBuilder({
                               )}
                             />
                           )}
+
+                          {form.watch(`effects.${index}.type`) === "giveReward" && (
+                            <FormField
+                              control={form.control}
+                              name={`effects.${index}.rewardId`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    value={field.value || ""}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      // Also update the value field with the reward name for backward compatibility
+                                      const reward = rewards.find(r => r.id === value);
+                                      if (reward) {
+                                        form.setValue(`effects.${index}.value`, reward.name);
+                                      }
+                                    }}
+                                    disabled={rewardsLoading || rewards.length === 0}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a reward" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {rewardsLoading ? (
+                                        <SelectItem value="loading" disabled>Loading rewards...</SelectItem>
+                                      ) : rewards.length === 0 ? (
+                                        <SelectItem value="none" disabled>No rewards available</SelectItem>
+                                      ) : (
+                                        rewards.map(reward => (
+                                          <SelectItem key={reward.id} value={reward.id}>
+                                            <div className="flex items-center">
+                                              <Gift className="mr-2 h-4 w-4" />
+                                              {reward.name} ({reward.pointsCost} points)
+                                            </div>
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+
+                          {form.watch(`effects.${index}.type`) === "upgradeTier" && (
+                            <FormField
+                              control={form.control}
+                              name={`effects.${index}.tierId`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    value={field.value || ""}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      // Also update the value field with the tier name for backward compatibility
+                                      const tier = tiers.find(t => t.id === value);
+                                      if (tier) {
+                                        form.setValue(`effects.${index}.value`, tier.name);
+                                      }
+                                    }}
+                                    disabled={tiersLoading || tiers.length === 0}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a tier" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {tiersLoading ? (
+                                        <SelectItem value="loading" disabled>Loading tiers...</SelectItem>
+                                      ) : tiers.length === 0 ? (
+                                        <SelectItem value="none" disabled>No tiers available</SelectItem>
+                                      ) : (
+                                        tiers.map(tier => (
+                                          <SelectItem key={tier.id} value={tier.id}>
+                                            <div className="flex items-center">
+                                              <Award className="mr-2 h-4 w-4" />
+                                              {tier.name} ({tier.pointsThreshold} points)
+                                            </div>
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
                         </div>
                         {form.watch("effects").length > 1 && (
                           <Button
@@ -634,6 +748,24 @@ export function EnhancedRuleBuilder({
           </Button>
         </div>
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the rule
+              and remove it from the loyalty program.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
