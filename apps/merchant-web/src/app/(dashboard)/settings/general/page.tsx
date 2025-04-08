@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,9 +35,16 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from '@loyaltystudio/ui';
 import { ColorPicker } from '@/components/color-picker';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 // Define the form schema
 const merchantSettingsSchema = z.object({
@@ -71,11 +79,14 @@ const merchantSettingsSchema = z.object({
 type MerchantSettingsFormValues = z.infer<typeof merchantSettingsSchema>;
 
 export default function GeneralSettingsPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { selectedMerchant, setSelectedMerchant } = useMerchantStore();
   const queryClient = useQueryClient();
-  const { updateMerchant } = useMerchants();
+  const { updateMerchant, deleteMerchant } = useMerchants();
   const { toast } = useToast();
 
   // Initialize form with default values
@@ -405,6 +416,84 @@ export default function GeneralSettingsPage() {
     }
   };
 
+  // State for tracking associated programs
+  const [associatedPrograms, setAssociatedPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [isCheckingPrograms, setIsCheckingPrograms] = useState(false);
+
+  // Check for associated loyalty programs when dialog opens
+  useEffect(() => {
+    const checkAssociatedPrograms = async () => {
+      if (!showDeleteDialog || !selectedMerchant) return;
+
+      setIsCheckingPrograms(true);
+      try {
+        // Fetch loyalty programs for this merchant
+        const response = await apiClient.get(`/loyalty-programs?merchantId=${selectedMerchant.id}`);
+        const programs = response.data || [];
+
+        setAssociatedPrograms(programs.map((p: any) => ({ id: p.id, name: p.name })));
+      } catch (error) {
+        console.error('Failed to fetch associated programs:', error);
+        // Set empty array on error to avoid blocking deletion
+        setAssociatedPrograms([]);
+      } finally {
+        setIsCheckingPrograms(false);
+      }
+    };
+
+    checkAssociatedPrograms();
+  }, [showDeleteDialog, selectedMerchant]);
+
+  // Handle merchant deletion
+  const handleDeleteMerchant = async () => {
+    if (!selectedMerchant) return;
+
+    setIsDeleting(true);
+    try {
+      console.log('Deleting merchant:', selectedMerchant.id);
+
+      // Delete the merchant
+      await deleteMerchant.mutateAsync(selectedMerchant.id);
+
+      // Close the dialog
+      setShowDeleteDialog(false);
+
+      // Show success message
+      toast({
+        title: 'Success',
+        description: 'Merchant deleted successfully',
+        duration: 5000,
+      });
+
+      // Clear the selected merchant from the store
+      setSelectedMerchant(null);
+
+      // Invalidate the merchants query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['merchants'] });
+
+      // Redirect to the dashboard
+      router.push('/');
+    } catch (error: any) {
+      console.error('Failed to delete merchant:', error);
+      let errorMessage = 'Failed to delete merchant';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+        duration: 7000,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Watch branding colors to preview changes
   const primaryColor = form.watch('branding.primaryColor');
   const secondaryColor = form.watch('branding.secondaryColor');
@@ -455,6 +544,89 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Delete Merchant Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-destructive">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Delete Merchant
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this merchant? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Warning</AlertTitle>
+              <AlertDescription>
+                Deleting this merchant will permanently remove all associated data, including:
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Loyalty programs</li>
+                  <li>Program members</li>
+                  <li>Transactions</li>
+                  <li>Rewards and tiers</li>
+                  <li>All other merchant settings</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
+            {selectedMerchant && (
+              <div className="p-3 border rounded-md bg-muted">
+                <p className="font-medium">Merchant to delete:</p>
+                <p className="text-destructive font-bold">{selectedMerchant.name}</p>
+                <p className="text-sm text-muted-foreground mt-1">ID: {selectedMerchant.id}</p>
+              </div>
+            )}
+
+            {isCheckingPrograms ? (
+              <div className="mt-4 flex items-center text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Checking for associated loyalty programs...
+              </div>
+            ) : associatedPrograms.length > 0 ? (
+              <div className="mt-4 p-3 border rounded-md bg-amber-50 border-amber-200">
+                <p className="font-medium text-amber-800 flex items-center">
+                  <AlertTriangle className="h-4 w-4 mr-2 text-amber-500" />
+                  This merchant has {associatedPrograms.length} active loyalty program{associatedPrograms.length !== 1 ? 's' : ''}:
+                </p>
+                <ul className="mt-2 space-y-1 pl-6 list-disc text-sm text-amber-800">
+                  {associatedPrograms.map(program => (
+                    <li key={program.id}>{program.name}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-sm text-amber-700">
+                  All these programs and their associated data will be permanently deleted.
+                </p>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMerchant}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Merchant'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -463,11 +635,26 @@ export default function GeneralSettingsPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <Card>
-              <CardHeader>
-                <CardTitle>Merchant Information</CardTitle>
-                <CardDescription>
-                  Basic information about your business
-                </CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle>Merchant Information</CardTitle>
+                  <CardDescription>
+                    Basic information about your business
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button" /* Add type="button" to prevent form submission */
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(e) => {
+                    e.preventDefault(); // Prevent any form submission
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Merchant
+                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
