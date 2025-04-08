@@ -64,7 +64,7 @@ app.register(swagger, {
         email: 'support@loyaltystudio.ai'
       }
     },
-    host: process.env.API_URL || 'localhost:3001',
+    host: process.env.API_URL || 'localhost:3003',
     schemes: ['http'],
     consumes: ['application/json'],
     produces: ['application/json'],
@@ -159,8 +159,8 @@ const start = async () => {
 
     await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
     console.log(`Server is running on ${env.API_URL}`);
-    console.log('API Documentation available at http://localhost:3001/docs');
-    console.log('Debug OpenAPI spec available at http://localhost:3001/debug/openapi');
+    console.log(`API Documentation available at ${env.API_URL}/docs`);
+    console.log(`Debug OpenAPI spec available at ${env.API_URL}/debug/openapi`);
   } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

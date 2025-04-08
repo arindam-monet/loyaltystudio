@@ -9,16 +9,16 @@ config({ path: join(process.cwd(), envFile) });
 const envSchema = z.object({
   // Server Configuration
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.string().default('3001'),
+  PORT: z.string().default('3003'),
   API_HOST: z.string().default('0.0.0.0'),
-  API_URL: z.string().default('http://localhost:3001'),
+  API_URL: z.string().default('http://localhost:3003'),
 
   // Database Configuration
   DATABASE_URL: z.string(),
   DIRECT_URL: z.string(),
 
   // CORS Configuration
-  CORS_ORIGIN: z.string().default('*'),
+  CORS_ORIGIN: z.string().default('http://localhost:3001,http://localhost:3002,http://localhost:3004,http://localhost:3005'),
 
   // Logging Configuration
   LOG_LEVEL: z.string().default('info'),
@@ -71,7 +71,7 @@ const envSchema = z.object({
 
   // Admin Configuration
   ADMIN_EMAIL: z.string().email().default('admin@loyaltystudio.ai'),
-  ADMIN_PORTAL_URL: z.string().url().default('http://localhost:3003'),
+  ADMIN_PORTAL_URL: z.string().url().default('http://localhost:3002'),
   MERCHANT_WEB_URL: z.string().url().default('http://localhost:3001'),
 
   // Email Configuration
