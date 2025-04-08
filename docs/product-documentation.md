@@ -282,41 +282,117 @@ Merchants can manage webhooks through:
 
 ## 5. Analytics and Reporting
 
-### 5.1 Real-time Analytics
+### 5.1 Comprehensive Analytics Dashboard
 
-The platform offers real-time analytics to track program performance.
+LoyaltyStudio.ai offers a powerful analytics suite with dedicated dashboards for different aspects of loyalty program performance.
 
-#### Analytics Features:
+#### Dashboard Features:
 
-- Dashboard with key performance indicators
-- Real-time transaction monitoring
-- Points issuance and redemption tracking
-- Member activity visualization
-- Trend analysis
+- **Interactive Time Period Selection**: Analyze data across custom date ranges
+- **Role-based Access Control**: Tailored analytics views based on user permissions
+- **Real-time Data Updates**: Live data refreshing for up-to-the-minute insights
+- **Comparative Analysis**: Compare performance across different time periods
+- **Export Capabilities**: Download reports in multiple formats (CSV, Excel, PDF)
+- **Customizable Views**: Create personalized dashboard layouts
 
-### 5.2 Custom Reports
+#### KPI Summary Cards:
 
-Merchants can create custom reports to analyze specific aspects of their loyalty programs.
+- **Member Metrics**: Active members, growth rate, acquisition cost
+- **Points Economy**: Points issued, redeemed, expired, and outstanding
+- **Redemption Metrics**: Redemption rate, popular rewards, time to redemption
+- **Program ROI**: Overall program return on investment with cost breakdown
+- **Transaction Metrics**: Transaction volume, average value, frequency
 
-#### Report Types:
+### 5.2 Member Engagement Analytics
 
-- Member engagement reports
-- Points economy reports
-- Reward popularity reports
-- Campaign performance reports
-- Segment comparison reports
+Gain deep insights into how members interact with your loyalty program.
 
-### 5.3 Performance Metrics
+#### Engagement Metrics:
 
-LoyaltyStudio.ai tracks various metrics to measure program success.
+- **Active Member Rate**: Percentage of total members active in last 30/60/90 days
+- **Member Acquisition Cost**: Cost analysis for new member acquisition
+- **Member Lifetime Value (MLV)**: Projected value of members over their lifecycle
+- **Churn Rate and Retention**: Member retention metrics with predictive indicators
+- **Engagement Score**: Composite score based on multiple engagement factors
+- **Reactivation Metrics**: Success rates for re-engaging inactive members
 
-#### Key Metrics:
+### 5.3 Program Performance Analytics
 
-- Total members and active members
-- Points issued and redeemed
-- Reward redemption rates
-- Campaign participation rates
-- Customer retention and engagement metrics
+Comprehensive metrics to evaluate and optimize your loyalty program performance.
+
+#### Performance Metrics:
+
+- **Points Economy Health**: Detailed analysis of points issued vs. redeemed vs. expired
+- **Program ROI Calculation**: Sophisticated ROI modeling with cost and benefit analysis
+- **Cost Per Point**: Financial analysis of point issuance costs
+- **Average Points Per Transaction**: Distribution analysis of points earning patterns
+- **Tier Distribution**: Member distribution across program tiers with progression analysis
+- **Program Benchmarking**: Compare your program against industry standards
+
+### 5.4 Advanced Visualization Components
+
+Sophisticated data visualization tools for deeper insights.
+
+#### Visualization Types:
+
+- **Heatmaps**: Identify patterns in time-based member activity
+- **Funnel Charts**: Analyze conversion paths through the loyalty journey
+- **Cohort Analysis Charts**: Track behavior of member groups over time
+- **Geographic Visualizations**: Map-based analysis of member distribution and activity
+- **Interactive Drill-downs**: Explore data hierarchies with click-through capabilities
+- **Comparative Views**: Side-by-side analysis of different segments or time periods
+
+### 5.5 Predictive Analytics and Machine Learning
+
+Leverage advanced analytics to predict future behavior and optimize program performance.
+
+#### Predictive Capabilities:
+
+- **Churn Prediction Model**: Identify members at risk of becoming inactive
+- **Reward Recommendation Engine**: Suggest personalized rewards based on member behavior
+- **Lifetime Value Prediction**: Forecast the future value of members
+- **Next-Best-Action Recommendations**: AI-powered suggestions for member engagement
+- **Purchase Propensity Scoring**: Predict likelihood of future purchases
+- **Campaign Optimization**: Predictive modeling for campaign performance
+
+### 5.6 Segmentation and Cohort Analysis
+
+Powerful tools for analyzing specific member groups and their behavior over time.
+
+#### Segmentation Capabilities:
+
+- **Dynamic Segmentation Engine**: Create segments based on real-time behavior patterns
+- **RFM Analysis**: Segment members by Recency, Frequency, and Monetary value
+- **Behavioral Segmentation**: Group members based on interaction patterns
+- **Cohort Tracking**: Analyze retention and behavior of acquisition cohorts
+- **Segment Comparison**: Compare performance metrics across different segments
+- **Segment-based Targeting**: Use segments for personalized marketing campaigns
+
+### 5.7 Business Impact Analysis
+
+Quantify the business impact of your loyalty program with comprehensive metrics.
+
+#### Impact Metrics:
+
+- **Revenue Impact**: Measure incremental revenue attributed to loyalty program
+- **Frequency Analysis**: Track changes in purchase frequency for program members
+- **Average Order Value**: Compare AOV between program members and non-members
+- **Tier Progression Value**: Quantify the value of moving members up tier levels
+- **Campaign Attribution**: Measure direct impact of specific campaigns
+- **Customer Behavior Change**: Track behavioral shifts resulting from program participation
+
+### 5.8 Data Export and BI Integration
+
+Seamlessly integrate loyalty data with your existing business intelligence ecosystem.
+
+#### Integration Capabilities:
+
+- **BI Tool Connectors**: Pre-built connectors for popular BI platforms (Tableau, Power BI, Looker)
+- **Data Warehouse Integration**: Structured data exports for data warehouse systems
+- **Scheduled Exports**: Automated data delivery on customizable schedules
+- **Custom API Endpoints**: Specialized endpoints for BI integration
+- **Real-time Data Streaming**: Live data feeds for real-time analytics
+- **Custom Data Models**: Tailored data structures for specific analysis needs
 
 ## 6. Security and Compliance
 
@@ -456,7 +532,15 @@ Merchants can integrate the loyalty program with their existing systems.
 
 ### 9.1 Upcoming Features
 
-- Enhanced analytics with ClickHouse integration
+#### Enhanced Analytics Suite
+- **Advanced Predictive Analytics**: Machine learning models for churn prediction and customer lifetime value forecasting
+- **Interactive Data Exploration**: Drill-down capabilities and custom visualization tools
+- **Business Impact Analysis**: Comprehensive ROI calculation and business value metrics
+- **Cohort Analysis Tools**: Advanced member cohort tracking and comparative analysis
+- **BI Tool Integration**: Seamless connectors for popular business intelligence platforms
+- **Custom Report Builder**: Drag-and-drop interface for creating personalized reports
+
+#### Platform Enhancements
 - Mobile SDK for native app integration
 - Advanced AI-powered segmentation
 - Expanded integration ecosystem
