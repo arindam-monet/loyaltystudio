@@ -18,7 +18,13 @@ const envSchema = z.object({
   DIRECT_URL: z.string(),
 
   // CORS Configuration
-  CORS_ORIGIN: z.string().default('http://localhost:3001,http://localhost:3002,http://localhost:3004,http://localhost:3005'),
+  CORS_ORIGIN: z.string()
+    .default('http://localhost:3001,http://localhost:3002,http://localhost:3004,http://localhost:3005')
+    .transform(origins => {
+      // Handle both string and array formats
+      if (origins === '*') return '*';
+      return origins.split(',').map(origin => origin.trim());
+    }),
 
   // Logging Configuration
   LOG_LEVEL: z.string().default('info'),

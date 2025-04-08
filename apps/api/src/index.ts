@@ -37,7 +37,21 @@ const app = fastify({
 
 // Register plugins
 app.register(cors, {
-  origin: env.CORS_ORIGIN,
+  origin: (origin, cb) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return cb(null, true);
+
+    // If CORS_ORIGIN is '*', allow all origins
+    if (env.CORS_ORIGIN === '*') return cb(null, true);
+
+    // Check if the origin is in the allowed list
+    if (Array.isArray(env.CORS_ORIGIN) && env.CORS_ORIGIN.includes(origin)) {
+      return cb(null, true);
+    }
+
+    // If not in the allowed list
+    return cb(new Error(`Origin ${origin} not allowed by CORS`), false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
