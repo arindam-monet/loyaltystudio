@@ -351,40 +351,56 @@ export async function adminRoutes(fastify: FastifyInstance) {
       });
 
       // Generate a password reset token for the user
-      if (process.env.NODE_ENV !== 'development') {
-        const { error: resetError } = await fastify.supabase.auth.resetPasswordForEmail(
-          data.email,
-          {
-            redirectTo: `${env.MERCHANT_WEB_URL}/reset-password`,
-          }
-        );
+      // Always generate a password reset token, even in development mode
+      console.log(`Generating password reset token for ${data.email} with redirect to ${env.MERCHANT_WEB_URL}/reset-password`);
 
-        if (resetError) {
-          console.error('Failed to generate password reset token:', resetError);
-          return reply.code(500).send({
-            error: 'Failed to generate password reset token',
-            message: resetError.message,
-          });
+      const { error: resetError } = await fastify.supabase.auth.resetPasswordForEmail(
+        data.email,
+        {
+          redirectTo: `${env.MERCHANT_WEB_URL}/reset-password`,
         }
-      } else {
-        console.log('Development mode: Skipping password reset token generation');
+      );
+
+      if (resetError) {
+        console.error('Failed to generate password reset token:', resetError);
+        return reply.code(500).send({
+          error: 'Failed to generate password reset token',
+          message: resetError.message,
+        });
       }
+
+      console.log('Password reset token generated successfully');
 
       // Send welcome email to user
       await sendEmail({
         to: data.email,
         subject: 'Welcome to Loyalty Studio',
-        text: `Welcome ${data.name}! Your account has been created with admin privileges. Set your password here: ${env.MERCHANT_WEB_URL}/reset-password`,
+        text: `Welcome ${data.name}! Your account has been created with admin privileges. Set your password here: ${env.MERCHANT_WEB_URL}/reset-password or login directly at ${env.MERCHANT_WEB_URL}/login with your temporary password: ${tempPassword}`,
         html: `
           <h1>Welcome to Loyalty Studio</h1>
           <p>Hello ${data.name},</p>
           <p>Your account has been created with admin privileges. You can now set up merchants and invite other users.</p>
-          <p>Please click the button below to set your password:</p>
+          <p>You have two options to access your account:</p>
+
+          <h2>Option 1: Set a New Password</h2>
+          <p>You'll receive a separate email with a password reset link. Click the button below to set your password:</p>
           <p>
             <a href="${env.MERCHANT_WEB_URL}/reset-password" style="display: inline-block; background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
               Set Password
             </a>
           </p>
+
+          <h2>Option 2: Login Directly</h2>
+          <p>You can also login directly with your temporary password:</p>
+          <p><strong>Email:</strong> ${data.email}</p>
+          <p><strong>Temporary Password:</strong> ${tempPassword}</p>
+          <p>
+            <a href="${env.MERCHANT_WEB_URL}/login" style="display: inline-block; background-color: #10B981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+              Login Now
+            </a>
+          </p>
+
+          <p style="margin-top: 20px; color: #6B7280; font-size: 14px;">For security reasons, we recommend changing your password after your first login.</p>
         `,
       });
 

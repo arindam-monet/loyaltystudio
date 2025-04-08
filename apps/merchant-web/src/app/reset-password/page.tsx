@@ -16,17 +16,46 @@ export default function ResetPasswordPage() {
   const resetPassword = useResetPassword();
 
   useEffect(() => {
-    // Get token from URL hash
+    // Get token from URL hash or query parameters
     const hash = window.location.hash;
+
+    // First try to get token from hash (Supabase default behavior)
     if (hash) {
       // Extract token from hash
       const params = new URLSearchParams(hash.substring(1));
-      const tokenFromHash = params.get('token');
+      const tokenFromHash = params.get('token') || params.get('access_token');
       if (tokenFromHash) {
+        console.log('Found token in hash');
         setToken(tokenFromHash);
+        return;
       }
     }
-  }, []);
+
+    // If not in hash, try to get from query parameters
+    // Check for token, access_token, or code (Supabase uses code for PKCE flow)
+    const tokenFromQuery = searchParams.get('token') ||
+      searchParams.get('access_token') ||
+      searchParams.get('code');
+
+    if (tokenFromQuery) {
+      console.log('Found token/code in query parameters:', tokenFromQuery.substring(0, 10) + '...');
+      setToken(tokenFromQuery);
+      return;
+    }
+
+    // If still no token, check if it's in the URL path
+    const pathSegments = window.location.pathname.split('/');
+    if (pathSegments.length > 2) {
+      const possibleToken = pathSegments[pathSegments.length - 1];
+      if (possibleToken && possibleToken.length > 20) { // Tokens are usually long
+        console.log('Found possible token in URL path');
+        setToken(possibleToken);
+        return;
+      }
+    }
+
+    console.log('No token found in URL. Search params:', Object.fromEntries(searchParams.entries()));
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,4 +198,4 @@ export default function ResetPasswordPage() {
       </Card>
     </div>
   );
-} 
+}

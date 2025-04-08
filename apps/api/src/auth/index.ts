@@ -58,10 +58,14 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce'
+        // Note: redirectTo is set in individual auth operations
       }
     }
   );
+
+  console.log(`Supabase client initialized with URL: ${env.SUPABASE_URL}`);
 
   // Decorate fastify with supabase client
   fastify.decorate('supabase', supabase);

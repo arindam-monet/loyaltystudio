@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db/index.js';
 import { createHash } from 'crypto';
+import { env } from '../config/env.js';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -805,14 +806,32 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       const { email } = forgotPasswordSchema.parse(request.body);
 
+      // Get the user to check if they exist
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, email: true, name: true }
+      });
+
+      if (!user) {
+        console.log(`User with email ${email} not found, but returning success for security reasons`);
+        // For security reasons, don't reveal that the email doesn't exist
+        return { message: 'If your email is registered, you will receive a password reset link' };
+      }
+
+      // Construct the redirect URL with the correct port
+      const redirectUrl = `${env.MERCHANT_WEB_URL}/reset-password`;
+      console.log(`Sending password reset email to ${email} with redirect to ${redirectUrl}`);
+
       const { error } = await fastify.supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.MERCHANT_WEB_URL}/reset-password`
+        redirectTo: redirectUrl
       });
 
       if (error) {
+        console.error('Failed to send password reset email:', error);
         return reply.code(400).send({ error: error.message });
       }
 
+      console.log('Password reset email sent successfully to', email);
       return { message: 'Password reset email sent successfully' };
     } catch (error) {
       console.error('Forgot password error:', error);
@@ -846,22 +865,64 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       const { token, password } = resetPasswordSchema.parse(request.body);
 
-      // Use the token to update the password
-      // First set the session with the token
-      await fastify.supabase.auth.setSession({
-        access_token: token,
-        refresh_token: ''
-      });
+      console.log(`Attempting to reset password with token/code: ${token.substring(0, 10)}...`);
 
-      // Then update the user's password
-      const { error } = await fastify.supabase.auth.updateUser({
-        password
-      });
+      let result;
 
-      if (error) {
-        return reply.code(400).send({ error: error.message });
+      // Check if this is a code from PKCE flow or a token
+      if (token.includes('-') && token.length < 50) {
+        // This is likely a code from PKCE flow
+        console.log('Detected code from PKCE flow, exchanging for session');
+
+        try {
+          // Exchange the code for a session
+          const { data, error } = await fastify.supabase.auth.exchangeCodeForSession(token);
+
+          if (error) {
+            console.error('Failed to exchange code for session:', error);
+            return reply.code(400).send({ error: error.message });
+          }
+
+          if (!data.session) {
+            console.error('No session returned from code exchange');
+            return reply.code(400).send({ error: 'Failed to authenticate with the provided code' });
+          }
+
+          console.log('Successfully exchanged code for session');
+
+          // Now update the password
+          result = await fastify.supabase.auth.updateUser({ password });
+        } catch (exchangeError) {
+          console.error('Error during code exchange:', exchangeError);
+          return reply.code(400).send({ error: 'Invalid or expired code' });
+        }
+      } else {
+        // This is likely a token
+        console.log('Detected token, setting session directly');
+
+        // Use the token to update the password
+        // First set the session with the token
+        const { error: sessionError } = await fastify.supabase.auth.setSession({
+          access_token: token,
+          refresh_token: ''
+        });
+
+        if (sessionError) {
+          console.error('Failed to set session:', sessionError);
+          return reply.code(400).send({ error: sessionError.message });
+        }
+
+        // Then update the user's password
+        result = await fastify.supabase.auth.updateUser({ password });
       }
 
+      // Check the result of the password update
+      if (result.error) {
+        console.error('Failed to update password:', result.error);
+        return reply.code(400).send({ error: result.error.message });
+      }
+
+      console.log('Password reset successfully for user:', result.data?.user?.email);
       return { message: 'Password reset successfully' };
     } catch (error) {
       console.error('Reset password error:', error);
