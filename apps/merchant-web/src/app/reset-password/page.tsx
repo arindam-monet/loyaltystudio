@@ -35,12 +35,21 @@ export default function ResetPasswordPage() {
     // If not in hash, try to get from query parameters
     // Check for token, access_token, or code (Supabase uses code for PKCE flow)
     const tokenFromQuery = searchParams.get('token') ||
-      searchParams.get('access_token') ||
-      searchParams.get('code');
+      searchParams.get('access_token');
+
+    const codeFromQuery = searchParams.get('code');
 
     if (tokenFromQuery) {
-      console.log('Found token/code in query parameters:', tokenFromQuery.substring(0, 10) + '...');
+      console.log('Found token in query parameters:', tokenFromQuery.substring(0, 10) + '...');
       setToken(tokenFromQuery);
+      return;
+    }
+
+    if (codeFromQuery) {
+      console.log('Found code in query parameters:', codeFromQuery.substring(0, 10) + '...');
+      // For PKCE flow, we need to store the code in localStorage to be used by Supabase client
+      localStorage.setItem('supabase.auth.code', codeFromQuery);
+      setToken(codeFromQuery);
       return;
     }
 

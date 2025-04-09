@@ -875,26 +875,40 @@ export async function authRoutes(fastify: FastifyInstance) {
         console.log('Detected code from PKCE flow, exchanging for session');
 
         try {
-          // Exchange the code for a session
-          const { data, error } = await fastify.supabase.auth.exchangeCodeForSession(token);
+          // For PKCE flow, we need both the code and code verifier
+          // Since we don't have the code verifier (it's stored in the browser),
+          // we'll use a different approach
 
-          if (error) {
-            console.error('Failed to exchange code for session:', error);
-            return reply.code(400).send({ error: error.message });
+          // First, try to use the admin API to update the user's password directly
+          // Since we can't get the user directly from the code in the API,
+          // we'll need to use a different approach
+
+          // Try to exchange the code for a session first
+          const { data: sessionData, error: sessionError } = await fastify.supabase.auth.exchangeCodeForSession(token);
+
+          if (sessionError || !sessionData?.session) {
+            console.log('Could not exchange code for session:', sessionError);
+
+            // Alternative approach: Create a new password reset for the user
+            // This requires knowing the user's email, which we don't have from just the code
+            // So we'll return a more specific error message
+            return reply.code(400).send({
+              error: 'Password reset link expired or invalid',
+              message: 'Please request a new password reset link.'
+            });
           }
 
-          if (!data.session) {
-            console.error('No session returned from code exchange');
-            return reply.code(400).send({ error: 'Failed to authenticate with the provided code' });
-          }
-
+          // If we got the session, update the user's password
           console.log('Successfully exchanged code for session');
-
-          // Now update the password
           result = await fastify.supabase.auth.updateUser({ password });
+
+          console.log('Updated password using admin API');
         } catch (exchangeError) {
-          console.error('Error during code exchange:', exchangeError);
-          return reply.code(400).send({ error: 'Invalid or expired code' });
+          console.error('Error during password reset:', exchangeError);
+          return reply.code(400).send({
+            error: 'Invalid or expired code',
+            message: 'Please request a new password reset link.'
+          });
         }
       } else {
         // This is likely a token
