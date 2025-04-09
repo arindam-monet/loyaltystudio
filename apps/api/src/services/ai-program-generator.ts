@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { env } from '../config/env.js';
 import { prisma } from '../db/index.js';
+import { DataAnonymizerService } from './data-anonymizer.js';
 
 // Define Merchant type
 type Merchant = {
@@ -48,10 +49,12 @@ interface GeneratedLoyaltyProgram {
 export class AIProgramGeneratorService {
   private genAI: GoogleGenerativeAI;
   private model: GenerativeModel;
+  private anonymizer: DataAnonymizerService;
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    this.anonymizer = new DataAnonymizerService();
   }
 
   /**
@@ -67,14 +70,22 @@ export class AIProgramGeneratorService {
       throw new Error('Merchant not found');
     }
 
-    // Build prompt with merchant data
-    const prompt = this.buildPrompt(merchant);
+    // Anonymize merchant data before sending to AI
+    console.log('Anonymizing merchant data for AI processing');
+    const anonymizedMerchant = this.anonymizer.anonymizeMerchant(merchant);
+
+    // Build prompt with anonymized merchant data
+    const prompt = this.buildPrompt(anonymizedMerchant);
 
     try {
       // Generate content with Gemini
       const result = await this.model.generateContent(prompt);
       const response = result.response;
-      const text = response.text();
+      let text = response.text();
+
+      // De-anonymize the response text
+      console.log('De-anonymizing AI response');
+      text = this.anonymizer.deAnonymizeText(text);
 
       // Parse the response into a structured loyalty program
       return this.parseAIResponse(text, merchant);

@@ -89,8 +89,12 @@ export async function aiProgramGeneratorRoutes(fastify: FastifyInstance) {
         // We'll assume the request is authenticated through the API's auth middleware
         // and the user has access to the merchant
 
-        // Generate the loyalty program
+        request.log.info(`Generating AI loyalty program for merchant ID: ${merchantId} with secure data anonymization`);
+
+        // Generate the loyalty program with anonymized data
         const program = await aiProgramGenerator.generateLoyaltyProgram(merchantId);
+
+        request.log.info(`Successfully generated loyalty program with secure data handling`);
 
         return reply.send({ program });
       } catch (error) {

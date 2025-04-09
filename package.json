@@ -18,6 +18,7 @@
     "merchant:build": "turbo build --filter=@loyaltystudio/merchant-web",
     "api:dev": "turbo dev --filter=@loyaltystudio/api",
     "api:build": "turbo build --filter=@loyaltystudio/api",
+    "api:test": "turbo test --filter=@loyaltystudio/api",
     "docs:dev": "turbo dev --filter=@loyaltystudio/docs",
     "docs:build": "turbo build --filter=@loyaltystudio/docs",
     "ui:build": "turbo build --filter=@loyaltystudio/ui"
