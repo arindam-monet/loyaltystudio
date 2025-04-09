@@ -117,24 +117,28 @@ export default function LoyaltyProgramDetailsPage() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <main className="flex-1 overflow-auto">
           <div className="container py-6 space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-bold">{program.name}</h1>
+                  <Badge variant={program.isActive ? "default" : "secondary"} className={program.isActive ? "bg-green-500 hover:bg-green-600" : ""}>
+                    {program.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground mt-1">{program.description}</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Edit Program
+              </Button>
+            </div>
             <Card>
-              <CardHeader className="flex sm:flex-row sm:items-center justify-between">
-                <div> <CardTitle>{program.name}</CardTitle>
-                  <CardDescription>{program.description}</CardDescription>
-                </div>
-                <div className="ml-auto flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditDialogOpen(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit Program
-                  </Button>
-                </div>
-              </CardHeader>
               <CardContent>
-                <div className="w-full space-y-8">
+                <div className="w-full space-y-8 py-8">
 
                   {/* Program Overview Section */}
                   <Collapsible
@@ -145,7 +149,7 @@ export default function LoyaltyProgramDetailsPage() {
                     <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
                         <Settings className="h-5 w-5 text-primary" />
-                        <h2 className="text-xl font-semibold">Program Overview</h2>
+                        <h2 className="text-xl font-semibold">Program Settings</h2>
                       </div>
                       {openSections.overview ? (
                         <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -156,26 +160,13 @@ export default function LoyaltyProgramDetailsPage() {
                     <CollapsibleContent className="p-4">
                       <Card>
                         <CardHeader>
-                          <CardTitle>Program Overview</CardTitle>
+                          <CardTitle>Program Settings</CardTitle>
                           <CardDescription>
-                            View and manage your loyalty program settings
+                            View and manage your loyalty program configuration
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                           <div className="grid grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-medium mb-2">Program Name</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {program.name}
-                              </p>
-                            </div>
-
-                            <div>
-                              <h4 className="font-medium mb-2">Description</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {program.description}
-                              </p>
-                            </div>
 
                             <div>
                               <h4 className="font-medium mb-2">Points Name</h4>
