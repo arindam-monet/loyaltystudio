@@ -670,8 +670,18 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(401).send({ error: 'Invalid token' });
       }
 
-      // Sign out from Supabase
-      await fastify.supabase.auth.signOut();
+      console.log(`Logging out user: ${user.email} (ID: ${user.id})`);
+
+      // Sign out from Supabase with the scope parameter set to 'global'
+      // This will invalidate all sessions for the user across all devices
+      const { error: signOutError } = await fastify.supabase.auth.signOut({ scope: 'global' });
+
+      if (signOutError) {
+        console.error('Error during signOut:', signOutError);
+        return reply.code(500).send({ error: 'Failed to invalidate session' });
+      }
+
+      console.log(`Successfully invalidated all sessions for user: ${user.email}`);
 
       return { message: 'Logged out successfully' };
     } catch (error) {
@@ -1072,9 +1082,37 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       const token = authHeader.split(' ')[1];
+
+      // First check if the session is valid using the provided token
+      // We need to verify the token directly rather than checking the current session
+      // because the current session might be different from the token being verified
+      const { data: sessionData, error: sessionError } = await fastify.supabase.auth.getSession();
+
+      console.log(`Verifying session for token: ${token ? token.substring(0, 10) : 'undefined'}...`);
+
+      // If there's no active session, the token is invalid
+      if (sessionError) {
+        console.log('Session error during verify-session:', sessionError);
+        return reply.code(401).send({
+          error: 'Session error',
+          message: 'Your session has expired. Please log in again.'
+        });
+      }
+
+      // Check if the session exists and is valid
+      if (!sessionData.session) {
+        console.log('No active session found during verify-session');
+        return reply.code(401).send({
+          error: 'No active session',
+          message: 'Your session has expired. Please log in again.'
+        });
+      }
+
+      // Now verify the token
       const { data: supabaseUser, error } = await fastify.supabase.auth.getUser(token);
 
       if (error || !supabaseUser.user) {
+        console.log('Invalid token during verify-session:', error);
         return reply.code(401).send({
           error: 'Invalid or expired token',
           message: 'Your session has expired. Please log in again.'

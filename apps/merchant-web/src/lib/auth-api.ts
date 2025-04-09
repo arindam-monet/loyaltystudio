@@ -49,34 +49,65 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     try {
-      await apiClient.post('/auth/logout');
+      // Get the current token before clearing anything
+      const token = useAuthStore.getState().token;
+
+      // First call the logout endpoint to invalidate the session on the server
+      if (token) {
+        console.log('Calling logout API to invalidate session on server');
+        await apiClient.post('/auth/logout');
+      } else {
+        console.log('No token found, skipping server logout');
+      }
+
+      // Then clear the auth store and local storage
+      console.log('Clearing auth store and local storage');
+      useAuthStore.getState().clearAuth();
+      localStorage.removeItem('auth-storage');
+
+      // Clear any cached data
+      await apiClient.clearCache();
+
+      console.log('Logout completed successfully');
     } catch (error) {
       console.error('Logout API call failed:', error);
       // Continue with local logout even if API call fails
-    } finally {
-      await apiClient.clearCache();
       useAuthStore.getState().clearAuth();
+      localStorage.removeItem('auth-storage');
+      await apiClient.clearCache();
     }
   },
 
   verifySession: async (): Promise<boolean> => {
     try {
-      const response = await apiClient.get('/auth/verify-session');
-      if (!response.data || !response.data.user) {
+      // Check if we have a token in the store
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        console.log('No token found in auth store, session invalid');
         return false;
       }
-      
-      const { user } = response.data;
-      const token = useAuthStore.getState().token;
-      
-      if (token) {
-        useAuthStore.getState().setAuth(token, user);
-        return true;
+
+      // Call the verify-session endpoint
+      const response = await apiClient.get('/auth/verify-session');
+      if (!response.data || !response.data.user) {
+        console.log('Invalid response from verify-session endpoint');
+        // Clear auth store if the session is invalid
+        useAuthStore.getState().clearAuth();
+        localStorage.removeItem('auth-storage');
+        return false;
       }
-      return false;
+
+      const { user } = response.data;
+
+      // Update the user data in the store
+      useAuthStore.getState().setAuth(token, user);
+      return true;
     } catch (error) {
       console.error('Session verification failed:', error);
+      // Clear auth store on error
+      useAuthStore.getState().clearAuth();
+      localStorage.removeItem('auth-storage');
       return false;
     }
   },
-}; 
+};
