@@ -20,9 +20,9 @@ export default function SettingsLayout({
           Manage your account settings and preferences.
         </p>
       </div>
-      
+
       <Tabs defaultValue={pathname.split('/').pop()} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="general" asChild>
             <Link href="/settings/general">General</Link>
           </TabsTrigger>
@@ -31,9 +31,6 @@ export default function SettingsLayout({
           </TabsTrigger>
           <TabsTrigger value="billing" asChild>
             <Link href="/settings/billing">Billing</Link>
-          </TabsTrigger>
-          <TabsTrigger value="api" asChild>
-            <Link href="/settings/api">API</Link>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={pathname.split('/').pop() || 'general'} className="space-y-4">

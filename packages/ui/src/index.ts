@@ -33,6 +33,7 @@ export * from './components/sheet';
 export * from './components/scroll-area';
 export * from './components/area-chart';
 export * from './components/alert-dialog';
+export * from './components/checkbox';
 
 
 export { default as Navbar } from './components/layout/Navbar';

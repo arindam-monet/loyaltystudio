@@ -15,6 +15,9 @@ import {
   Tag,
   Sparkles,
   AlertCircle,
+  Code,
+  Webhook,
+  Key,
 } from 'lucide-react';
 import { useMerchants } from '@/hooks/use-merchants';
 
@@ -116,16 +119,36 @@ const getNavData = (pathname: string) => ({
       ],
     },
     {
+      title: 'Developer',
+      url: '/developer',
+      icon: Code,
+      isActive: pathname.startsWith('/developer'),
+      items: [
+        {
+          title: 'API Keys',
+          url: '/developer/api',
+          icon: Key,
+          isActive: pathname === '/developer/api' || pathname === '/developer',
+        },
+        {
+          title: 'Webhooks',
+          url: '/developer/webhooks',
+          icon: Webhook,
+          isActive: pathname === '/developer/webhooks',
+        },
+        {
+          title: 'Documentation',
+          url: '/developer/docs',
+          icon: FileText,
+          isActive: pathname === '/developer/docs',
+        },
+      ],
+    },
+    {
       title: 'Help',
       url: '/help',
       icon: HelpCircle,
       isActive: pathname === '/help',
-    },
-    {
-      title: 'API Docs',
-      url: '/api-docs',
-      icon: FileText,
-      isActive: pathname === '/api-docs',
     },
   ],
 });
