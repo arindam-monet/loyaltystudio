@@ -28,10 +28,6 @@ import {
   Input,
   Textarea,
   Separator,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -41,7 +37,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@loyaltystudio/ui';
 import { ColorPicker } from '@/components/color-picker';
 import { AlertCircle, Loader2, Trash2, AlertTriangle } from 'lucide-react';
@@ -53,6 +53,8 @@ const merchantSettingsSchema = z.object({
   website: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   contactEmail: z.string().email('Please enter a valid email').optional().or(z.literal('')),
   contactPhone: z.string().optional(),
+  currency: z.string().min(3, 'Currency code must be 3 characters').max(3).default('USD').optional(),
+  timezone: z.string().min(1, 'Timezone is required').default('UTC').optional(),
   address: z.object({
     street: z.string().optional(),
     city: z.string().optional(),
@@ -98,6 +100,8 @@ export default function GeneralSettingsPage() {
       website: '',
       contactEmail: '',
       contactPhone: '',
+      currency: 'USD',
+      timezone: 'UTC',
       address: {
         street: '',
         city: '',
@@ -135,6 +139,8 @@ export default function GeneralSettingsPage() {
         website: merchantDetails.website || '',
         contactEmail: merchantDetails.contactEmail || '',
         contactPhone: merchantDetails.contactPhone || '',
+        currency: merchantDetails.currency || 'USD',
+        timezone: merchantDetails.timezone || 'UTC',
         address: {
           street: merchantDetails.address?.street || '',
           city: merchantDetails.address?.city || '',
@@ -323,9 +329,9 @@ export default function GeneralSettingsPage() {
     hexColor = hexColor.replace('#', '');
 
     // Convert to RGB
-    const r = parseInt(hexColor.substr(0, 2), 16);
-    const g = parseInt(hexColor.substr(2, 2), 16);
-    const b = parseInt(hexColor.substr(4, 2), 16);
+    const r = parseInt(hexColor.substring(0, 2), 16);
+    const g = parseInt(hexColor.substring(2, 2), 16);
+    const b = parseInt(hexColor.substring(4, 2), 16);
 
     // Calculate luminance
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
@@ -349,6 +355,8 @@ export default function GeneralSettingsPage() {
         website: data.website || '',
         contactEmail: data.contactEmail || '',
         contactPhone: data.contactPhone || '',
+        currency: data.currency,
+        timezone: data.timezone,
         address: data.address,
         branding: {
           primaryColor: data.branding.primaryColor,
@@ -732,6 +740,82 @@ export default function GeneralSettingsPage() {
                     </FormItem>
                   )}
                 />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The default currency for your loyalty programs
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="timezone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Timezone</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                            <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                            <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                            <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                            <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                            <SelectItem value="Europe/Paris">Central European Time (CET)</SelectItem>
+                            <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                            <SelectItem value="Asia/Tokyo">Japan Time (JST)</SelectItem>
+                            <SelectItem value="Asia/Shanghai">China Time (CST)</SelectItem>
+                            <SelectItem value="Australia/Sydney">Australian Eastern Time (AET)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The default timezone for your loyalty programs
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -971,7 +1055,7 @@ export default function GeneralSettingsPage() {
                       <FormControl>
                         <Input
                           placeholder="https://example.com/logo.png"
-                          {...field}
+                          value={field.value || ''}
                           onChange={(e) => {
                             // Validate URL format before setting the value
                             const value = e.target.value;
@@ -982,6 +1066,9 @@ export default function GeneralSettingsPage() {
                               field.onChange(`https://${value}`);
                             }
                           }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormDescription>

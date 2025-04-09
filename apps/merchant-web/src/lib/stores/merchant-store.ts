@@ -10,6 +10,8 @@ export interface Merchant {
   contactPhone?: string;
   subdomain?: string;
   isDefault?: boolean;
+  currency?: string;
+  timezone?: string;
   address?: {
     street?: string;
     city?: string;
