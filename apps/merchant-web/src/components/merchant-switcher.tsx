@@ -20,7 +20,6 @@ import {
 } from '@loyaltystudio/ui';
 import { useMerchants } from '@/hooks/use-merchants';
 import { useMerchantStore } from '@/lib/stores/merchant-store';
-import { useSidebar } from '@loyaltystudio/ui';
 import { AddMerchantButton } from '@/components/add-merchant-button';
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>
@@ -32,10 +31,11 @@ interface MerchantSwitcherProps extends PopoverTriggerProps {
 export default function MerchantSwitcher({
   className,
 }: MerchantSwitcherProps) {
-  const { data: merchants = [], isLoading } = useMerchants();
+  const { data: merchants = [], isLoading, refetch } = useMerchants();
   const [open, setOpen] = React.useState(false);
   const { selectedMerchant, setSelectedMerchant } = useMerchantStore();
-  const { open: sidebarOpen } = useSidebar();
+  // We don't need sidebarOpen anymore since we're using a placeholder for no merchants
+  // const { open: sidebarOpen } = useSidebar();
   const [localSelectedMerchant, setLocalSelectedMerchant] = React.useState<typeof merchants[0] | null>(null);
 
   // Update selected merchant when merchants data loads
@@ -73,14 +73,17 @@ export default function MerchantSwitcher({
     setOpen(false);
   };
 
-  const handleCreateMerchant = React.useCallback(() => {
-    console.log('Closing merchant switcher popover');
-    setOpen(false);
-  }, []);
+  // Removed unused handleCreateMerchant function
 
   const handleOnboardingSuccess = () => {
-    console.log('Merchant created successfully, reloading page');
-    window.location.reload();
+    console.log('Merchant created successfully, refreshing merchants list');
+    // Use refetch instead of window.location.reload() to avoid a full page refresh
+    if (typeof refetch === 'function') {
+      refetch();
+    } else {
+      console.warn('refetch is not a function, falling back to page reload');
+      window.location.reload();
+    }
   };
 
   if (isLoading) {
@@ -101,18 +104,27 @@ export default function MerchantSwitcher({
     );
   }
 
-  // If there are no merchants, show a button to create one instead of the merchant switcher
+  // If there are no merchants, show a placeholder button that doesn't do anything
+  // The actual Add Merchant button will be shown in the warning message in the sidebar
   if (merchants.length === 0) {
     return (
-      <AddMerchantButton
-        variant="default"
+      <Button
+        variant="ghost"
         className={cn(
-          'bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-sm',
-          sidebarOpen ? 'w-full justify-between px-2' : 'w-full h-9 p-0 flex items-center justify-center',
+          'w-full justify-between px-2',
           className
         )}
-        onSuccess={handleOnboardingSuccess}
-      />
+        disabled
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">?</span>
+          </div>
+          <div className="flex flex-col items-start text-sm">
+            <span className="font-medium text-muted-foreground">No Merchants</span>
+          </div>
+        </div>
+      </Button>
     );
   }
 
@@ -199,15 +211,7 @@ export default function MerchantSwitcher({
         </PopoverContent>
       </Popover>
 
-      {/* Debug button for testing */}
-      {process.env.NODE_ENV === 'development' && (
-        <AddMerchantButton
-          variant="outline"
-          size="sm"
-          className="absolute top-0 right-0 mt-2 mr-2 z-50"
-          onSuccess={handleOnboardingSuccess}
-        />
-      )}
+      {/* Debug button removed */}
     </>
   );
 }

@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-
   CardHeader,
   CardTitle,
   Button,
@@ -22,25 +21,20 @@ import {
   SelectTrigger,
   SelectValue,
   Progress,
-
   Alert,
   AlertDescription,
   AlertTitle,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
 } from "@loyaltystudio/ui";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { SimpleRuleBuilder } from "./simple-rule-builder";
-import { SimpleTierManager } from "./simple-tier-manager";
+import { TierManagerWrapper } from "./tier-manager-wrapper";
 import { SimpleRewardManager } from "./simple-reward-manager";
+import { useMerchantStore } from "@/lib/stores/merchant-store";
 
 import {
   CheckCircle2,
-  HelpCircle,
   AlertCircle,
   ChevronRight
 } from 'lucide-react';
@@ -57,36 +51,54 @@ const basicInfoSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-// Simple rule schema for initial setup
-const simpleRuleSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+// Rule schema
+const ruleSchema = z.object({
+  name: z.string().min(1, "Rule name is required"),
   type: z.enum(["FIXED", "PERCENTAGE"]),
   points: z.number().min(1, "Points must be at least 1"),
   minAmount: z.number().optional(),
 });
 
+// Tier schema
+const tierSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Tier name is required"),
+  description: z.string().optional(),
+  pointsThreshold: z.number().min(0, "Points threshold must be at least 0"),
+  benefits: z.array(z.string()).default([]),
+});
+
+// Reward schema
+const rewardSchema = z.object({
+  name: z.string().min(1, "Reward name is required"),
+  description: z.string().min(1, "Description is required"),
+  type: z.enum(["PHYSICAL", "DIGITAL", "EXPERIENCE", "COUPON"]),
+  pointsCost: z.number().min(1, "Points cost must be at least 1"),
+  stock: z.number().optional(),
+  validityPeriod: z.number().optional(),
+  redemptionLimit: z.number().optional(),
+});
+
 // Program schema
 const programSchema = z.object({
   basicInfo: basicInfoSchema,
-  rules: z.array(simpleRuleSchema).min(1, "At least one rule is required"),
-  tiers: z.array(z.any()).default([]),
-  rewards: z.array(z.any()).default([]),
+  rules: z.array(ruleSchema).min(1, "At least one rule is required"),
+  tiers: z.array(tierSchema),
+  rewards: z.array(rewardSchema),
 });
 
-// Form data types
-export type BasicInfoData = z.infer<typeof basicInfoSchema>;
-export type SimpleRuleData = z.infer<typeof simpleRuleSchema>;
 export type ProgramFormData = z.infer<typeof programSchema>;
 
 interface GuidedProgramWizardProps {
   onSubmit: (data: ProgramFormData) => Promise<void>;
-  onCancel: () => void;
+  onCancel?: () => void;
+  isSubmitting?: boolean;
+  error?: string | null;
 }
 
-export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [completionPercentage, setCompletionPercentage] = useState(0);
+export function GuidedProgramWizard({ onSubmit, onCancel, isSubmitting, error }: GuidedProgramWizardProps) {
+  const [step, setStep] = useState(0);
+  const { selectedMerchant } = useMerchantStore();
 
   const steps = [
     { id: "basics", title: "Basic Information", isRequired: true },
@@ -96,14 +108,20 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
     { id: "review", title: "Review & Launch", isRequired: true },
   ];
 
+  // Get merchant currency and timezone if available
+  const merchantCurrency = typeof selectedMerchant === 'object' && selectedMerchant ?
+    (selectedMerchant as any).currency || 'USD' : 'USD';
+  const merchantTimezone = typeof selectedMerchant === 'object' && selectedMerchant ?
+    (selectedMerchant as any).timezone || 'UTC' : 'UTC';
+
   const defaultValues: ProgramFormData = {
     basicInfo: {
       name: "",
       description: "",
       settings: {
         pointsName: "points",
-        currency: "USD",
-        timezone: "UTC",
+        currency: merchantCurrency,
+        timezone: merchantTimezone,
       },
       isActive: true,
     },
@@ -115,7 +133,16 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
         minAmount: 0,
       },
     ],
-    tiers: [],
+    tiers: [
+      // Initialize with a default tier to avoid type errors
+      {
+        id: 'default-tier',
+        name: 'Bronze',
+        description: 'Starting tier',
+        pointsThreshold: 0,
+        benefits: [] // Empty array, not undefined
+      }
+    ],
     rewards: [],
   };
 
@@ -124,6 +151,22 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
     defaultValues,
     mode: "onChange",
   });
+
+  // Update currency and timezone when merchant changes
+  useEffect(() => {
+    if (selectedMerchant && typeof selectedMerchant === 'object') {
+      const merchant = selectedMerchant as any;
+      if (merchant.currency) {
+        form.setValue('basicInfo.settings.currency', merchant.currency);
+      }
+      if (merchant.timezone) {
+        form.setValue('basicInfo.settings.timezone', merchant.timezone);
+      }
+    }
+
+    // Initialize form with empty tiers array but ensure each tier has a benefits array
+    form.setValue('tiers', []);
+  }, [selectedMerchant, form]);
 
   const watchBasicInfo = form.watch("basicInfo");
   const watchRules = form.watch("rules");
@@ -148,579 +191,365 @@ export function GuidedProgramWizard({ onSubmit, onCancel }: GuidedProgramWizardP
     total += 1;
 
     // Rewards (optional)
-    if (watchRewards && watchRewards.length > 0) {
+    if (watchRewards.length > 0) {
       completed += 1;
     }
     total += 1;
 
     // Tiers (optional)
-    if (watchTiers && watchTiers.length > 0) {
+    if (watchTiers.length > 0) {
       completed += 1;
     }
     total += 1;
 
-    const percentage = Math.round((completed / total) * 100);
-    setCompletionPercentage(percentage);
-    return percentage;
+    return Math.round((completed / total) * 100);
   };
 
-  // Update completion percentage when form values change
-  useState(() => {
-    calculateCompletion();
-  });
-
-  const handleSubmit = async (data: ProgramFormData) => {
-    try {
-      setIsLoading(true);
-      await onSubmit(data);
-    } catch (error) {
-      console.error("Failed to create program:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // This will only be called when the user explicitly clicks the "Launch Program" button
-  // Track whether the user has explicitly clicked the Launch Program button
-  const [launchClicked, setLaunchClicked] = useState(false);
-
-  const onFormSubmit = form.handleSubmit((data) => {
-    // Only proceed if the user has explicitly clicked the Launch Program button
-    if (currentStep === steps.length - 1 && launchClicked) {
-      console.log('Submitting form with data:', data);
-      return handleSubmit(data as ProgramFormData);
-    } else {
-      console.log('Form submission prevented - not on final step or launch not clicked');
-      // Reset the launch clicked state
-      setLaunchClicked(false);
-    }
-  });
+  const completion = calculateCompletion();
 
   const nextStep = () => {
-    calculateCompletion();
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+    if (step < steps.length - 1) {
+      setStep(step + 1);
     }
   };
 
   const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    } else {
-      onCancel();
+    if (step > 0) {
+      setStep(step - 1);
     }
   };
 
-  const isStepComplete = (stepIndex: number) => {
-    switch (stepIndex) {
-      case 0: // Basic Info
-        return !!watchBasicInfo.name && !!watchBasicInfo.description;
-      case 1: // Rules
-        return watchRules.length > 0;
-      case 2: // Rewards
-        return true; // Optional
-      case 3: // Tiers
-        return true; // Optional
-      case 4: // Review
-        return true;
-      default:
-        return false;
+  const handleSubmit = async (data: ProgramFormData) => {
+    try {
+      await onSubmit(data);
+    } catch (error) {
+      console.error("Error submitting form:", error);
     }
   };
 
-  const canProceed = isStepComplete(currentStep);
+  const renderStep = () => {
+    switch (step) {
+      case 0: // Basic Information
+        return (
+          <div className="space-y-6">
+            <FormField
+              control={form.control}
+              name="basicInfo.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Program Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. VIP Rewards Club" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Choose a name that reflects your brand and is easy for customers to remember.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex justify-end items-center">
-          {/* <h2 className="text-xl font-semibold">Create Loyalty Program</h2> */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {completionPercentage}% Complete
-            </span>
-            <Progress value={completionPercentage} className="w-24" />
-          </div>
-        </div>
-      </div>
+            <FormField
+              control={form.control}
+              name="basicInfo.description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Program Description *</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe your loyalty program..."
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Explain the benefits of your program to customers.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-      <div className="flex gap-6">
-        {/* Step Navigation */}
-        <div className="w-64 space-y-2">
-          <div className="font-medium mb-4">Program Setup</div>
-          {steps.map((step, index) => (
-            <div
-              key={step.id}
-              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer ${currentStep === index
-                ? "bg-primary/10 text-primary"
-                : "hover:bg-muted"
-                }`}
-              onClick={() => {
-                // Only allow navigation to completed steps or the current step + 1
-                if (
-                  index <= currentStep + 1 &&
-                  (index === 0 || isStepComplete(index - 1))
-                ) {
-                  setCurrentStep(index);
-                }
-              }}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${isStepComplete(index)
-                  ? "bg-primary text-primary-foreground"
-                  : currentStep === index
-                    ? "border-2 border-primary text-primary"
-                    : "bg-muted text-muted-foreground"
-                  }`}
-              >
-                {isStepComplete(index) ? (
-                  <CheckCircle2 className="w-4 h-4" />
-                ) : (
-                  index + 1
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="basicInfo.settings.pointsName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Points Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Points, Stars, Coins" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      What you'll call your loyalty currency.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
+
+              <FormField
+                control={form.control}
+                name="basicInfo.settings.currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency *</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro</SelectItem>
+                        <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                        <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                        <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                        <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                        <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                        <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      The currency used for transactions.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="basicInfo.settings.timezone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Timezone *</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select timezone" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="UTC">UTC</SelectItem>
+                        <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                        <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                        <SelectItem value="Europe/Paris">Central European Time (CET)</SelectItem>
+                        <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                        <SelectItem value="Asia/Tokyo">Japan Time (JST)</SelectItem>
+                        <SelectItem value="Asia/Shanghai">China Time (CST)</SelectItem>
+                        <SelectItem value="Australia/Sydney">Australian Eastern Time (AET)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      The timezone for your program's operations.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="basicInfo.isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Active Status</FormLabel>
+                      <FormDescription>
+                        Is this program active and visible to customers?
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        );
+
+      case 1: // Rules
+        return (
+          <SimpleRuleBuilder
+            rules={watchRules}
+            onRulesChange={(rules) => form.setValue("rules", rules)}
+          />
+        );
+
+      case 2: // Rewards
+        return (
+          <SimpleRewardManager
+            rewards={watchRewards}
+            onRewardsChange={(rewards) => form.setValue("rewards", rewards)}
+          />
+        );
+
+      case 3: // Tiers
+        return (
+          <TierManagerWrapper
+            tiers={watchTiers}
+            onTiersChange={(tiers) => form.setValue("tiers", tiers)}
+          />
+        );
+
+      case 4: // Review
+        return (
+          <div className="space-y-6">
+            <div className="rounded-lg border p-4">
+              <h3 className="text-lg font-medium mb-2">Basic Information</h3>
+              <div className="space-y-2">
+                <p><strong>Name:</strong> {watchBasicInfo.name}</p>
+                <p><strong>Description:</strong> {watchBasicInfo.description}</p>
+                <p><strong>Points Name:</strong> {watchBasicInfo.settings.pointsName}</p>
+                <p><strong>Currency:</strong> {watchBasicInfo.settings.currency}</p>
+                <p><strong>Timezone:</strong> {watchBasicInfo.settings.timezone}</p>
+                <p><strong>Status:</strong> {watchBasicInfo.isActive ? "Active" : "Inactive"}</p>
               </div>
-              <span
-                className={`text-sm ${currentStep === index ? "font-medium" : ""
-                  }`}
-              >
-                {step.title}
-              </span>
-              {step.isRequired && (
-                <span className="text-xs text-red-500">*</span>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <h3 className="text-lg font-medium mb-2">Rules ({watchRules.length})</h3>
+              {watchRules.length > 0 ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  {watchRules.map((rule, index) => (
+                    <li key={index}>
+                      <strong>{rule.name}:</strong> {rule.type === "FIXED" ? `${rule.points} points` : `${rule.points}% of purchase`}
+                      {rule.minAmount !== undefined && rule.minAmount > 0 && ` (min: ${watchBasicInfo.settings.currency} ${rule.minAmount})`}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No rules defined</p>
               )}
             </div>
-          ))}
 
-          <div className="pt-6">
-            <Alert className="bg-muted/50">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Quick Start</AlertTitle>
-              <AlertDescription className="text-xs">
-                Complete the required steps to launch your program. You can
-                enhance it with additional features later.
-              </AlertDescription>
-            </Alert>
+            <div className="rounded-lg border p-4">
+              <h3 className="text-lg font-medium mb-2">Rewards ({watchRewards.length})</h3>
+              {watchRewards.length > 0 ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  {watchRewards.map((reward, index) => (
+                    <li key={index}>
+                      <strong>{reward.name}:</strong> {reward.pointsCost} {watchBasicInfo.settings.pointsName}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No rewards defined</p>
+              )}
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <h3 className="text-lg font-medium mb-2">Tiers ({watchTiers.length})</h3>
+              {watchTiers.length > 0 ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  {watchTiers.map((tier, index) => (
+                    <li key={index}>
+                      <strong>{tier.name}:</strong> {tier.pointsThreshold} {watchBasicInfo.settings.pointsName}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No tiers defined</p>
+              )}
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
           </div>
-        </div>
+        );
 
-        {/* Step Content */}
-        <div className="flex-1">
-          <Form {...form}>
-            <form onSubmit={(e) => {
-              // Prevent form submission unless explicitly triggered by the Launch Program button
-              if (currentStep !== steps.length - 1 || !launchClicked) {
-                e.preventDefault();
-                return;
-              }
-              onFormSubmit(e);
-              // Reset the launch clicked state after submission
-              setLaunchClicked(false);
-            }} className="space-y-6">
-              {/* Step 1: Basic Information */}
-              {currentStep === 0 && (
-                <div className="space-y-4">
-                  <div className="border-b pb-2">
-                    <h3 className="text-lg font-medium">Basic Information</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Set up the core details of your loyalty program.
-                    </p>
-                  </div>
+      default:
+        return null;
+    }
+  };
 
-                  <FormField
-                    control={form.control}
-                    name="basicInfo.name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex justify-between">
-                          <FormLabel>Program Name</FormLabel>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="w-80">
-                                  Choose a memorable name that reflects your brand and the value of your program.
-                                  Examples: "Star Rewards", "VIP Club", "Loyalty Points"
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter program name" />
-                        </FormControl>
-                        <FormDescription>
-                          This is how your program will appear to customers.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-xl">{steps[step].title}</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Step {step + 1} of {steps.length}
+                </span>
+                <Progress value={completion} className="w-[100px]" />
+                <span className="text-sm text-muted-foreground">{completion}%</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {renderStep()}
 
-                  <FormField
-                    control={form.control}
-                    name="basicInfo.description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex justify-between">
-                          <FormLabel>Description</FormLabel>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="w-80">
-                                  Briefly explain how your program works and its benefits.
-                                  Keep it concise and highlight the main value proposition.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            placeholder="Enter program description"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Explain how your program works and its benefits.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="basicInfo.settings.pointsName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Points Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="points, stars, coins, etc."
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            What you'll call your loyalty currency.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="basicInfo.settings.currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Currency</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="USD">USD ($)</SelectItem>
-                              <SelectItem value="EUR">EUR (€)</SelectItem>
-                              <SelectItem value="GBP">GBP (£)</SelectItem>
-                              <SelectItem value="INR">INR (₹)</SelectItem>
-                              <SelectItem value="JPY">JPY (¥)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            Primary currency for transactions.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="basicInfo.settings.timezone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Timezone</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="UTC">UTC</SelectItem>
-                            <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                            <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                            <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                            <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                            <SelectItem value="Europe/London">London (GMT)</SelectItem>
-                            <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
-                            <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          The primary timezone for your program
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="basicInfo.isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Activate Program
-                          </FormLabel>
-                          <FormDescription>
-                            Make this program available immediately after creation.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-
-              {/* Step 2: Point Earning Rules */}
-              {currentStep === 1 && (
-                <div className="space-y-4">
-
-                  <SimpleRuleBuilder
-                    rules={form.watch("rules")}
-                    onRulesChange={(rules: any) => form.setValue("rules", rules)}
-                  />
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      You can add more complex rules after creating your program.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-
-              {/* Step 3: Rewards (Optional) */}
-              {currentStep === 2 && (
-                <div className="space-y-4">
-                  <SimpleRewardManager
-                    rewards={form.watch("rewards") || []}
-                    onRewardsChange={(rewards: any) => form.setValue("rewards", rewards)}
-                  />
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      You can add more rewards after creating your program.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-
-              {/* Step 4: Membership Tiers (Optional) */}
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <SimpleTierManager
-                    tiers={form.watch("tiers") || []}
-                    onTiersChange={(tiers: any) => form.setValue("tiers", tiers)}
-                  />
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      You can add more tiers after creating your program.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-
-              {/* Step 5: Review & Launch */}
-              {currentStep === 4 && (
-                <div className="space-y-6">
-                  <div className="border-b pb-2">
-                    <h3 className="text-lg font-medium">Review & Launch</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Review your program details before launching.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Basic Information</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <dl className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <dt className="font-medium">Program Name</dt>
-                            <dd>{watchBasicInfo.name}</dd>
-                          </div>
-                          <div>
-                            <dt className="font-medium">Points Name</dt>
-                            <dd>{watchBasicInfo.settings.pointsName}</dd>
-                          </div>
-                          <div className="col-span-2">
-                            <dt className="font-medium">Description</dt>
-                            <dd>{watchBasicInfo.description}</dd>
-                          </div>
-                          <div>
-                            <dt className="font-medium">Status</dt>
-                            <dd>
-                              {watchBasicInfo.isActive ? (
-                                <span className="text-green-600 font-medium">Active</span>
-                              ) : (
-                                <span className="text-amber-600 font-medium">Inactive</span>
-                              )}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="font-medium">Currency</dt>
-                            <dd>{watchBasicInfo.settings.currency}</dd>
-                          </div>
-                        </dl>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Point Earning Rules</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2">
-                          {watchRules.map((rule, index) => (
-                            <li key={index} className="text-sm">
-                              <span className="font-medium">{rule.name}:</span>{" "}
-                              {rule.type === "FIXED"
-                                ? `${rule.points} ${watchBasicInfo.settings.pointsName} per purchase`
-                                : `${rule.points}% of purchase value in ${watchBasicInfo.settings.pointsName}`}
-                              {rule.minAmount && rule.minAmount > 0
-                                ? ` (minimum purchase: ${watchBasicInfo.settings.currency} ${rule.minAmount})`
-                                : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-
-                    {watchRewards && watchRewards.length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">Rewards</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2">
-                            {watchRewards && watchRewards.map((reward, index) => (
-                              <li key={index} className="text-sm">
-                                <span className="font-medium">{reward.name}:</span>{" "}
-                                {reward.pointsCost} {watchBasicInfo.settings.pointsName}
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {watchTiers && watchTiers.length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">Membership Tiers</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2">
-                            {watchTiers && watchTiers.map((tier, index) => (
-                              <li key={index} className="text-sm">
-                                <span className="font-medium">{tier.name}:</span>{" "}
-                                {tier.pointsThreshold} {watchBasicInfo.settings.pointsName} required
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    <Alert className="bg-muted/50">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Next Steps</AlertTitle>
-                      <AlertDescription>
-                        After creating your program, you can:
-                        <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-                          <li>Add more complex rules using the rule builder</li>
-                          <li>Create additional rewards and tiers</li>
-                          <li>Set up campaigns and promotions</li>
-                          <li>Customize customer communications</li>
-                        </ul>
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between pt-4">
+            <div className="flex justify-between mt-6">
+              {step === 0 && onCancel ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              ) : (
                 <Button
                   type="button"
                   variant="outline"
                   onClick={prevStep}
+                  disabled={step === 0 || isSubmitting}
                 >
-                  {currentStep === 0 ? "Cancel" : "Back"}
+                  Previous
                 </Button>
+              )}
 
-                {currentStep === steps.length - 1 ? (
-                  <Button
-                    type="submit"
-                    disabled={isLoading || !canProceed}
-                    onClick={(e) => {
-                      // Only allow submission on the final step and with explicit click
-                      if (currentStep !== steps.length - 1) {
-                        e.preventDefault();
-                        return;
-                      }
-
-                      // Set the launch clicked state to true to indicate explicit user action
-                      setLaunchClicked(true);
-
-                      // Form submission will be handled by the form's onSubmit handler
-                      // which now checks for launchClicked
-                    }}
-                  >
-                    {isLoading ? "Creating..." : "Launch Program"}
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={nextStep}
-                    disabled={!canProceed}
-                  >
-                    Next <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </form>
-          </Form>
-        </div>
-      </div>
-    </div>
+              {step < steps.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={nextStep}
+                  disabled={isSubmitting}
+                >
+                  Next
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Creating..." : "Create Program"}
+                  <CheckCircle2 className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </form>
+    </Form>
   );
 }

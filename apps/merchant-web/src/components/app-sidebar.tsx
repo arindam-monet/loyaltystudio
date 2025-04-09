@@ -21,6 +21,7 @@ import { useMerchants } from '@/hooks/use-merchants';
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import MerchantSwitcher from './merchant-switcher';
+import { AddMerchantButton } from './add-merchant-button';
 import {
   Sidebar,
   SidebarContent,
@@ -202,8 +203,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   isOpen ? "h-4 w-4 mt-0.5" : "h-5 w-5"
                 )} />
                 {isOpen && (
-                  <div className="text-xs font-medium text-amber-800">
-                    Create a merchant to get started with your loyalty program
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="text-xs font-medium text-amber-800">
+                      Create a merchant to get started with your loyalty program
+                    </div>
+                    <AddMerchantButton
+                      variant="default"
+                      size="sm"
+                      className="w-full text-xs py-1 h-auto"
+                      onSuccess={() => window.location.reload()}
+                    />
                   </div>
                 )}
               </div>

@@ -112,21 +112,62 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
         return reply.code(401).send({ error: 'Invalid token' });
       }
 
-      // Get user data with role information from your database
-      const userData = await prisma.user.findUnique({
-        where: { id: user.id },
+      console.log(`Authenticating user: ${user.email} (ID: ${user.id})`);
+
+      // First try to find the user by email (which is more reliable than ID)
+      let userData = await prisma.user.findUnique({
+        where: { email: user.email },
         include: {
           role: true,
         },
       });
 
+      if (userData) {
+        console.log(`User found by email: ${userData.email} (ID: ${userData.id})`);
+      } else {
+        console.log(`User not found by email: ${user.email}, trying by ID`);
+
+        // If not found by email, try by ID
+        userData = await prisma.user.findUnique({
+          where: { id: user.id },
+          include: {
+            role: true,
+          },
+        });
+
+        if (userData) {
+          console.log(`User found by ID: ${userData.email} (ID: ${userData.id})`);
+        } else {
+          console.log(`User not found by ID either: ${user.id}`);
+        }
+      }
+
+      // If user exists but IDs don't match, update the ID
+      if (userData && userData.id !== user.id) {
+        console.log(`User found by email but IDs don't match. Updating ID from ${userData.id} to ${user.id}`);
+        try {
+          userData = await prisma.user.update({
+            where: { id: userData.id },
+            data: { id: user.id },
+            include: { role: true },
+          });
+        } catch (updateError) {
+          console.error('Failed to update user ID:', updateError);
+          // Continue with the existing user data
+        }
+      }
+
       if (!userData) {
         console.log('User data not found for:', request.url);
         console.log('Checking user metadata in Supabase:', user.user_metadata);
 
-        // Get the role from Supabase metadata
-        const userRole = user.user_metadata?.role?.toUpperCase() || 'USER';
-        console.log(`User role from Supabase metadata: ${userRole}`);
+        // Get the role from Supabase metadata and ensure it's uppercase
+        let userRole = user.user_metadata?.role || 'USER';
+        // Convert to uppercase if it's a string
+        if (typeof userRole === 'string') {
+          userRole = userRole.toUpperCase();
+        }
+        console.log(`User role from Supabase metadata (normalized): ${userRole}`);
 
         // Get the role from the database
         const dbRole = await prisma.role.findFirst({
@@ -157,7 +198,55 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
 
         console.log(`User exists in Supabase but not in database. Creating user record with role ${userRole} and tenant ${tenant.name}...`);
 
-        // Create the user in the database
+        // First check if a user with this email already exists
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          include: { role: true },
+        });
+
+        if (existingUser) {
+          console.log(`User with email ${user.email} already exists in database. Updating with Supabase ID.`);
+
+          // Update the existing user with the Supabase ID and other details
+          try {
+            const updatedUser = await prisma.user.update({
+              where: { email: user.email },
+              data: {
+                id: user.id, // Update with Supabase ID
+                name: user.user_metadata?.name || existingUser.name || user.email.split('@')[0],
+                roleId: dbRole.id,
+                emailVerified: true,
+                isApproved: true,
+                status: 'APPROVED',
+                tenantId: tenantId,
+              },
+              include: {
+                role: true,
+              },
+            });
+
+            console.log('Updated existing user in database:', updatedUser.id);
+
+            // Use the updated user data
+            request.user = {
+              id: updatedUser.id,
+              email: updatedUser.email,
+              tenantId: updatedUser.tenantId,
+              role: {
+                id: updatedUser.role.id,
+                name: updatedUser.role.name,
+                description: updatedUser.role.description || undefined,
+              },
+            };
+
+            return; // Continue with the request
+          } catch (updateError) {
+            console.error('Failed to update existing user in database:', updateError);
+            return reply.code(500).send({ error: 'Failed to update user record' });
+          }
+        }
+
+        // Create a new user in the database if no existing user found
         try {
           const newUserData = await prisma.user.create({
             data: {

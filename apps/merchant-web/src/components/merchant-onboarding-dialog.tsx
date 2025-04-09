@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Textarea, Alert, AlertDescription, Dialog, DialogContent, DialogHeader, DialogTitle } from '@loyaltystudio/ui';
-import { Loader2, Building2, Palette, CheckCircle2, X } from 'lucide-react';
+import { Button, Input, Label, Textarea, Alert, AlertDescription, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@loyaltystudio/ui';
+import { Loader2, Building2, Palette, CheckCircle2 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/use-onboarding';
 
 type OnboardingData = {
@@ -88,10 +88,24 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
     }
 
     try {
-      await onboarding.mutateAsync(data);
-      onSuccess?.();
+      console.log('Submitting merchant data...');
+      const result = await onboarding.mutateAsync(data);
+      console.log('Merchant created successfully:', result);
+
+      // Reset form state
+      setData(INITIAL_DATA);
+      setCurrentStep(0);
+
+      // Close the dialog first
       onOpenChange(false);
+
+      // Then call onSuccess callback after a short delay
+      setTimeout(() => {
+        console.log('Calling onSuccess callback...');
+        onSuccess?.();
+      }, 100);
     } catch (err) {
+      console.error('Error creating merchant:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
     }
   };
@@ -120,12 +134,31 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="industry">Industry</Label>
-              <Input
+              <Label htmlFor="industry">Industry *</Label>
+              <select
                 id="industry"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
                 value={data.business.industry}
                 onChange={(e) => updateFields({ business: { ...data.business, industry: e.target.value } })}
-              />
+                required
+              >
+                <option value="">Select an industry</option>
+                <option value="retail">Retail</option>
+                <option value="food_beverage">Food & Beverage</option>
+                <option value="hospitality">Hospitality</option>
+                <option value="travel">Travel & Tourism</option>
+                <option value="health_wellness">Health & Wellness</option>
+                <option value="beauty">Beauty & Cosmetics</option>
+                <option value="fashion">Fashion & Apparel</option>
+                <option value="electronics">Electronics</option>
+                <option value="home_goods">Home Goods</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="education">Education</option>
+                <option value="financial">Financial Services</option>
+                <option value="professional">Professional Services</option>
+                <option value="automotive">Automotive</option>
+                <option value="other">Other</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
@@ -302,9 +335,9 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
               Step {currentStep + 1} of {steps.length}
             </div>
           </div>
-          <CardDescription className="text-base">
+          <DialogDescription className="text-base">
             {steps[currentStep].description}
-          </CardDescription>
+          </DialogDescription>
         </DialogHeader>
         <div className="mt-4">
           <form onSubmit={handleSubmit} className="space-y-6">

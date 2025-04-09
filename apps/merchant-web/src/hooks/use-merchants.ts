@@ -36,7 +36,7 @@ export function useMerchants() {
   const { token } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['merchants'],
     queryFn: async () => {
       if (!token) {
@@ -128,6 +128,7 @@ export function useMerchants() {
     data,
     isLoading,
     error,
+    refetch,
     getMerchant,
     createMerchant,
     updateMerchant,
