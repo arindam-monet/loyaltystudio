@@ -19,6 +19,11 @@
     "api:dev": "turbo dev --filter=@loyaltystudio/api",
     "api:build": "turbo build --filter=@loyaltystudio/api",
     "api:test": "turbo test --filter=@loyaltystudio/api",
+    "api:test:watch": "turbo test:watch --filter=@loyaltystudio/api",
+    "api:test:ui": "cd apps/api && npx vitest --ui",
+    "api:test:coverage": "cd apps/api && npx vitest run --coverage",
+    "api:test:anonymizer": "cd apps/api && npx vitest run src/services/__tests__/data-anonymizer.test.ts",
+    "api:test:ai-generator": "cd apps/api && npx vitest run src/services/__tests__/ai-program-generator.test.ts",
     "docs:dev": "turbo dev --filter=@loyaltystudio/docs",
     "docs:build": "turbo build --filter=@loyaltystudio/docs",
     "ui:build": "turbo build --filter=@loyaltystudio/ui"
