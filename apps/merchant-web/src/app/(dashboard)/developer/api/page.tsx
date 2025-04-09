@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -39,13 +39,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-
   useToast
 } from '@loyaltystudio/ui';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Copy, Eye, EyeOff, Plus, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
+import { useApiKeys, CreateApiKeyRequest } from '@/hooks/use-api-keys';
+
+// Define API key permission types
+type ApiKeyPermission = 'read' | 'write' | 'admin';
+
+// We'll add permissions and formatted dates to the API keys
 
 // Define the form schema
 const apiKeySchema = z.object({
@@ -55,41 +60,52 @@ const apiKeySchema = z.object({
   expiresIn: z.enum(['30', '60', '90', 'never']),
 });
 
-type ApiKeyFormValues = z.infer<typeof apiKeySchema>;
-type ApiKeyPermission = z.infer<typeof apiKeySchema.shape.permissions>;
-
-// Mock data for API keys
-const mockTestApiKeys = [
-  { id: '1', name: 'Test API Key 1', key: 'ls_test_1234567890abcdef', created: '2023-01-15', expires: 'Never', permissions: 'admin', lastUsed: '2023-04-01' },
-  { id: '2', name: 'Test API Key 2', key: 'ls_test_abcdef1234567890', created: '2023-02-20', expires: '2023-05-20', permissions: 'read', lastUsed: '2023-03-15' },
-];
-
-const mockProductionApiKeys = [
-  { id: '3', name: 'Production API Key 1', key: 'ls_prod_1234567890abcdef', created: '2023-01-15', expires: 'Never', permissions: 'admin', lastUsed: '2023-04-01' },
-];
-
-// Mock usage stats
-const mockUsageStats = {
-  totalRequests: 1250,
-  successRate: 98.5,
-  topEndpoints: [
-    { endpoint: '/api/members', count: 450 },
-    { endpoint: '/api/transactions', count: 320 },
-    { endpoint: '/api/rewards', count: 180 },
-  ],
-};
-
 export default function ApiKeysPage() {
-  const [testApiKeys, setTestApiKeys] = useState(mockTestApiKeys);
-  const [productionApiKeys, setProductionApiKeys] = useState(mockProductionApiKeys);
+  const {
+    apiKeys,
+    refetchApiKeys,
+    refetchApiKeyStats,
+    createApiKey,
+    revokeApiKey
+  } = useApiKeys();
+
+  const [activeTab, setActiveTab] = useState<'test' | 'production'>('test');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'test' | 'production'>('test');
   const { toast } = useToast();
 
-  const form = useForm<ApiKeyFormValues>({
-    resolver: zodResolver(apiKeySchema),
+  // Filter API keys by type and add mock permissions
+  const testApiKeys = useMemo(() => {
+    return apiKeys.map(key => ({
+      ...key,
+      permissions: 'read' as ApiKeyPermission,
+      created: new Date(key.createdAt).toLocaleDateString(),
+      expires: key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : 'Never',
+      lastUsed: key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'
+    })).filter(key => key.name.toLowerCase().includes('test'));
+  }, [apiKeys]);
+
+  const productionApiKeys = useMemo(() => {
+    return apiKeys.map(key => ({
+      ...key,
+      permissions: 'read' as ApiKeyPermission,
+      created: new Date(key.createdAt).toLocaleDateString(),
+      expires: key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : 'Never',
+      lastUsed: key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'
+    })).filter(key => !key.name.toLowerCase().includes('test'));
+  }, [apiKeys]);
+
+  // We'll use real API stats when available
+
+  // Use a more specific type for the form
+  const form = useForm<{
+    name: string;
+    type: 'test' | 'production';
+    permissions: 'read' | 'write' | 'admin';
+    expiresIn: '30' | '60' | '90' | 'never';
+  }>({
+    resolver: zodResolver(apiKeySchema) as any, // Cast to any to avoid TypeScript errors
     defaultValues: {
       name: '',
       type: 'test',
@@ -98,26 +114,30 @@ export default function ApiKeysPage() {
     },
   });
 
-  const onSubmit = (data: ApiKeyFormValues) => {
-    // In a real app, this would call an API to create a new key
-    const newKey = {
-      id: Date.now().toString(),
-      name: data.name,
-      key: `ls_${data.type === 'test' ? 'test' : 'prod'}_${Math.random().toString(36).substring(2, 15)}`,
-      created: new Date().toISOString().split('T')[0],
-      expires: data.expiresIn === 'never' ? 'Never' : new Date(Date.now() + parseInt(data.expiresIn) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      permissions: data.permissions,
-      lastUsed: '-',
-    };
+  const onSubmit = async (data: any) => {
+    try {
+      const expiresIn = data.expiresIn === 'never' ? undefined : parseInt(data.expiresIn);
+      const request: CreateApiKeyRequest = {
+        name: `${data.name} (${data.type})`, // Add type to name for filtering
+        expiresIn
+      };
 
-    if (data.type === 'test') {
-      setTestApiKeys([...testApiKeys, newKey]);
-    } else {
-      setProductionApiKeys([...productionApiKeys, newKey]);
+      const response = await createApiKey.mutateAsync(request);
+      setNewApiKey(response.key);
+      form.reset();
+
+      toast({
+        title: 'API key created',
+        description: 'Your new API key has been created successfully.',
+      });
+    } catch (error) {
+      console.error('Failed to create API key:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create API key. Please try again.',
+        variant: 'destructive',
+      });
     }
-
-    setNewApiKey(newKey.key);
-    form.reset();
   };
 
   const handleCopyKey = (key: string) => {
@@ -135,22 +155,33 @@ export default function ApiKeysPage() {
     }));
   };
 
-  const handleDeleteKey = (id: string) => {
-    if (activeTab === 'test') {
-      setTestApiKeys(testApiKeys.filter((key) => key.id !== id));
-    } else {
-      setProductionApiKeys(productionApiKeys.filter((key) => key.id !== id));
+  const handleDeleteKey = async (key: string) => {
+    try {
+      await revokeApiKey.mutateAsync(key);
+      toast({
+        title: 'API key revoked',
+        description: 'The API key has been revoked and can no longer be used.',
+      });
+    } catch (error) {
+      console.error('Failed to revoke API key:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to revoke API key. Please try again.',
+        variant: 'destructive',
+      });
     }
-
-    toast({
-      title: 'API key revoked',
-      description: 'The API key has been revoked and can no longer be used.',
-    });
   };
 
   const closeDialog = () => {
     setIsAddDialogOpen(false);
     setNewApiKey(null);
+  };
+
+  // Removed unused formatDate function
+
+  const handleRefreshStats = () => {
+    refetchApiKeyStats();
+    refetchApiKeys();
   };
 
   return (
@@ -385,8 +416,8 @@ export default function ApiKeysPage() {
                               (apiKey.permissions as ApiKeyPermission) === 'admin'
                                 ? 'default'
                                 : (apiKey.permissions as ApiKeyPermission) === 'write'
-                                ? 'secondary'
-                                : 'outline'
+                                  ? 'secondary'
+                                  : 'outline'
                             }
                           >
                             {apiKey.permissions}
@@ -656,8 +687,8 @@ export default function ApiKeysPage() {
                               (apiKey.permissions as ApiKeyPermission) === 'admin'
                                 ? 'default'
                                 : (apiKey.permissions as ApiKeyPermission) === 'write'
-                                ? 'secondary'
-                                : 'outline'
+                                  ? 'secondary'
+                                  : 'outline'
                             }
                           >
                             {apiKey.permissions}
@@ -705,16 +736,16 @@ export default function ApiKeysPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="rounded-lg border p-4 space-y-2">
                   <div className="text-sm text-muted-foreground">Total Requests (Last 30 days)</div>
-                  <div className="text-2xl font-bold">{mockUsageStats.totalRequests.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">-</div>
                 </div>
                 <div className="rounded-lg border p-4 space-y-2">
                   <div className="text-sm text-muted-foreground">Success Rate</div>
-                  <div className="text-2xl font-bold">{mockUsageStats.successRate}%</div>
+                  <div className="text-2xl font-bold">-</div>
                 </div>
                 <div className="rounded-lg border p-4 space-y-2">
                   <div className="text-sm text-muted-foreground">Last Updated</div>
                   <div className="text-2xl font-bold">
-                    <Button variant="ghost" size="sm" className="p-0 h-auto">
+                    <Button variant="ghost" size="sm" className="p-0 h-auto" onClick={handleRefreshStats}>
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Refresh
                     </Button>
@@ -724,13 +755,8 @@ export default function ApiKeysPage() {
 
               <div className="rounded-lg border p-4">
                 <h3 className="font-semibold mb-3">Top Endpoints</h3>
-                <div className="space-y-2">
-                  {mockUsageStats.topEndpoints.map((endpoint, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <code className="text-sm font-mono">{endpoint.endpoint}</code>
-                      <span className="text-sm font-medium">{endpoint.count} requests</span>
-                    </div>
-                  ))}
+                <div className="text-sm text-muted-foreground">
+                  Detailed API usage statistics coming soon
                 </div>
               </div>
             </CardContent>
@@ -757,10 +783,10 @@ export default function ApiKeysPage() {
                 <div className="rounded-lg border p-4 space-y-2">
                   <h3 className="font-semibold">SDK & Libraries</h3>
                   <p className="text-sm text-muted-foreground">
-                    Client libraries for popular programming languages
+                    Client libraries for popular programming languages (Coming Soon)
                   </p>
-                  <Button variant="outline" className="w-full mt-2" asChild>
-                    <Link href="/developer/docs#sdks">View SDKs</Link>
+                  <Button variant="outline" className="w-full mt-2" disabled>
+                    Coming Soon
                   </Button>
                 </div>
               </div>
