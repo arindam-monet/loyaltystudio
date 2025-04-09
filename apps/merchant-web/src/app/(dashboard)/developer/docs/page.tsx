@@ -102,6 +102,9 @@ export default function ApiDocsPage() {
                     Actions performed with production keys affect real data and may incur charges.
                   </li>
                 </ul>
+                <p className="mt-2">
+                  <a href="/developer/docs/api-environments" className="text-primary hover:underline">Learn more about API environments</a>
+                </p>
 
                 <Alert className="mt-6">
                   <AlertCircle className="h-4 w-4" />

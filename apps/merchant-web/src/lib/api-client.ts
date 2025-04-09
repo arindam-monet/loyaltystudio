@@ -11,14 +11,26 @@ export interface ApiError {
   message?: string;
 }
 
-// Create axios instance with default config
-export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-}) as CustomAxiosInstance;
+// Create axios instances for test and production environments
+export const createApiClient = (environment: 'test' | 'production' = 'test') => {
+  const baseURL = environment === 'test'
+    ? process.env.NEXT_PUBLIC_TEST_API_URL || process.env.NEXT_PUBLIC_API_URL
+    : process.env.NEXT_PUBLIC_PRODUCTION_API_URL || process.env.NEXT_PUBLIC_API_URL;
+
+  return axios.create({
+    baseURL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    withCredentials: true,
+  }) as CustomAxiosInstance;
+};
+
+// Default API client (test environment)
+export const apiClient = createApiClient('test');
+
+// Production API client
+export const productionApiClient = createApiClient('production');
 
 // Add request interceptor for auth
 apiClient.interceptors.request.use(
@@ -71,8 +83,15 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Add method to clear cache
-apiClient.clearCache = async () => {
-  // Clear any cached data in the API client
-  apiClient.defaults.headers.common = {};
+// Add method to clear cache for both clients
+const addClearCacheMethod = (client: CustomAxiosInstance) => {
+  client.clearCache = async () => {
+    // Clear any cached data in the API client
+    client.defaults.headers.common = {};
+  };
+  return client;
 };
+
+// Apply the clear cache method to both clients
+addClearCacheMethod(apiClient);
+addClearCacheMethod(productionApiClient);

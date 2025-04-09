@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// All the models from the original schema.prisma file go here
+// Make sure to include the environment field in the ApiKey model
+
+model ApiKey {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  merchantId  String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  environment String            @default("test")
+  merchant    Merchant          @relation(fields: [merchantId], references: [id])
+  rateLimits  ApiKeyRateLimit[]
+  usageLogs   ApiKeyUsageLog[]
+
+  @@index([merchantId])
+  @@index([key])
+  @@index([environment])
+}
+
+// Add all other models from the original schema.prisma file here
+// ...
+
+// For brevity, we're not including all models in this example
+// In a real scenario, you would copy all models from the original schema.prisma file

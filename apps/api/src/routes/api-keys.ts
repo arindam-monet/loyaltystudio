@@ -1,12 +1,15 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
-import { generateApiKey, validateApiKey } from '../services/api-key.js';
+import { ApiKeyService } from '../services/api-key.js';
 
 const prisma = new PrismaClient();
 
 const apiKeySchema = z.object({
   name: z.string().min(1).max(100),
+  environment: z.enum(['test', 'production']).default('test'),
+  merchantId: z.string(),
+  expiresIn: z.number().optional(),
 });
 
 const apiKeyUsageStatsSchema = z.object({
@@ -22,29 +25,71 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['name'],
+        required: ['name', 'merchantId'],
         properties: {
-          name: { type: 'string', minLength: 1, maxLength: 100 }
+          name: { type: 'string', minLength: 1, maxLength: 100 },
+          merchantId: { type: 'string' },
+          environment: { type: 'string', enum: ['test', 'production'], default: 'test' },
+          expiresIn: { type: 'number', nullable: true }
         }
       }
     },
     handler: async (request, reply) => {
       try {
         const data = apiKeySchema.parse(request.body);
-        const merchantId = request.user.merchantId;
 
-        const apiKey = await prisma.apiKey.create({
-          data: {
-            key: generateApiKey(),
-            name: data.name,
+        // Get the merchant ID from the request
+        const { merchantId } = data;
+
+        // Verify that the merchant exists and belongs to the user's tenant
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id: merchantId,
+            tenantId: request.user.tenantId
+          }
+        });
+
+        if (!merchant) {
+          return reply.code(404).send({ error: 'Merchant not found or you do not have access to it' });
+        }
+
+        // Use the ApiKeyService to generate the key
+        const key = await ApiKeyService.generateKey(
+          merchantId,
+          data.name,
+          data.environment,
+          data.expiresIn
+        );
+
+        // Find the created API key to return its details
+        const apiKey = await prisma.apiKey.findFirst({
+          where: {
+            key,
             merchantId,
           },
+          include: {
+            merchant: {
+              select: {
+                name: true
+              }
+            }
+          }
         });
+
+        if (!apiKey) {
+          return reply.code(404).send({ error: 'API key not found after creation' });
+        }
+
+        // The environment field might not be recognized by TypeScript yet
+        // since it was recently added to the schema
+        const environment = (apiKey as any).environment || 'test';
 
         return reply.code(201).send({
           data: {
             key: apiKey.key,
             name: apiKey.name,
+            environment: environment,
+            merchant: apiKey.merchant.name
           },
         });
       } catch (error) {
@@ -66,12 +111,38 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
         properties: {
           key: { type: 'string' }
         }
+      },
+      querystring: {
+        type: 'object',
+        required: ['merchantId'],
+        properties: {
+          merchantId: { type: 'string' }
+        }
       }
     },
     handler: async (request, reply) => {
       try {
         const { key } = request.params as { key: string };
-        const merchantId = request.user.merchantId;
+
+        // Get the merchant ID from the request params or query
+        const query = request.query as { merchantId?: string };
+        const merchantId = query.merchantId;
+
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Verify that the merchant exists and belongs to the user's tenant
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id: merchantId,
+            tenantId: request.user.tenantId
+          }
+        });
+
+        if (!merchant) {
+          return reply.code(404).send({ error: 'Merchant not found or you do not have access to it' });
+        }
 
         const apiKey = await prisma.apiKey.findFirst({
           where: {
@@ -97,6 +168,84 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
     },
   });
 
+  // Get all API keys for a merchant
+  fastify.get('/api-keys', {
+    schema: {
+      description: 'Get all API keys for a merchant',
+      tags: ['api-keys'],
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        required: ['merchantId'],
+        properties: {
+          merchantId: { type: 'string' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  key: { type: 'string' },
+                  name: { type: 'string' },
+                  environment: { type: 'string' },
+                  isActive: { type: 'boolean' },
+                  createdAt: { type: 'string', format: 'date-time' },
+                  lastUsedAt: { type: 'string', format: 'date-time', nullable: true },
+                  expiresAt: { type: 'string', format: 'date-time', nullable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      try {
+        // Get the merchant ID from the query
+        const query = request.query as { merchantId?: string };
+        const merchantId = query.merchantId;
+
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Verify that the merchant exists and belongs to the user's tenant
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id: merchantId,
+            tenantId: request.user.tenantId
+          }
+        });
+
+        if (!merchant) {
+          return reply.code(404).send({ error: 'Merchant not found or you do not have access to it' });
+        }
+
+        const apiKeys = await prisma.apiKey.findMany({
+          where: {
+            merchantId,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        return reply.send({
+          data: apiKeys,
+        });
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to fetch API keys' });
+      }
+    },
+  });
+
   // Get API key usage stats
   fastify.get('/api-keys/stats', {
     schema: {
@@ -105,8 +254,10 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
       security: [{ bearerAuth: [] }],
       querystring: {
         type: 'object',
+        required: ['merchantId'],
         properties: {
-          timeWindow: { 
+          merchantId: { type: 'string' },
+          timeWindow: {
             type: 'string',
             enum: ['1h', '24h', '7d', '30d']
           }
@@ -116,7 +267,26 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = apiKeyUsageStatsSchema.parse(request.query);
-        const merchantId = request.user.merchantId;
+
+        // Get the merchant ID from the request params or query
+        const query = request.query as { merchantId?: string };
+        const merchantId = query.merchantId;
+
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Verify that the merchant exists and belongs to the user's tenant
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id: merchantId,
+            tenantId: request.user.tenantId
+          }
+        });
+
+        if (!merchant) {
+          return reply.code(404).send({ error: 'Merchant not found or you do not have access to it' });
+        }
 
         const apiKeys = await prisma.apiKey.findMany({
           where: { merchantId },
@@ -139,7 +309,9 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
           averageResponseTime: calculateAverageResponseTime(apiKey.usageLogs),
         }));
 
-        return reply.send(stats);
+        return reply.send({
+          data: stats
+        });
       } catch (error) {
         request.log.error(error);
         return reply.code(500).send({ error: 'Failed to fetch API key stats' });
@@ -174,4 +346,4 @@ function calculateAverageResponseTime(logs: any[]): number {
   if (logs.length === 0) return 0;
   const totalDuration = logs.reduce((sum, log) => sum + log.duration, 0);
   return totalDuration / logs.length;
-} 
+}

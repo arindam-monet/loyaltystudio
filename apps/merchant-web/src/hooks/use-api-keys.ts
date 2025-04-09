@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/stores/auth-store';
 
@@ -7,6 +8,7 @@ export interface ApiKey {
   key: string;
   name: string;
   isActive: boolean;
+  environment: 'test' | 'production';
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -21,6 +23,8 @@ export interface ApiKeyUsageStats {
 
 export interface CreateApiKeyRequest {
   name: string;
+  environment: 'test' | 'production';
+  merchantId: string; // Add merchantId to the request
   expiresIn?: number; // in days, null for never
 }
 
@@ -42,11 +46,32 @@ export function useApiKeys() {
       if (!token) {
         throw new Error('Not authenticated');
       }
-      const response = await apiClient.get<{ data: ApiKey[] }>('/api-keys');
+
+      // Get the selected merchant ID from the store
+      const merchantStore = await import('@/lib/stores/merchant-store');
+      const selectedMerchant = merchantStore.useMerchantStore.getState().selectedMerchant;
+
+      if (!selectedMerchant) {
+        console.warn('No merchant selected, cannot fetch API keys');
+        return [];
+      }
+
+      const response = await apiClient.get<{ data: ApiKey[] }>('/api/api-keys', {
+        params: { merchantId: selectedMerchant.id }
+      });
       return response.data.data || [];
     },
     enabled: !!token,
   });
+
+  // Filter API keys by environment
+  const testApiKeys = useMemo(() => {
+    return (getApiKeys.data || []).filter(key => key.environment === 'test');
+  }, [getApiKeys.data]);
+
+  const productionApiKeys = useMemo(() => {
+    return (getApiKeys.data || []).filter(key => key.environment === 'production');
+  }, [getApiKeys.data]);
 
   // Get API key usage statistics
   const getApiKeyStats = useQuery({
@@ -55,8 +80,21 @@ export function useApiKeys() {
       if (!token) {
         throw new Error('Not authenticated');
       }
-      const response = await apiClient.get<{ data: ApiKeyUsageStats }>('/api-keys/stats', {
-        params: { timeWindow: '30d' },
+
+      // Get the selected merchant ID from the store
+      const merchantStore = await import('@/lib/stores/merchant-store');
+      const selectedMerchant = merchantStore.useMerchantStore.getState().selectedMerchant;
+
+      if (!selectedMerchant) {
+        console.warn('No merchant selected, cannot fetch API key stats');
+        throw new Error('No merchant selected');
+      }
+
+      const response = await apiClient.get<{ data: ApiKeyUsageStats }>('/api/api-keys/stats', {
+        params: {
+          timeWindow: '30d',
+          merchantId: selectedMerchant.id
+        },
       });
       return response.data.data;
     },
@@ -69,7 +107,7 @@ export function useApiKeys() {
       if (!token) {
         throw new Error('Not authenticated');
       }
-      const response = await apiClient.post<CreateApiKeyResponse>('/api-keys', data);
+      const response = await apiClient.post<CreateApiKeyResponse>('/api/api-keys', data);
       return response.data.data;
     },
     onSuccess: () => {
@@ -84,7 +122,18 @@ export function useApiKeys() {
       if (!token) {
         throw new Error('Not authenticated');
       }
-      await apiClient.delete(`/api-keys/${keyId}`);
+
+      // Get the selected merchant ID from the store
+      const merchantStore = await import('@/lib/stores/merchant-store');
+      const selectedMerchant = merchantStore.useMerchantStore.getState().selectedMerchant;
+
+      if (!selectedMerchant) {
+        throw new Error('No merchant selected');
+      }
+
+      await apiClient.delete(`/api/api-keys/${keyId}`, {
+        params: { merchantId: selectedMerchant.id }
+      });
     },
     onSuccess: () => {
       // Invalidate the API keys query to refetch the data
@@ -94,6 +143,8 @@ export function useApiKeys() {
 
   return {
     apiKeys: getApiKeys.data || [],
+    testApiKeys,
+    productionApiKeys,
     isLoadingApiKeys: getApiKeys.isLoading,
     apiKeysError: getApiKeys.error,
     refetchApiKeys: getApiKeys.refetch,

@@ -1,0 +1,51 @@
+# API Environments
+
+Loyalty Studio provides two separate environments for API integration:
+
+## Test Environment
+
+- Base URL: `https://api-test.loyaltystudio.com/v1/`
+- Purpose: Development, testing, and integration
+- Features:
+  - Test data is periodically reset
+  - Higher rate limits for development
+  - Sandbox integrations for payment processors
+  - No charges for points or rewards
+
+## Production Environment
+
+- Base URL: `https://api.loyaltystudio.com/v1/`
+- Purpose: Live customer-facing applications
+- Features:
+  - Persistent data
+  - Standard rate limits
+  - Real integrations with payment processors
+  - Normal charges for points and rewards
+
+## Best Practices
+
+1. Always develop and test your integration in the test environment first
+2. Use test API keys for development and staging environments
+3. Only use production API keys in your live application
+4. Keep your production API keys secure and never expose them in client-side code
+
+## API Keys
+
+Each environment requires its own set of API keys. You can create and manage your API keys in the [API Management](/developer/api) section.
+
+### Test API Keys
+
+Test API keys are for development and testing purposes. They have higher rate limits to facilitate development and testing, but they only work with the test environment.
+
+### Production API Keys
+
+Production API keys are for live applications. They have standard rate limits and should only be used in production environments. These keys only work with the production environment.
+
+## Environment-Specific Behavior
+
+Some API endpoints may behave differently depending on the environment:
+
+1. **Payments**: In the test environment, payment integrations use sandbox modes that don't process real transactions.
+2. **Notifications**: In the test environment, email and SMS notifications are sent to test recipients only.
+3. **Rate Limits**: Test environment has higher rate limits to facilitate development and testing.
+4. **Data Persistence**: Test data may be periodically reset, while production data is persistent.

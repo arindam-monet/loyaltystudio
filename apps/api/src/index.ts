@@ -126,7 +126,7 @@ app.register(segmentRoutes);
 app.register(programTierRoutes);
 app.register(programMemberRoutes);
 app.register(campaignRoutes);
-app.register(apiKeyRoutes);
+app.register(apiKeyRoutes, { prefix: '/api' });
 app.register(webhookRoutes);
 app.register(aiProgramGeneratorRoutes);
 app.register(demoRequestRoutes, { prefix: '/api' });

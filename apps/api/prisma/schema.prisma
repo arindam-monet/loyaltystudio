@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
 
@@ -30,11 +30,12 @@ model User {
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
   emailVerified          Boolean               @default(false)
-  isApproved             Boolean               @default(false)
   approvedAt             DateTime?
   approvedBy             String?
+  isApproved             Boolean               @default(false)
   status                 UserStatus            @default(PENDING)
   campaignParticipations CampaignParticipant[]
+  demoRequest            DemoRequest?
   pointsBalances         PointsBalance[]
   pointsCalculations     PointsCalculation[]
   pointsTransactions     PointsTransaction[]
@@ -44,21 +45,13 @@ model User {
   role                   Role?                 @relation(fields: [roleId], references: [id])
   tenant                 Tenant                @relation(fields: [tenantId], references: [id])
   devices                UserDevice[]
-  demoRequest            DemoRequest?
   invitedUsers           UserInvitation[]      @relation("InvitedBy")
   invitedBy              UserInvitation?       @relation("InvitedUser")
 }
 
-enum UserStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  BLOCKED
-}
-
 model DemoRequest {
-  id              String    @id @default(cuid())
-  userId          String    @unique
+  id              String            @id @default(cuid())
+  userId          String            @unique
   companyName     String
   companySize     String
   industry        String
@@ -66,43 +59,30 @@ model DemoRequest {
   jobTitle        String?
   message         String?
   status          DemoRequestStatus @default(PENDING)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   processedAt     DateTime?
   processedBy     String?
   rejectionReason String?
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-enum DemoRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserInvitation {
-  id              String    @id @default(cuid())
-  email           String
-  invitedById     String
-  invitedUserId   String?   @unique
-  token           String    @unique
-  roleId          String
-  tenantId        String
-  expiresAt       DateTime
-  status          InvitationStatus @default(PENDING)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  invitedBy       User      @relation("InvitedBy", fields: [invitedById], references: [id])
-  invitedUser     User?     @relation("InvitedUser", fields: [invitedUserId], references: [id])
-  role            Role      @relation(fields: [roleId], references: [id])
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  EXPIRED
-  REVOKED
+  id            String           @id @default(cuid())
+  email         String
+  invitedById   String
+  invitedUserId String?          @unique
+  token         String           @unique
+  roleId        String
+  tenantId      String
+  expiresAt     DateTime
+  status        InvitationStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  invitedBy     User             @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedUser   User?            @relation("InvitedUser", fields: [invitedUserId], references: [id])
+  role          Role             @relation(fields: [roleId], references: [id])
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
 }
 
 model Merchant {
@@ -436,21 +416,23 @@ model PointsCalculation {
 }
 
 model ApiKey {
-  id         String            @id @default(cuid())
-  key        String            @unique
-  name       String
-  merchantId String
-  lastUsedAt DateTime?
-  expiresAt  DateTime?
-  isActive   Boolean           @default(true)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  merchant   Merchant          @relation(fields: [merchantId], references: [id])
-  rateLimits ApiKeyRateLimit[]
-  usageLogs  ApiKeyUsageLog[]
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  merchantId  String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  environment String            @default("test")
+  merchant    Merchant          @relation(fields: [merchantId], references: [id])
+  rateLimits  ApiKeyRateLimit[]
+  usageLogs   ApiKeyUsageLog[]
 
   @@index([merchantId])
   @@index([key])
+  @@index([environment])
 }
 
 model ApiKeyUsageLog {
@@ -514,6 +496,26 @@ model WebhookDeliveryLog {
   @@index([webhookId])
   @@index([eventType])
   @@index([successful])
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+enum DemoRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 enum WebhookEventType {

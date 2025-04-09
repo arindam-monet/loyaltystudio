@@ -7,21 +7,36 @@ export class ApiKeyService {
   private static readonly KEY_LENGTH = 32;
   private static readonly DEFAULT_RATE_LIMIT = 100; // requests per minute
 
+  private static readonly PRODUCTION_RATE_LIMIT = 60; // Lower rate limit for production
+
   /**
    * Generate a new API key for a merchant
    */
-  static async generateKey(merchantId: string, name: string): Promise<string> {
+  static async generateKey(
+    merchantId: string,
+    name: string,
+    environment: 'test' | 'production' = 'test',
+    expiresIn?: number
+  ): Promise<string> {
     const key = crypto.randomBytes(this.KEY_LENGTH).toString('hex');
-    
+
+    // Calculate expiration date if provided
+    const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) : null;
+
+    // Set rate limit based on environment
+    const rateLimit = environment === 'test' ? this.DEFAULT_RATE_LIMIT : this.PRODUCTION_RATE_LIMIT;
+
     await prisma.apiKey.create({
       data: {
         key,
         name,
         merchantId,
+        environment,
+        expiresAt,
         rateLimits: {
           create: {
             window: 60, // 1 minute
-            limit: this.DEFAULT_RATE_LIMIT,
+            limit: rateLimit,
           },
         },
       },
@@ -65,9 +80,9 @@ export class ApiKeyService {
       });
 
       if (recentUsage >= rateLimit.limit) {
-        return { 
-          isValid: false, 
-          error: `Rate limit exceeded. Please try again in ${rateLimit.window} seconds.` 
+        return {
+          isValid: false,
+          error: `Rate limit exceeded. Please try again in ${rateLimit.window} seconds.`
         };
       }
     }
@@ -126,7 +141,7 @@ export class ApiKeyService {
     endpoints: { [key: string]: number };
   }> {
     const startTime = new Date(Date.now() - timeWindow * 1000);
-    
+
     const logs = await prisma.apiKeyUsageLog.findMany({
       where: {
         apiKey: { merchantId },
@@ -137,7 +152,7 @@ export class ApiKeyService {
     const totalRequests = logs.length;
     const successfulRequests = logs.filter(log => log.status < 400).length;
     const totalDuration = logs.reduce((sum, log) => sum + log.duration, 0);
-    
+
     const endpointCounts = logs.reduce((acc, log) => {
       acc[log.endpoint] = (acc[log.endpoint] || 0) + 1;
       return acc;
@@ -175,4 +190,4 @@ export function hashApiKey(key: string): string {
     .createHash('sha256')
     .update(key)
     .digest('hex');
-} 
+}

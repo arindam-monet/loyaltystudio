@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useMerchantStore } from '@/lib/stores/merchant-store';
 import {
   Card,
   CardContent,
@@ -62,7 +63,8 @@ const apiKeySchema = z.object({
 
 export default function ApiKeysPage() {
   const {
-    apiKeys,
+    testApiKeys,
+    productionApiKeys,
     refetchApiKeys,
     refetchApiKeyStats,
     createApiKey,
@@ -75,26 +77,11 @@ export default function ApiKeysPage() {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
-  // Filter API keys by type and add mock permissions
-  const testApiKeys = useMemo(() => {
-    return apiKeys.map(key => ({
-      ...key,
-      permissions: 'read' as ApiKeyPermission,
-      created: new Date(key.createdAt).toLocaleDateString(),
-      expires: key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : 'Never',
-      lastUsed: key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'
-    })).filter(key => key.name.toLowerCase().includes('test'));
-  }, [apiKeys]);
-
-  const productionApiKeys = useMemo(() => {
-    return apiKeys.map(key => ({
-      ...key,
-      permissions: 'read' as ApiKeyPermission,
-      created: new Date(key.createdAt).toLocaleDateString(),
-      expires: key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : 'Never',
-      lastUsed: key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'
-    })).filter(key => !key.name.toLowerCase().includes('test'));
-  }, [apiKeys]);
+  // Format dates for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleDateString();
+  };
 
   // We'll use real API stats when available
 
@@ -114,11 +101,25 @@ export default function ApiKeysPage() {
     },
   });
 
+  // Get the selected merchant from the store
+  const { selectedMerchant } = useMerchantStore();
+
   const onSubmit = async (data: any) => {
     try {
+      if (!selectedMerchant) {
+        toast({
+          title: 'Error',
+          description: 'No merchant selected. Please select a merchant first.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const expiresIn = data.expiresIn === 'never' ? undefined : parseInt(data.expiresIn);
       const request: CreateApiKeyRequest = {
-        name: `${data.name} (${data.type})`, // Add type to name for filtering
+        name: data.name,
+        environment: data.type, // Use the type field as environment
+        merchantId: selectedMerchant.id, // Include the merchant ID
         expiresIn
       };
 
@@ -378,7 +379,7 @@ export default function ApiKeysPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {testApiKeys.map((apiKey) => (
+                    {testApiKeys.map((apiKey: any) => (
                       <TableRow key={apiKey.id}>
                         <TableCell className="font-medium">{apiKey.name}</TableCell>
                         <TableCell>
@@ -412,20 +413,14 @@ export default function ApiKeysPage() {
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              (apiKey.permissions as ApiKeyPermission) === 'admin'
-                                ? 'default'
-                                : (apiKey.permissions as ApiKeyPermission) === 'write'
-                                  ? 'secondary'
-                                  : 'outline'
-                            }
+                            variant={'outline'}
                           >
-                            {apiKey.permissions}
+                            read
                           </Badge>
                         </TableCell>
-                        <TableCell>{apiKey.created}</TableCell>
-                        <TableCell>{apiKey.expires}</TableCell>
-                        <TableCell>{apiKey.lastUsed}</TableCell>
+                        <TableCell>{formatDate(apiKey.createdAt)}</TableCell>
+                        <TableCell>{formatDate(apiKey.expiresAt)}</TableCell>
+                        <TableCell>{formatDate(apiKey.lastUsedAt)}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -649,7 +644,7 @@ export default function ApiKeysPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {productionApiKeys.map((apiKey) => (
+                    {productionApiKeys.map((apiKey: any) => (
                       <TableRow key={apiKey.id}>
                         <TableCell className="font-medium">{apiKey.name}</TableCell>
                         <TableCell>
@@ -683,20 +678,14 @@ export default function ApiKeysPage() {
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              (apiKey.permissions as ApiKeyPermission) === 'admin'
-                                ? 'default'
-                                : (apiKey.permissions as ApiKeyPermission) === 'write'
-                                  ? 'secondary'
-                                  : 'outline'
-                            }
+                            variant={'outline'}
                           >
-                            {apiKey.permissions}
+                            read
                           </Badge>
                         </TableCell>
-                        <TableCell>{apiKey.created}</TableCell>
-                        <TableCell>{apiKey.expires}</TableCell>
-                        <TableCell>{apiKey.lastUsed}</TableCell>
+                        <TableCell>{formatDate(apiKey.createdAt)}</TableCell>
+                        <TableCell>{formatDate(apiKey.expiresAt)}</TableCell>
+                        <TableCell>{formatDate(apiKey.lastUsedAt)}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
