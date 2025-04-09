@@ -40,5 +40,8 @@ interface MerchantStore {
 
 export const useMerchantStore = create<MerchantStore>((set) => ({
   selectedMerchant: null,
-  setSelectedMerchant: (merchant) => set({ selectedMerchant: merchant }),
+  setSelectedMerchant: (merchant) => {
+    console.log('Setting selected merchant:', merchant?.id, merchant?.name);
+    set({ selectedMerchant: merchant });
+  },
 }));

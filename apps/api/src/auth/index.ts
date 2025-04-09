@@ -50,6 +50,7 @@ const PUBLIC_PATHS = [
 ];
 
 export const authPlugin = fp(async (fastify: FastifyInstance) => {
+  console.log('AUTH PLUGIN: Initializing auth plugin');
   // Initialize Supabase client
   const supabase = createClient(
     env.SUPABASE_URL,
@@ -72,6 +73,7 @@ export const authPlugin = fp(async (fastify: FastifyInstance) => {
 
   // Add auth middleware
   fastify.addHook('preHandler', async (request, reply) => {
+    console.log('AUTH PLUGIN: preHandler hook executing for path:', request.url);
     // Debug logging for auth middleware
     console.log('Auth middleware processing request:', {
       url: request.url,

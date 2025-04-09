@@ -101,10 +101,16 @@ export function useLoyaltyPrograms() {
 
         // Use fetch API with specific options to avoid Content-Type issues
         const token = useAuthStore.getState().token;
+        const selectedMerchant = useMerchantStore.getState().selectedMerchant;
 
         // Create headers without Content-Type
         const headers = new Headers();
         headers.append('Authorization', `Bearer ${token}`);
+
+        // Add merchant ID to headers if available
+        if (selectedMerchant?.id) {
+          headers.append('X-Merchant-ID', selectedMerchant.id);
+        }
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/loyalty-programs/${id}`, {
           method: 'DELETE',

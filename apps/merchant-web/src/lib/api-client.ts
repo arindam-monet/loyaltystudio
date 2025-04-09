@@ -45,6 +45,16 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Add merchant ID to headers if available
+    const { useMerchantStore } = require('./stores/merchant-store');
+    const selectedMerchant = useMerchantStore.getState().selectedMerchant;
+    if (selectedMerchant?.id) {
+      config.headers['X-Merchant-ID'] = selectedMerchant.id;
+      console.log('Setting X-Merchant-ID header:', selectedMerchant.id);
+    } else {
+      console.log('No merchant selected, not setting X-Merchant-ID header');
+    }
+
     console.log(`API Request [${config.method?.toUpperCase()}] ${config.url}:`, {
       data: config.data,
       params: config.params,

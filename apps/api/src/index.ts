@@ -8,6 +8,7 @@ import { dbPlugin } from './db/index.js';
 import { loggerPlugin } from './middleware/logger.js';
 import { rbacPlugin } from './middleware/rbac.js';
 import { subdomainPlugin } from './middleware/subdomain.js';
+import { merchantAuthorizationPlugin } from './middleware/merchant-association.js';
 import { cachePlugin } from './plugins/cache.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { roleRoutes } from './routes/roles.js';
@@ -56,7 +57,7 @@ app.register(cors, {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Merchant-ID'],
 });
 
 // Register custom logger first
@@ -111,6 +112,17 @@ app.register(fastifyApiReference, {
 // Register auth plugin
 app.register(authPlugin);
 app.register(rbacPlugin);
+
+// Register merchant authorization plugin
+// Make sure it's registered after the auth plugin
+console.log('Registering merchant authorization plugin');
+app.register(merchantAuthorizationPlugin, { prefix: '' });
+console.log('Merchant authorization plugin registered');
+
+// Add a global preHandler hook to log all requests
+app.addHook('preHandler', async (request, reply) => {
+  console.log('GLOBAL HOOK: Processing request for path:', request.url);
+});
 
 // Register routes
 app.register(authRoutes);

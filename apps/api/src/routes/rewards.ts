@@ -59,6 +59,35 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = rewardSchema.parse(request.body);
+        const user = request.user;
+
+        // Verify that the loyalty program exists and belongs to the user's tenant
+        const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+          where: {
+            id: data.loyaltyProgramId,
+            merchant: {
+              tenantId: user.tenantId
+            }
+          },
+          include: {
+            merchant: true
+          }
+        });
+
+        if (!loyaltyProgram) {
+          return reply.code(404).send({
+            error: 'Loyalty program not found',
+            message: 'The specified loyalty program does not exist or you do not have access to it'
+          });
+        }
+
+        // Verify that the merchant ID matches the user's merchant ID if it's set
+        if (user.merchantId && loyaltyProgram.merchantId !== user.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
+        }
 
         const reward = await prisma.reward.create({
           data: {
@@ -116,9 +145,44 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
     },
     handler: async (request, reply) => {
       try {
-        const { isActive, type } = request.query as { isActive?: boolean; type?: string };
+        const { isActive, type, loyaltyProgramId } = request.query as { isActive?: boolean; type?: string; loyaltyProgramId?: string };
+        const user = request.user;
 
-        const where: any = {};
+        if (!loyaltyProgramId) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'loyaltyProgramId is required'
+          });
+        }
+
+        // Verify that the loyalty program exists and belongs to the user's tenant
+        const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+          where: {
+            id: loyaltyProgramId,
+            merchant: {
+              tenantId: user.tenantId
+            }
+          }
+        });
+
+        if (!loyaltyProgram) {
+          return reply.code(404).send({
+            error: 'Loyalty program not found',
+            message: 'The specified loyalty program does not exist or you do not have access to it'
+          });
+        }
+
+        // Verify that the merchant ID matches the user's merchant ID if it's set
+        if (user.merchantId && loyaltyProgram.merchantId !== user.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
+        }
+
+        const where: any = {
+          loyaltyProgramId
+        };
         if (isActive !== undefined) where.isActive = isActive;
         if (type) where.type = type;
 
@@ -167,13 +231,38 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const { id } = request.params as { id: string };
+        const user = request.user;
 
+        // Find the reward and include the loyalty program and merchant
         const reward = await prisma.reward.findUnique({
           where: { id },
+          include: {
+            loyaltyProgram: {
+              include: {
+                merchant: true
+              }
+            }
+          }
         });
 
         if (!reward) {
           return reply.code(404).send({ error: 'Reward not found' });
+        }
+
+        // Verify that the reward belongs to the user's tenant
+        if (reward.loyaltyProgram.merchant.tenantId !== user.tenantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this reward'
+          });
+        }
+
+        // Verify that the merchant ID matches the user's merchant ID if it's set
+        if (user.merchantId && reward.loyaltyProgram.merchantId !== user.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
         }
 
         return reward;
@@ -228,6 +317,56 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
       try {
         const { id } = request.params as { id: string };
         const data = rewardSchema.partial().parse(request.body);
+        const user = request.user;
+
+        // Find the reward and include the loyalty program and merchant
+        const existingReward = await prisma.reward.findUnique({
+          where: { id },
+          include: {
+            loyaltyProgram: {
+              include: {
+                merchant: true
+              }
+            }
+          }
+        });
+
+        if (!existingReward) {
+          return reply.code(404).send({ error: 'Reward not found' });
+        }
+
+        // Verify that the reward belongs to the user's tenant
+        if (existingReward.loyaltyProgram.merchant.tenantId !== user.tenantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this reward'
+          });
+        }
+
+        // Verify that the merchant ID matches the user's merchant ID if it's set
+        if (user.merchantId && existingReward.loyaltyProgram.merchantId !== user.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
+        }
+
+        // If loyaltyProgramId is being updated, verify that the new program belongs to the same merchant
+        if (data.loyaltyProgramId && data.loyaltyProgramId !== existingReward.loyaltyProgramId) {
+          const newProgram = await prisma.loyaltyProgram.findFirst({
+            where: {
+              id: data.loyaltyProgramId,
+              merchantId: existingReward.loyaltyProgram.merchantId
+            }
+          });
+
+          if (!newProgram) {
+            return reply.code(403).send({
+              error: 'Forbidden',
+              message: 'Cannot move reward to a loyalty program from a different merchant'
+            });
+          }
+        }
 
         const reward = await prisma.reward.update({
           where: { id },
@@ -389,10 +528,10 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const { userId } = request.params as { userId: string };
-        const { status, limit, offset } = request.query as { 
-          status?: string; 
-          limit: number; 
-          offset: number; 
+        const { status, limit, offset } = request.query as {
+          status?: string;
+          limit: number;
+          offset: number;
         };
 
         const where: any = { userId };
@@ -440,7 +579,7 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['status'],
         properties: {
-          status: { 
+          status: {
             type: 'string',
             enum: ['PENDING', 'COMPLETED', 'CANCELLED']
           }
@@ -478,4 +617,4 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
       }
     },
   });
-} 
+}

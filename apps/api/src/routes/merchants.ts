@@ -176,7 +176,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
 
       // Log the first merchant's branding data for debugging
       if (merchants.length > 0) {
-        console.log('First merchant branding data:', JSON.stringify(merchants[0].branding, null, 2));
+        console.log('First merchant branding data:', JSON.stringify(merchants[0]?.branding, null, 2));
       }
 
       return reply.send(merchants);

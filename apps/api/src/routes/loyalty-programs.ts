@@ -172,6 +172,44 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = loyaltyProgramSchema.parse(request.body);
+        let merchantId = request.merchantId as string;
+
+        console.log('LOYALTY PROGRAM CREATE ROUTE: Request headers:', JSON.stringify(request.headers));
+        console.log('LOYALTY PROGRAM CREATE ROUTE: Merchant ID from request:', merchantId);
+        console.log('LOYALTY PROGRAM CREATE ROUTE: Merchant ID from body:', data.merchantId);
+
+        // Extract merchant ID directly from header as a fallback
+        const headerMerchantId = request.headers['x-merchant-id'] as string;
+        if (!merchantId && headerMerchantId) {
+          console.log('LOYALTY PROGRAM CREATE ROUTE: Using merchant ID from header:', headerMerchantId);
+          request.merchantId = headerMerchantId;
+          merchantId = headerMerchantId;
+        }
+
+        // If merchantId is provided in the request body, ensure it matches the one from the header
+        if (merchantId && data.merchantId !== merchantId) {
+          console.log('LOYALTY PROGRAM CREATE ROUTE: Merchant ID mismatch');
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Merchant ID in the request body must match the merchant ID in the header'
+          });
+        }
+
+        // If no merchant ID is provided, return an error
+        if (!merchantId && !data.merchantId) {
+          console.log('LOYALTY PROGRAM CREATE ROUTE: No merchant ID found');
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Merchant ID is required. Please select a merchant.'
+          });
+        }
+
+        // If no merchant ID is provided in the header but is provided in the body, use the one from the body
+        if (!merchantId && data.merchantId) {
+          console.log('LOYALTY PROGRAM CREATE ROUTE: Using merchant ID from body:', data.merchantId);
+          merchantId = data.merchantId;
+          request.merchantId = data.merchantId;
+        }
 
         const body = request.body as CreateLoyaltyProgramBody;
         // First create the loyalty program
@@ -243,7 +281,26 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     },
     handler: async (request: FastifyRequest, reply) => {
       const { id } = request.params as { id: string };
-      const merchantId = (request.user as AuthUser).merchantId;
+      let merchantId = request.merchantId as string;
+
+      console.log('LOYALTY PROGRAM DETAIL ROUTE: Request headers:', JSON.stringify(request.headers));
+      console.log('LOYALTY PROGRAM DETAIL ROUTE: Merchant ID from request:', merchantId);
+
+      // Extract merchant ID directly from header as a fallback
+      const headerMerchantId = request.headers['x-merchant-id'] as string;
+      if (!merchantId && headerMerchantId) {
+        console.log('LOYALTY PROGRAM DETAIL ROUTE: Using merchant ID from header:', headerMerchantId);
+        request.merchantId = headerMerchantId;
+        merchantId = headerMerchantId;
+      }
+
+      if (!merchantId) {
+        console.log('LOYALTY PROGRAM DETAIL ROUTE: No merchant ID found');
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Merchant ID is required. Please select a merchant.'
+        });
+      }
 
       try {
         const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
@@ -301,15 +358,37 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     },
     handler: async (request: FastifyRequest, reply) => {
       const { includeInactive } = request.query as { includeInactive?: boolean };
-      const merchantId = (request.user as AuthUser).merchantId;
+      let merchantId = request.merchantId as string;
+
+      console.log('LOYALTY PROGRAMS ROUTE: Request headers:', JSON.stringify(request.headers));
+      console.log('LOYALTY PROGRAMS ROUTE: Merchant ID from request:', merchantId);
+
+      // Extract merchant ID directly from header as a fallback
+      const headerMerchantId = request.headers['x-merchant-id'] as string;
+      if (!merchantId && headerMerchantId) {
+        console.log('LOYALTY PROGRAMS ROUTE: Using merchant ID from header:', headerMerchantId);
+        request.merchantId = headerMerchantId;
+        merchantId = headerMerchantId;
+      }
+
+      if (!merchantId) {
+        console.log('LOYALTY PROGRAMS ROUTE: No merchant ID found');
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Merchant ID is required. Please select a merchant.'
+        });
+      }
 
       try {
+        console.log(`Fetching loyalty programs for merchant: ${merchantId}`);
+
         const loyaltyPrograms = await prisma.loyaltyProgram.findMany({
           where: {
             merchantId,
             ...(includeInactive ? {} : { isActive: true })
           },
           include: {
+            merchant: true,
             _count: {
               select: {
                 tiers: true,
@@ -320,7 +399,18 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
           }
         });
 
-        return loyaltyPrograms;
+        console.log(`Found ${loyaltyPrograms.length} loyalty programs`);
+        loyaltyPrograms.forEach(program => {
+          console.log(`Program: ${program.id}, Merchant: ${program.merchantId}`);
+        });
+
+        // Remove merchant details from the response
+        const sanitizedPrograms = loyaltyPrograms.map(program => {
+          const { merchant, ...rest } = program;
+          return rest;
+        });
+
+        return sanitizedPrograms;
       } catch (error) {
         request.log.error(error);
         return reply.code(500).send({ error: 'Failed to fetch loyalty programs' });
@@ -354,10 +444,42 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
     },
     handler: async (request: FastifyRequest, reply) => {
       const { id } = request.params as { id: string };
-      const merchantId = (request.user as AuthUser).merchantId;
+      let merchantId = request.merchantId as string;
       const data = loyaltyProgramSchema.partial().parse(request.body);
 
+      console.log('LOYALTY PROGRAM UPDATE ROUTE: Request headers:', JSON.stringify(request.headers));
+      console.log('LOYALTY PROGRAM UPDATE ROUTE: Merchant ID from request:', merchantId);
+
+      // Extract merchant ID directly from header as a fallback
+      const headerMerchantId = request.headers['x-merchant-id'] as string;
+      if (!merchantId && headerMerchantId) {
+        console.log('LOYALTY PROGRAM UPDATE ROUTE: Using merchant ID from header:', headerMerchantId);
+        request.merchantId = headerMerchantId;
+        merchantId = headerMerchantId;
+      }
+
+      if (!merchantId) {
+        console.log('LOYALTY PROGRAM UPDATE ROUTE: No merchant ID found');
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Merchant ID is required. Please select a merchant.'
+        });
+      }
+
       try {
+        // First check if the loyalty program exists and belongs to the merchant
+        const existingProgram = await prisma.loyaltyProgram.findFirst({
+          where: {
+            id,
+            merchantId
+          }
+        });
+
+        if (!existingProgram) {
+          return reply.code(404).send({ error: 'Loyalty program not found' });
+        }
+
+        // Update the loyalty program
         const loyaltyProgram = await prisma.loyaltyProgram.update({
           where: {
             id,
@@ -405,9 +527,28 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
       }
 
       const { id } = request.params as { id: string };
-      const merchantId = (request.user as AuthUser).merchantId;
+      let merchantId = request.merchantId as string;
+
+      console.log('LOYALTY PROGRAM DELETE ROUTE: Request headers:', JSON.stringify(request.headers));
+      console.log('LOYALTY PROGRAM DELETE ROUTE: Merchant ID from request:', merchantId);
+
+      // Extract merchant ID directly from header as a fallback
+      const headerMerchantId = request.headers['x-merchant-id'] as string;
+      if (!merchantId && headerMerchantId) {
+        console.log('LOYALTY PROGRAM DELETE ROUTE: Using merchant ID from header:', headerMerchantId);
+        request.merchantId = headerMerchantId;
+        merchantId = headerMerchantId;
+      }
 
       console.log(`Deleting loyalty program: ${id} for merchant: ${merchantId}`);
+
+      if (!merchantId) {
+        console.log('LOYALTY PROGRAM DELETE ROUTE: No merchant ID found');
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Merchant ID is required. Please select a merchant.'
+        });
+      }
 
       try {
         // Check if program exists and belongs to merchant
