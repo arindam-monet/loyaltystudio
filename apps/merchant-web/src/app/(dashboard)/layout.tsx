@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useTheme } from '@/hooks/use-theme';
+import { useMerchantStore } from '@/lib/stores/merchant-store';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Separator, SidebarInset, SidebarProvider, SidebarTrigger } from '@loyaltystudio/ui';
@@ -66,6 +68,18 @@ export default function DashboardLayout({
 }) {
   // Add auth guard to protect all dashboard pages
   const { isLoading: isAuthLoading } = useAuthGuard();
+  const { selectedMerchant } = useMerchantStore();
+
+  // Log selected merchant for debugging
+  useEffect(() => {
+    if (selectedMerchant) {
+      console.log('Layout: Selected merchant:', selectedMerchant.name);
+      console.log('Layout: Merchant branding:', JSON.stringify(selectedMerchant.branding, null, 2));
+    }
+  }, [selectedMerchant]);
+
+  // Use the theme hook to apply theme colors
+  useTheme();
 
   const pathname = usePathname();
   const breadcrumbs = getBreadcrumbs(pathname);

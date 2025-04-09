@@ -18,6 +18,10 @@ type OnboardingData = {
     logo?: File;
     primaryColor: string;
     secondaryColor: string;
+    accentColor?: string;
+    primaryTextColor?: string;
+    secondaryTextColor?: string;
+    accentTextColor?: string;
   };
 };
 
@@ -33,6 +37,10 @@ const INITIAL_DATA: OnboardingData = {
   branding: {
     primaryColor: '#4F46E5',
     secondaryColor: '#818CF8',
+    accentColor: '#f59e0b',
+    primaryTextColor: '#ffffff',
+    secondaryTextColor: '#ffffff',
+    accentTextColor: '#ffffff',
   },
 };
 
@@ -57,6 +65,23 @@ const steps = [
   },
 ];
 
+// Function to get contrast color (black or white) based on background color
+const getContrastColor = (hexColor: string) => {
+  // Remove the # if it exists
+  hexColor = hexColor.replace('#', '');
+
+  // Convert to RGB
+  const r = parseInt(hexColor.substring(0, 2), 16);
+  const g = parseInt(hexColor.substring(2, 2), 16);
+  const b = parseInt(hexColor.substring(4, 2), 16);
+
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Return black for bright colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
 interface MerchantOnboardingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,6 +98,9 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
   React.useEffect(() => {
     console.log('MerchantOnboardingDialog open state changed:', open);
   }, [open]);
+
+  // We don't apply theme colors during onboarding
+  // Theme will be applied after merchant creation
 
   const updateFields = (fields: Partial<OnboardingData>) => {
     setData(prev => ({ ...prev, ...fields }));
@@ -233,25 +261,133 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                 }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="primaryColor">Primary Color *</Label>
-              <Input
-                id="primaryColor"
-                type="color"
-                value={data.branding.primaryColor}
-                onChange={(e) => updateFields({ branding: { ...data.branding, primaryColor: e.target.value } })}
-                required
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="primaryColor">Primary Color *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="primaryColor"
+                    type="color"
+                    className="w-12 h-10 p-1"
+                    value={data.branding.primaryColor}
+                    onChange={(e) => {
+                      const color = e.target.value;
+                      const textColor = getContrastColor(color);
+                      updateFields({
+                        branding: {
+                          ...data.branding,
+                          primaryColor: color,
+                          primaryTextColor: textColor
+                        }
+                      });
+                    }}
+                    required
+                  />
+                  <Input
+                    value={data.branding.primaryColor}
+                    onChange={(e) => {
+                      const color = e.target.value;
+                      const textColor = getContrastColor(color);
+                      updateFields({
+                        branding: {
+                          ...data.branding,
+                          primaryColor: color,
+                          primaryTextColor: textColor
+                        }
+                      });
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="secondaryColor">Secondary Color *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="secondaryColor"
+                    type="color"
+                    className="w-12 h-10 p-1"
+                    value={data.branding.secondaryColor}
+                    onChange={(e) => {
+                      const color = e.target.value;
+                      const textColor = getContrastColor(color);
+                      updateFields({
+                        branding: {
+                          ...data.branding,
+                          secondaryColor: color,
+                          secondaryTextColor: textColor
+                        }
+                      });
+                    }}
+                    required
+                  />
+                  <Input
+                    value={data.branding.secondaryColor}
+                    onChange={(e) => {
+                      const color = e.target.value;
+                      const textColor = getContrastColor(color);
+                      updateFields({
+                        branding: {
+                          ...data.branding,
+                          secondaryColor: color,
+                          secondaryTextColor: textColor
+                        }
+                      });
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="secondaryColor">Secondary Color *</Label>
-              <Input
-                id="secondaryColor"
-                type="color"
-                value={data.branding.secondaryColor}
-                onChange={(e) => updateFields({ branding: { ...data.branding, secondaryColor: e.target.value } })}
-                required
-              />
+              <Label htmlFor="accentColor">Accent Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="accentColor"
+                  type="color"
+                  className="w-12 h-10 p-1"
+                  value={data.branding.accentColor || '#f59e0b'}
+                  onChange={(e) => {
+                    const color = e.target.value;
+                    const textColor = getContrastColor(color);
+                    updateFields({
+                      branding: {
+                        ...data.branding,
+                        accentColor: color,
+                        accentTextColor: textColor
+                      }
+                    });
+                  }}
+                />
+                <Input
+                  value={data.branding.accentColor || '#f59e0b'}
+                  onChange={(e) => {
+                    const color = e.target.value;
+                    const textColor = getContrastColor(color);
+                    updateFields({
+                      branding: {
+                        ...data.branding,
+                        accentColor: color,
+                        accentTextColor: textColor
+                      }
+                    });
+                  }}
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Used for highlights and call-to-action elements</p>
+            </div>
+
+            <div className="p-4 border rounded-md mt-4">
+              <h3 className="font-medium mb-2">Preview</h3>
+              <div className="flex gap-2">
+                <div className="w-16 h-8 rounded flex items-center justify-center" style={{ backgroundColor: data.branding.primaryColor, color: data.branding.primaryTextColor || getContrastColor(data.branding.primaryColor) }}>Primary</div>
+                <div className="w-16 h-8 rounded flex items-center justify-center" style={{ backgroundColor: data.branding.secondaryColor, color: data.branding.secondaryTextColor || getContrastColor(data.branding.secondaryColor) }}>Secondary</div>
+                <div className="w-16 h-8 rounded flex items-center justify-center" style={{ backgroundColor: data.branding.accentColor || '#f59e0b', color: data.branding.accentTextColor || getContrastColor(data.branding.accentColor || '#f59e0b') }}>Accent</div>
+              </div>
             </div>
           </div>
         );
@@ -285,15 +421,22 @@ export function MerchantOnboardingDialog({ open, onOpenChange, onSuccess }: Merc
                   <span className="font-medium">Colors:</span>
                   <div className="flex gap-2">
                     <div
-                      className="w-8 h-8 rounded-full border"
-                      style={{ backgroundColor: data.branding.primaryColor }}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center text-xs"
+                      style={{ backgroundColor: data.branding.primaryColor, color: data.branding.primaryTextColor || getContrastColor(data.branding.primaryColor) }}
                       title={`Primary: ${data.branding.primaryColor}`}
-                    />
+                    >P</div>
                     <div
-                      className="w-8 h-8 rounded-full border"
-                      style={{ backgroundColor: data.branding.secondaryColor }}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center text-xs"
+                      style={{ backgroundColor: data.branding.secondaryColor, color: data.branding.secondaryTextColor || getContrastColor(data.branding.secondaryColor) }}
                       title={`Secondary: ${data.branding.secondaryColor}`}
-                    />
+                    >S</div>
+                    {data.branding.accentColor && (
+                      <div
+                        className="w-8 h-8 rounded-full border flex items-center justify-center text-xs"
+                        style={{ backgroundColor: data.branding.accentColor, color: data.branding.accentTextColor || getContrastColor(data.branding.accentColor) }}
+                        title={`Accent: ${data.branding.accentColor}`}
+                      >A</div>
+                    )}
                   </div>
                 </div>
               </div>

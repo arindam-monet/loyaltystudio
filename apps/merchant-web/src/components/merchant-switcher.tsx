@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTheme } from '@/hooks/use-theme';
 import {
   cn,
   Avatar,
@@ -68,18 +69,49 @@ export default function MerchantSwitcher({
   }, [merchants, selectedMerchant?.id, setSelectedMerchant]);
 
   const handleMerchantSelect = (merchant: typeof merchants[0]) => {
+    console.log('Switching to merchant:', merchant.name);
+    console.log('Merchant branding data:', JSON.stringify(merchant.branding, null, 2));
+
+    // Reset theme state to force reapplication with the new merchant
+    resetThemeState();
+
+    // Update selected merchant
     setLocalSelectedMerchant(merchant);
     setSelectedMerchant(merchant);
+
+    // Apply theme immediately if branding data is available
+    if (merchant.branding) {
+      console.log('Applying theme for newly selected merchant');
+      updateTheme(merchant.branding);
+    }
+
     setOpen(false);
   };
 
   // Removed unused handleCreateMerchant function
 
+  // Use the theme hook to manage theme application
+  const { updateTheme, resetThemeState } = useTheme();
+
   const handleOnboardingSuccess = () => {
     console.log('Merchant created successfully, refreshing merchants list');
     // Use refetch instead of window.location.reload() to avoid a full page refresh
     if (typeof refetch === 'function') {
-      refetch();
+      refetch().then((result) => {
+        // After refetching, apply theme colors from the first merchant if available
+        if (result.data && result.data.length > 0) {
+          const newMerchant = result.data[0];
+          console.log('Applying theme colors from newly created merchant:', newMerchant.name);
+
+          // Apply theme using the theme hook
+          if (newMerchant.branding) {
+            updateTheme(newMerchant.branding);
+          }
+
+          // Also set this as the selected merchant
+          setSelectedMerchant(newMerchant);
+        }
+      });
     } else {
       console.warn('refetch is not a function, falling back to page reload');
       window.location.reload();

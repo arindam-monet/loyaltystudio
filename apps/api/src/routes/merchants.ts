@@ -24,6 +24,9 @@ interface AuthenticatedRequest extends FastifyRequest {
 
 const merchantSchema = z.object({
   name: z.string().min(3).max(100),
+  description: z.string().optional(),
+  industry: z.string().optional(),
+  website: z.string().optional(),
   subdomain: z.string().min(3).max(63).optional(),
   email: z.string().email(),
   phone: z.string().optional(),
@@ -35,6 +38,16 @@ const merchantSchema = z.object({
   currency: z.string().default("USD"),
   timezone: z.string().default("UTC"),
   tenantId: z.string().cuid(),
+  branding: z.object({
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    primaryTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    secondaryTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    accentTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    logo: z.string().url().optional(),
+    logoUrl: z.string().url().optional()
+  }).optional(),
 });
 
 const brandingSchema = z.object({
@@ -101,8 +114,13 @@ export async function merchantRoutes(fastify: FastifyInstance) {
                 type: 'object',
                 properties: {
                   logo: { type: 'string' },
+                  logoUrl: { type: 'string' },
                   primaryColor: { type: 'string' },
-                  secondaryColor: { type: 'string' }
+                  primaryTextColor: { type: 'string' },
+                  secondaryColor: { type: 'string' },
+                  secondaryTextColor: { type: 'string' },
+                  accentColor: { type: 'string' },
+                  accentTextColor: { type: 'string' }
                 }
               }
             }
@@ -155,6 +173,12 @@ export async function merchantRoutes(fastify: FastifyInstance) {
       });
 
       console.log(`Found ${merchants.length} merchants`);
+
+      // Log the first merchant's branding data for debugging
+      if (merchants.length > 0) {
+        console.log('First merchant branding data:', JSON.stringify(merchants[0].branding, null, 2));
+      }
+
       return reply.send(merchants);
     } catch (error) {
       console.error('Failed to fetch merchants:', error);
@@ -174,6 +198,9 @@ export async function merchantRoutes(fastify: FastifyInstance) {
         required: ['name', 'email', 'tenantId'],
         properties: {
           name: { type: 'string', minLength: 3, maxLength: 100 },
+          description: { type: 'string' },
+          industry: { type: 'string' },
+          website: { type: 'string' },
           subdomain: { type: 'string', minLength: 3, maxLength: 63 },
           email: { type: 'string', format: 'email' },
           phone: { type: 'string' },
@@ -184,7 +211,20 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           zipCode: { type: 'string' },
           currency: { type: 'string', default: "USD" },
           timezone: { type: 'string', default: "UTC" },
-          tenantId: { type: 'string', minLength: 25, maxLength: 25 }
+          tenantId: { type: 'string', minLength: 25, maxLength: 25 },
+          branding: {
+            type: 'object',
+            properties: {
+              primaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              primaryTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              secondaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              secondaryTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              accentColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              accentTextColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+              logo: { type: 'string', format: 'uri' },
+              logoUrl: { type: 'string', format: 'uri' }
+            }
+          }
         }
       },
       response: {
@@ -230,6 +270,9 @@ export async function merchantRoutes(fastify: FastifyInstance) {
       }
 
       try {
+        // Log the data being used to create the merchant
+        console.log('Creating merchant with data:', JSON.stringify(data, null, 2));
+
         // Start a transaction to create merchant and DNS record
         const merchant = await prisma.$transaction(async (tx) => {
           // Create merchant
@@ -239,6 +282,8 @@ export async function merchantRoutes(fastify: FastifyInstance) {
               subdomain: generatedSubdomain,
             },
           });
+
+          console.log('Merchant created successfully:', JSON.stringify(newMerchant, null, 2));
 
           // Create DNS record if DNS provider is configured
           try {
@@ -582,7 +627,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'string', format: 'uuid' }
+          id: { type: 'string' }
         }
       },
       response: {
@@ -594,20 +639,32 @@ export async function merchantRoutes(fastify: FastifyInstance) {
     },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
+      const authenticatedRequest = request as AuthenticatedRequest;
+      const tenantId = authenticatedRequest.user?.tenantId;
+
+      console.log(`Attempting to delete merchant with ID: ${id}`);
 
       try {
-        const merchant = await prisma.merchant.findUnique({
-          where: { id },
+        // First check if the merchant exists and belongs to the tenant
+        const merchant = await prisma.merchant.findFirst({
+          where: {
+            id,
+            ...(tenantId ? { tenantId } : {}),
+          },
         });
 
         if (!merchant) {
+          console.error(`Merchant not found with ID: ${id}`);
           return reply.code(404).send({
             error: 'Merchant not found.',
           });
         }
 
+        console.log(`Found merchant to delete: ${merchant.name} (${merchant.id})`);
+
         // Delete merchant and DNS record in a transaction
         await prisma.$transaction(async (tx) => {
+          console.log(`Deleting merchant with ID: ${id}`);
           await tx.merchant.delete({
             where: { id },
           });
@@ -615,6 +672,7 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           // Delete DNS record if merchant has a subdomain
           if (merchant.subdomain) {
             try {
+              console.log(`Deleting subdomain: ${merchant.subdomain}`);
               await dnsProvider.deleteSubdomain(merchant.subdomain);
             } catch (error) {
               // Log the error but don't fail the transaction
@@ -623,11 +681,13 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           }
         });
 
+        console.log(`Successfully deleted merchant with ID: ${id}`);
         return reply.code(204).send();
       } catch (error) {
-        console.error('Failed to delete merchant:', error);
+        console.error(`Failed to delete merchant with ID: ${id}:`, error);
         return reply.code(500).send({
           error: 'Failed to delete merchant.',
+          message: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }

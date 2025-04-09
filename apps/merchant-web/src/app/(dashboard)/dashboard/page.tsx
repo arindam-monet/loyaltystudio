@@ -37,6 +37,7 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { MerchantOnboardingDialog } from '@/components/merchant-onboarding-dialog';
 import { useState, useEffect } from 'react';
 import { ChecklistService } from '@/services/checklist-service';
+import { useTheme } from '@/hooks/use-theme';
 
 type ChecklistItem = {
   id: string;
@@ -107,6 +108,17 @@ export default function DashboardPage() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
 
+  // Use the theme hook to manage theme application
+  const { updateTheme, resetThemeState } = useTheme();
+
+  // Reset theme state when merchants change to force reapplication
+  useEffect(() => {
+    if (merchants && merchants.length > 0) {
+      console.log('Merchants changed, resetting theme state');
+      resetThemeState();
+    }
+  }, [merchants]);
+
   const fetchChecklistStatus = async () => {
     try {
       // Get checklist status from service
@@ -152,26 +164,32 @@ export default function DashboardPage() {
   };
 
   const handleOnboardingSuccess = () => {
-    refetch();
+    refetch().then((result) => {
+      // After refetching, apply theme colors from the first merchant if available
+      if (result.data && result.data.length > 0) {
+        const newMerchant = result.data[0];
+        console.log('Applying theme colors from newly created merchant:', newMerchant.name);
+        if (newMerchant.branding) {
+          updateTheme(newMerchant.branding);
+        }
+      }
+    });
   };
 
-  const handleLoyaltyProgramSuccess = () => {
-    // Refetch checklist status after creating a loyalty program
-    fetchChecklistStatus();
-  };
+  // Removed unused handleLoyaltyProgramSuccess function
 
   const renderEmptyState = () => {
     // Special emphasis if no merchants exist
     const noMerchants = merchants && merchants.length === 0;
-    
+
     return (
       <div className="flex flex-col gap-8">
         <Alert className={noMerchants ? "border-primary bg-primary/5" : ""}>
           <AlertCircle className={`h-4 w-4 ${noMerchants ? "text-primary" : ""}`} />
           <AlertTitle>{noMerchants ? "Let's get started!" : "Welcome to your dashboard!"}</AlertTitle>
           <AlertDescription>
-            {noMerchants 
-              ? "Create your first merchant to start building your loyalty program." 
+            {noMerchants
+              ? "Create your first merchant to start building your loyalty program."
               : "Complete the required steps to set up your loyalty program and start seeing data."}
           </AlertDescription>
         </Alert>
@@ -191,7 +209,7 @@ export default function DashboardPage() {
               const isMerchantItem = item.id === 'merchant';
               const noMerchants = merchants && merchants.length === 0;
               const isHighlighted = isMerchantItem && noMerchants;
-              
+
               return (
                 <div key={item.id} className={`flex items-start gap-4 ${isHighlighted ? 'p-3 border border-primary/30 rounded-md bg-primary/5' : ''}`}>
                   <div className={`p-2 rounded-full ${item.completed ? 'bg-green-100' : isHighlighted ? 'bg-primary/20' : 'bg-primary/10'}`}>

@@ -8,11 +8,17 @@ type OnboardingData = {
     description: string;
     industry: string;
     website: string;
+    currency: string;
+    timezone: string;
   };
   branding: {
     logo?: File;
     primaryColor: string;
     secondaryColor: string;
+    accentColor?: string;
+    primaryTextColor?: string;
+    secondaryTextColor?: string;
+    accentTextColor?: string;
   };
 };
 
@@ -45,18 +51,26 @@ export function useOnboarding() {
           description: data.business.description,
           industry: data.business.industry,
           website: data.business.website,
+          currency: data.business.currency,
+          timezone: data.business.timezone,
           email: user.email,
           tenantId: user.tenantId,
           branding: {
             primaryColor: data.branding.primaryColor,
             secondaryColor: data.branding.secondaryColor,
+            accentColor: data.branding.accentColor || '#f59e0b',
+            primaryTextColor: data.branding.primaryTextColor,
+            secondaryTextColor: data.branding.secondaryTextColor,
+            accentTextColor: data.branding.accentTextColor,
           }
         };
 
-        console.log('Sending merchant creation request with data:', merchantData);
+        console.log('Sending merchant creation request with data:', JSON.stringify(merchantData, null, 2));
 
         // Create merchant
         const { data: merchant } = await apiClient.post('/merchants', merchantData);
+
+        console.log('Merchant created successfully, response:', JSON.stringify(merchant, null, 2));
 
         // Update merchant branding if logo is provided
         if (data.branding.logo) {

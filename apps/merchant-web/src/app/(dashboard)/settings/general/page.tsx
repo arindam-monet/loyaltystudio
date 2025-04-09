@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from '@/hooks/use-theme';
+import { getContrastColor } from '@/lib/utils/theme-utils';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -90,6 +92,7 @@ export default function GeneralSettingsPage() {
   const queryClient = useQueryClient();
   const { updateMerchant, deleteMerchant } = useMerchants();
   const { toast } = useToast();
+  const { updateTheme } = useTheme();
 
   // Initialize form with default values
   const form = useForm<MerchantSettingsFormValues>({
@@ -162,14 +165,7 @@ export default function GeneralSettingsPage() {
       // Apply theme colors
       if (merchantDetails.branding) {
         console.log('Applying theme colors from merchant data');
-        applyThemeColors(
-          merchantDetails.branding.primaryColor || '#4f46e5',
-          merchantDetails.branding.secondaryColor || '#0ea5e9',
-          merchantDetails.branding.accentColor || '#f59e0b',
-          merchantDetails.branding.primaryTextColor,
-          merchantDetails.branding.secondaryTextColor,
-          merchantDetails.branding.accentTextColor
-        );
+        updateTheme(merchantDetails.branding);
       }
 
       console.log('Merchant data loaded successfully');
@@ -200,145 +196,9 @@ export default function GeneralSettingsPage() {
     }
   }, [merchantError, toast]);
 
-  // Function to apply theme colors with optional custom text colors
-  const applyThemeColors = (
-    primary: string,
-    secondary: string,
-    accent: string,
-    primaryText?: string,
-    secondaryText?: string,
-    accentText?: string
-  ) => {
-    console.log('Applying theme colors:', {
-      primary, secondary, accent,
-      primaryText, secondaryText, accentText
-    });
+  // Theme colors are now managed by the useTheme hook
 
-    // Convert hex to HSL for better compatibility with the theme system
-    const primaryHSL = hexToHSL(primary);
-    const secondaryHSL = hexToHSL(secondary);
-    const accentHSL = hexToHSL(accent);
-
-    // Determine text colors - use custom if provided, otherwise calculate contrast
-    const primaryForeground = primaryText || getContrastColor(primary);
-    const secondaryForeground = secondaryText || getContrastColor(secondary);
-    const accentForeground = accentText || getContrastColor(accent);
-
-    // Apply the HSL values to the CSS variables
-    if (primaryHSL) {
-      document.documentElement.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
-    } else {
-      // Fallback to direct hex color if HSL conversion fails
-      document.documentElement.style.setProperty('--primary', primary);
-    }
-    // Set the text color - convert to HSL if possible
-    const primaryTextHSL = hexToHSL(primaryForeground);
-    if (primaryTextHSL) {
-      document.documentElement.style.setProperty('--primary-foreground', `${primaryTextHSL.h} ${primaryTextHSL.s}% ${primaryTextHSL.l}%`);
-    } else {
-      document.documentElement.style.setProperty('--primary-foreground', primaryForeground);
-    }
-
-    if (secondaryHSL) {
-      document.documentElement.style.setProperty('--secondary', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
-    } else {
-      document.documentElement.style.setProperty('--secondary', secondary);
-    }
-    // Set the text color - convert to HSL if possible
-    const secondaryTextHSL = hexToHSL(secondaryForeground);
-    if (secondaryTextHSL) {
-      document.documentElement.style.setProperty('--secondary-foreground', `${secondaryTextHSL.h} ${secondaryTextHSL.s}% ${secondaryTextHSL.l}%`);
-    } else {
-      document.documentElement.style.setProperty('--secondary-foreground', secondaryForeground);
-    }
-
-    if (accentHSL) {
-      document.documentElement.style.setProperty('--accent', `${accentHSL.h} ${accentHSL.s}% ${accentHSL.l}%`);
-    } else {
-      document.documentElement.style.setProperty('--accent', accent);
-    }
-    // Set the text color - convert to HSL if possible
-    const accentTextHSL = hexToHSL(accentForeground);
-    if (accentTextHSL) {
-      document.documentElement.style.setProperty('--accent-foreground', `${accentTextHSL.h} ${accentTextHSL.s}% ${accentTextHSL.l}%`);
-    } else {
-      document.documentElement.style.setProperty('--accent-foreground', accentForeground);
-    }
-
-    // Also set success and warning colors based on the accent color
-    document.documentElement.style.setProperty('--success', '142.1 76.2% 36.3%');
-    document.documentElement.style.setProperty('--warning', '38 92% 50%');
-
-    console.log('Theme colors applied successfully');
-  };
-
-  // Function to convert hex color to HSL
-  const hexToHSL = (hex: string): { h: number; s: number; l: number } | null => {
-    try {
-      // Remove the # if it exists
-      hex = hex.replace('#', '');
-
-      // Convert hex to RGB
-      const r = parseInt(hex.substring(0, 2), 16) / 255;
-      const g = parseInt(hex.substring(2, 4), 16) / 255;
-      const b = parseInt(hex.substring(4, 6), 16) / 255;
-
-      // Find the maximum and minimum values to calculate the lightness
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-
-      // Calculate the lightness
-      let h = 0;
-      let s = 0;
-      const l = (max + min) / 2;
-
-      // Only calculate the hue and saturation if the color isn't grayscale
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
-        switch (max) {
-          case r:
-            h = (g - b) / d + (g < b ? 6 : 0);
-            break;
-          case g:
-            h = (b - r) / d + 2;
-            break;
-          case b:
-            h = (r - g) / d + 4;
-            break;
-        }
-
-        h = Math.round(h * 60);
-      }
-
-      // Convert saturation and lightness to percentages
-      s = Math.round(s * 100);
-      const lightness = Math.round(l * 100);
-
-      return { h, s, l: lightness };
-    } catch (error) {
-      console.error('Error converting hex to HSL:', error);
-      return null;
-    }
-  };
-
-  // Function to get contrast color (black or white) based on background color
-  const getContrastColor = (hexColor: string) => {
-    // Remove the # if it exists
-    hexColor = hexColor.replace('#', '');
-
-    // Convert to RGB
-    const r = parseInt(hexColor.substring(0, 2), 16);
-    const g = parseInt(hexColor.substring(2, 2), 16);
-    const b = parseInt(hexColor.substring(4, 2), 16);
-
-    // Calculate luminance
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-    // Return black for bright colors, white for dark colors
-    return luminance > 0.5 ? '#000000' : '#ffffff';
-  };
+  // Color conversion functions are now imported from theme-utils.ts
 
   // Handle form submission
   const onSubmit = async (data: MerchantSettingsFormValues) => {
@@ -383,14 +243,7 @@ export default function GeneralSettingsPage() {
       console.log('API response:', JSON.stringify(updatedMerchant, null, 2));
 
       // Apply theme colors immediately
-      applyThemeColors(
-        data.branding.primaryColor,
-        data.branding.secondaryColor,
-        data.branding.accentColor || '#f59e0b',
-        data.branding.primaryTextColor,
-        data.branding.secondaryTextColor,
-        data.branding.accentTextColor
-      );
+      updateTheme(data.branding);
 
       // Refresh the merchant data
       // This will trigger a refetch of the merchant details
@@ -511,14 +364,14 @@ export default function GeneralSettingsPage() {
   useEffect(() => {
     if (primaryColor && secondaryColor) {
       console.log('Form values changed, updating theme colors');
-      applyThemeColors(
+      updateTheme({
         primaryColor,
         secondaryColor,
-        accentColor || '#f59e0b',
-        form.watch('branding.primaryTextColor'),
-        form.watch('branding.secondaryTextColor'),
-        form.watch('branding.accentTextColor')
-      );
+        accentColor: accentColor || '#f59e0b',
+        primaryTextColor: form.watch('branding.primaryTextColor'),
+        secondaryTextColor: form.watch('branding.secondaryTextColor'),
+        accentTextColor: form.watch('branding.accentTextColor')
+      });
     }
   }, [primaryColor, secondaryColor, accentColor]);
 
@@ -526,15 +379,7 @@ export default function GeneralSettingsPage() {
   useEffect(() => {
     if (selectedMerchant?.branding) {
       console.log('Initial theme application from merchant data');
-      const branding = selectedMerchant.branding;
-      applyThemeColors(
-        branding.primaryColor || '#4f46e5',
-        branding.secondaryColor || '#0ea5e9',
-        branding.accentColor || '#f59e0b',
-        branding.primaryTextColor,
-        branding.secondaryTextColor,
-        branding.accentTextColor
-      );
+      updateTheme(selectedMerchant.branding);
     }
   }, []);
 
