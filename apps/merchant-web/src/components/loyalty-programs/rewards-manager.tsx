@@ -35,6 +35,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRewards } from '@/hooks/use-rewards';
+import { useProgramRewards } from '@/hooks/use-program-rewards';
 import { useRewardStore } from '@/lib/stores/reward-store';
 import type { Reward } from '@/lib/stores/reward-store';
 
@@ -60,6 +61,7 @@ interface RewardsManagerProps {
 export function RewardsManager({ programId }: RewardsManagerProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Use the correct hook based on whether we're using the program-specific hook or the general hook
   const { rewards, isLoading, createReward } = useRewards(programId);
   const { setSelectedReward } = useRewardStore();
 
@@ -77,6 +79,7 @@ export function RewardsManager({ programId }: RewardsManagerProps) {
   const onSubmit = async (data: RewardFormData) => {
     try {
       setError(null);
+      // The loyaltyProgramId is now automatically added in the useRewards hook
       await createReward.mutateAsync(data);
       setOpen(false);
       form.reset();

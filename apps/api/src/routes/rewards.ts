@@ -8,7 +8,7 @@ const rewardSchema = z.object({
   name: z.string(),
   description: z.string(),
   pointsCost: z.number(),
-  type: z.enum(['PHYSICAL', 'DIGITAL', 'EXPERIENCE']),
+  type: z.enum(['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON']),
   metadata: z.record(z.any()).optional(),
   isActive: z.boolean().default(true),
   loyaltyProgramId: z.string(),
@@ -29,15 +29,15 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['name', 'description', 'pointsCost', 'type'],
+        required: ['name', 'description', 'pointsCost', 'type', 'loyaltyProgramId'],
         properties: {
           name: { type: 'string' },
           description: { type: 'string' },
           pointsCost: { type: 'number' },
-          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE'] },
+          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON'] },
           metadata: { type: 'object', additionalProperties: true },
           isActive: { type: 'boolean', default: true },
-          loyaltyProgramId: { type: 'string' }
+          loyaltyProgramId: { type: 'string', description: 'ID of the loyalty program this reward belongs to' }
         }
       },
       response: {
@@ -81,8 +81,8 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify that the merchant ID matches the user's merchant ID if it's set
-        if (user.merchantId && loyaltyProgram.merchantId !== user.merchantId) {
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && loyaltyProgram.merchantId !== request.merchantId) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: 'You do not have access to this merchant'
@@ -119,9 +119,11 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
       security: [{ bearerAuth: [] }],
       querystring: {
         type: 'object',
+        required: ['loyaltyProgramId'],
         properties: {
+          loyaltyProgramId: { type: 'string' },
           isActive: { type: 'boolean' },
-          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE'] },
+          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON'] },
         },
       },
       response: {
@@ -172,8 +174,8 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify that the merchant ID matches the user's merchant ID if it's set
-        if (user.merchantId && loyaltyProgram.merchantId !== user.merchantId) {
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && loyaltyProgram.merchantId !== request.merchantId) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: 'You do not have access to this merchant'
@@ -257,8 +259,8 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify that the merchant ID matches the user's merchant ID if it's set
-        if (user.merchantId && reward.loyaltyProgram.merchantId !== user.merchantId) {
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && reward.loyaltyProgram.merchantId !== request.merchantId) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: 'You do not have access to this merchant'
@@ -292,7 +294,7 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           name: { type: 'string' },
           description: { type: 'string' },
           pointsCost: { type: 'number' },
-          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE'] },
+          type: { type: 'string', enum: ['PHYSICAL', 'DIGITAL', 'EXPERIENCE', 'COUPON'] },
           metadata: { type: 'object', additionalProperties: true },
           isActive: { type: 'boolean' }
         }
@@ -343,8 +345,8 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Verify that the merchant ID matches the user's merchant ID if it's set
-        if (user.merchantId && existingReward.loyaltyProgram.merchantId !== user.merchantId) {
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && existingReward.loyaltyProgram.merchantId !== request.merchantId) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: 'You do not have access to this merchant'
@@ -417,13 +419,36 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
         const data = rewardRedemptionSchema.parse(request.body);
         const userId = request.user.id; // From auth middleware
 
-        // Get reward details
+        // Get reward details with loyalty program and merchant info
         const reward = await prisma.reward.findUnique({
           where: { id: data.rewardId },
+          include: {
+            loyaltyProgram: {
+              include: {
+                merchant: true
+              }
+            }
+          }
         });
 
         if (!reward) {
           return reply.code(404).send({ error: 'Reward not found' });
+        }
+
+        // Verify that the reward belongs to the user's tenant
+        if (reward.loyaltyProgram.merchant.tenantId !== request.user.tenantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this reward'
+          });
+        }
+
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && reward.loyaltyProgram.merchantId !== request.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
         }
 
         if (!reward.isActive) {
@@ -534,24 +559,65 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           offset: number;
         };
 
+        // Get the user's tenant ID from the authenticated user
+        const userTenantId = request.user.tenantId;
+
+        // Build the where clause
         const where: any = { userId };
         if (status) where.status = status;
 
+        // Get all rewards for the user's tenant and merchant (if specified)
+        const rewards = await prisma.reward.findMany({
+          where: {
+            loyaltyProgram: {
+              merchant: {
+                tenantId: userTenantId,
+                ...(request.merchantId ? { id: request.merchantId } : {})
+              }
+            }
+          },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            type: true,
+            loyaltyProgram: {
+              select: {
+                merchant: {
+                  select: {
+                    id: true,
+                    tenantId: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Get the reward IDs that the user has access to
+        const accessibleRewardIds = rewards.map(reward => reward.id);
+
+        // Get redemptions for the accessible rewards
         const redemptions = await prisma.rewardRedemption.findMany({
-          where,
+          where: {
+            ...where,
+            rewardId: {
+              in: accessibleRewardIds
+            }
+          },
           include: {
             reward: {
               select: {
                 id: true,
                 name: true,
                 description: true,
-                type: true,
-              },
-            },
+                type: true
+              }
+            }
           },
           orderBy: { createdAt: 'desc' },
           take: limit,
-          skip: offset,
+          skip: offset
         });
 
         return redemptions;
@@ -601,6 +667,43 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const { status } = request.body as { status: string };
 
+        // Get the redemption with reward and loyalty program info
+        const existingRedemption = await prisma.rewardRedemption.findUnique({
+          where: { id },
+          include: {
+            reward: {
+              include: {
+                loyaltyProgram: {
+                  include: {
+                    merchant: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        if (!existingRedemption) {
+          return reply.code(404).send({ error: 'Redemption not found' });
+        }
+
+        // Verify that the redemption belongs to the user's tenant
+        if (existingRedemption.reward.loyaltyProgram.merchant.tenantId !== request.user.tenantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this redemption'
+          });
+        }
+
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && existingRedemption.reward.loyaltyProgram.merchantId !== request.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
+        }
+
+        // Update the redemption status
         const redemption = await prisma.rewardRedemption.update({
           where: { id },
           data: { status },

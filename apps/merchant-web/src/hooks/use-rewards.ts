@@ -4,33 +4,40 @@ import { Reward } from '@/lib/stores/reward-store';
 import { useMerchantStore } from '@/lib/stores/merchant-store';
 import { useAuthStore } from '@/lib/stores/auth-store';
 
-export function useRewards() {
+export function useRewards(loyaltyProgramId?: string) {
   const queryClient = useQueryClient();
   const { selectedMerchant } = useMerchantStore();
   const { token } = useAuthStore();
 
   const { data: rewards = [], isLoading } = useQuery({
-    queryKey: ['rewards', selectedMerchant?.id],
+    queryKey: ['rewards', selectedMerchant?.id, loyaltyProgramId],
     queryFn: async () => {
-      if (!selectedMerchant?.id || !token) {
-        throw new Error('No merchant selected or not authenticated');
+      if (!selectedMerchant?.id || !token || !loyaltyProgramId) {
+        throw new Error('No merchant selected, not authenticated, or no loyalty program ID provided');
       }
-      const response = await apiClient.get('/rewards');
+      const response = await apiClient.get('/rewards', {
+        params: { loyaltyProgramId }
+      });
       return response.data;
     },
-    enabled: !!selectedMerchant?.id && !!token,
+    enabled: !!selectedMerchant?.id && !!token && !!loyaltyProgramId,
   });
 
   const createReward = useMutation({
     mutationFn: async (data: Omit<Reward, 'id' | 'createdAt' | 'updatedAt'>) => {
-      if (!selectedMerchant?.id || !token) {
-        throw new Error('No merchant selected or not authenticated');
+      if (!selectedMerchant?.id || !token || !loyaltyProgramId) {
+        throw new Error('No merchant selected, not authenticated, or no loyalty program ID provided');
       }
-      const response = await apiClient.post('/rewards', data);
+      // Ensure loyaltyProgramId is included in the request
+      const rewardData = {
+        ...data,
+        loyaltyProgramId
+      };
+      const response = await apiClient.post('/rewards', rewardData);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
@@ -43,7 +50,7 @@ export function useRewards() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
@@ -55,7 +62,7 @@ export function useRewards() {
       await apiClient.delete(`/rewards/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rewards', selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
@@ -66,4 +73,4 @@ export function useRewards() {
     updateReward,
     deleteReward,
   };
-} 
+}
