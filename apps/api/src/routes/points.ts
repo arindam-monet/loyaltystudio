@@ -1,8 +1,21 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient, WebhookEventType } from '@prisma/client';
 import { PointsCalculationService } from '../services/points-calculation.js';
 import { webhookService } from '../services/webhook.js';
+
+// Define the AuthUser interface
+interface AuthUser {
+  id: string;
+  email: string;
+  tenantId: string;
+  merchantId?: string;
+  role: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+}
 
 const prisma = new PrismaClient();
 const pointsService = new PointsCalculationService();
@@ -42,12 +55,19 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    handler: async (request, reply) => {
+    handler: async (request: FastifyRequest, reply) => {
       try {
         const { userId } = request.params as { userId: string };
-        const merchantId = request.user.merchantId;
+        const merchantId = (request.user as AuthUser).merchantId;
 
-        const balance = await prisma.pointsTransaction.aggregate({
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Use type assertion for Prisma client to handle custom fields
+        const prismaAny = prisma as any;
+
+        const balance = await prismaAny.pointsTransaction.aggregate({
           where: {
             userId,
             merchantId,
@@ -57,7 +77,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        const lifetimePoints = await prisma.pointsTransaction.aggregate({
+        const lifetimePoints = await prismaAny.pointsTransaction.aggregate({
           where: {
             userId,
             merchantId,
@@ -68,7 +88,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        const redeemedPoints = await prisma.pointsTransaction.aggregate({
+        const redeemedPoints = await prismaAny.pointsTransaction.aggregate({
           where: {
             userId,
             merchantId,
@@ -80,7 +100,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         });
 
         // Get tier progress
-        const member = await prisma.programMember.findFirst({
+        const member = await prismaAny.programMember.findFirst({
           where: {
             userId,
             loyaltyProgram: {
@@ -89,6 +109,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           },
           include: {
             tier: true,
+            loyaltyProgram: true,
           },
         });
 
@@ -98,7 +119,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         if (member) {
           const tiers = await prisma.programTier.findMany({
             where: {
-              loyaltyProgramId: member.loyaltyProgramId,
+              loyaltyProgramId: member.loyaltyProgramId || member.loyaltyProgram?.id,
             },
             orderBy: {
               pointsThreshold: 'asc',
@@ -106,16 +127,22 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           });
 
           const currentTierIndex = tiers.findIndex(t => t.id === member.tierId);
-          if (currentTierIndex < tiers.length - 1) {
-            nextTierPoints = tiers[currentTierIndex + 1].pointsThreshold - member.points;
-            tierProgress = (member.points / tiers[currentTierIndex + 1].pointsThreshold) * 100;
+          if (currentTierIndex >= 0 && currentTierIndex < tiers.length - 1 && tiers[currentTierIndex + 1]) {
+            // Use pointsBalance instead of points
+            const nextTier = tiers[currentTierIndex + 1];
+            const memberPoints = member.pointsBalance || 0;
+
+            if (nextTier && nextTier.pointsThreshold) {
+              nextTierPoints = nextTier.pointsThreshold - memberPoints;
+              tierProgress = (memberPoints / nextTier.pointsThreshold) * 100;
+            }
           }
         }
 
         return {
-          balance: balance._sum.amount || 0,
-          lifetimePoints: lifetimePoints._sum.amount || 0,
-          redeemedPoints: Math.abs(redeemedPoints._sum.amount || 0),
+          balance: balance?._sum?.amount || 0,
+          lifetimePoints: lifetimePoints?._sum?.amount || 0,
+          redeemedPoints: Math.abs(redeemedPoints?._sum?.amount || 0),
           nextTierPoints,
           tierProgress,
         };
@@ -156,15 +183,22 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    handler: async (request, reply) => {
+    handler: async (request: FastifyRequest, reply) => {
       try {
         const data = pointsTransactionSchema.parse(request.body);
         const userId = request.user.id;
-        const merchantId = request.user.merchantId;
+        const merchantId = (request.user as AuthUser).merchantId;
+
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Use type assertion for Prisma client to handle custom fields
+        const prismaAny = prisma as any;
 
         // For REDEEM transactions, check if user has enough points
         if (data.type === 'REDEEM') {
-          const balance = await prisma.pointsTransaction.aggregate({
+          const balance = await prismaAny.pointsTransaction.aggregate({
             where: {
               userId,
               merchantId,
@@ -172,7 +206,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
             _sum: { amount: true },
           });
 
-          if ((balance._sum.amount || 0) + data.amount < 0) {
+          if ((balance?._sum?.amount || 0) + data.amount < 0) {
             return reply.code(400).send({ error: 'Insufficient points balance' });
           }
         }
@@ -183,14 +217,14 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           const calculation = await pointsService.calculatePoints({
             userId,
             merchantId,
-            amount: data.amount,
-            type: data.type,
+            transactionAmount: data.amount, // Use the correct field name
+            loyaltyProgramId: data.metadata?.loyaltyProgramId || 'default', // Provide a default or get from metadata
             metadata: data.metadata,
           });
           finalAmount = calculation.totalPoints;
         }
 
-        const transaction = await prisma.pointsTransaction.create({
+        const transaction = await prismaAny.pointsTransaction.create({
           data: {
             ...data,
             amount: finalAmount,
@@ -265,7 +299,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    handler: async (request, reply) => {
+    handler: async (request: FastifyRequest, reply) => {
       try {
         const { userId } = request.params as { userId: string };
         const { limit, offset, type } = request.query as {
@@ -273,7 +307,14 @@ export async function pointsRoutes(fastify: FastifyInstance) {
           offset: number;
           type?: string;
         };
-        const merchantId = request.user.merchantId;
+        const merchantId = (request.user as AuthUser).merchantId;
+
+        if (!merchantId) {
+          return reply.code(400).send({ error: 'Merchant ID is required' });
+        }
+
+        // Use type assertion for Prisma client to handle custom fields
+        const prismaAny = prisma as any;
 
         const where: any = {
           userId,
@@ -281,7 +322,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         };
         if (type) where.type = type;
 
-        const transactions = await prisma.pointsTransaction.findMany({
+        const transactions = await prismaAny.pointsTransaction.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           take: limit,
@@ -331,7 +372,7 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         }
       }
     },
-    handler: async (request, reply) => {
+    handler: async (request: FastifyRequest, reply) => {
       try {
         const { eventData } = request.body as { eventData: Record<string, any> };
 
@@ -346,7 +387,18 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         // Check each rule against the event data
         for (const rule of rules) {
           let matches = true;
-          for (const condition of rule.conditions) {
+          // Type assertion for rule.conditions
+          const conditions = rule.conditions as Array<{
+            field: string;
+            operator: string;
+            value: any;
+          }>;
+
+          if (!conditions || !Array.isArray(conditions)) {
+            continue; // Skip rules with invalid conditions
+          }
+
+          for (const condition of conditions) {
             const value = eventData[condition.field];
             if (!value) {
               matches = false;
