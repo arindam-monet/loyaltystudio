@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
 import { env } from '../config/env.js';
-import { logger } from "@trigger.dev/sdk/v3";
 
 const prisma = new PrismaClient();
 const redis = new Redis(env.REDIS_URL);
@@ -59,12 +58,16 @@ export class PointsCalculationService {
     // Calculate base points from rules
     const { basePoints, matchedRules } = await this.calculateBasePoints(merchantId, transactionAmount, loyaltyProgramId, metadata);
 
-    // Apply tier multiplier
-    const tierMultiplier = userTier?.benefits?.pointsMultiplier || 1;
+    // Apply tier multiplier if available
+    let tierMultiplier = 1;
+    if (userTier && userTier.benefits) {
+      const benefits = userTier.benefits as Record<string, any>;
+      tierMultiplier = benefits.pointsMultiplier || 1;
+    }
     const pointsAfterTier = basePoints * tierMultiplier;
 
     // Apply campaign bonuses
-    const { campaignBonus, matchedCampaigns } = await this.calculateCampaignBonuses(
+    const { campaignBonus } = await this.calculateCampaignBonuses(
       activeCampaigns,
       userId,
       pointsAfterTier,
@@ -76,8 +79,8 @@ export class PointsCalculationService {
     // Cache the calculation result
     await this.cacheCalculationResult(userId, merchantId, totalPoints);
 
-    // Log calculation details
-    await logger.info("Points calculation completed", {
+    // Log calculation details (using console.log for now, should use fastify.log in request context)
+    console.log("Points calculation completed", {
       transactionAmount,
       totalPoints,
       merchantId,
@@ -136,7 +139,7 @@ export class PointsCalculationService {
   private async calculateBasePoints(
     merchantId: string,
     amount: number,
-    type: string,
+    loyaltyProgramId: string,
     metadata?: Record<string, any>
   ) {
     const rules = await prisma.pointsRule.findMany({
@@ -144,6 +147,7 @@ export class PointsCalculationService {
         loyaltyProgram: {
           merchantId,
         },
+        loyaltyProgramId,
         isActive: true,
       },
     });
@@ -152,12 +156,14 @@ export class PointsCalculationService {
     const matchedRules = [];
 
     for (const rule of rules) {
-      if (this.matchesRule(rule, amount, type, metadata)) {
+      if (this.matchesRule(rule, amount, 'EARN', metadata)) {
         const points = this.calculateRulePoints(rule, amount);
         totalPoints += points;
         matchedRules.push({
           ruleId: rule.id,
+          ruleName: rule.name || 'Unnamed Rule',
           points,
+          matchedConditions: []
         });
       }
     }
@@ -190,11 +196,48 @@ export class PointsCalculationService {
 
   private matchesRule(rule: any, amount: number, type: string, metadata?: Record<string, any>) {
     const conditions = rule.conditions;
-    if (!conditions) return true;
+    if (!conditions || !Array.isArray(conditions) || conditions.length === 0) return true;
 
     // Implement rule matching logic based on conditions
-    // This is a simplified version - expand based on your needs
-    return true;
+    return conditions.every(condition => {
+      // Check if the condition applies to the transaction type
+      if (condition.field === 'type' && condition.value !== type) {
+        return false;
+      }
+
+      // Check if the condition applies to the transaction amount
+      if (condition.field === 'amount') {
+        switch (condition.operator) {
+          case 'greaterThan':
+            return amount > condition.value;
+          case 'lessThan':
+            return amount < condition.value;
+          case 'equals':
+            return amount === condition.value;
+          default:
+            return true;
+        }
+      }
+
+      // Check metadata conditions
+      if (metadata && condition.field.startsWith('metadata.')) {
+        const metadataField = condition.field.replace('metadata.', '');
+        const metadataValue = metadata[metadataField];
+
+        if (metadataValue === undefined) return false;
+
+        switch (condition.operator) {
+          case 'equals':
+            return metadataValue === condition.value;
+          case 'contains':
+            return String(metadataValue).includes(String(condition.value));
+          default:
+            return true;
+        }
+      }
+
+      return true;
+    });
   }
 
   private calculateRulePoints(rule: any, amount: number) {
@@ -212,7 +255,32 @@ export class PointsCalculationService {
   }
 
   private matchesCampaign(campaign: any, userId: string, metadata?: Record<string, any>) {
-    // Implement campaign matching logic
+    // Skip if campaign has no conditions
+    if (!campaign.conditions) return true;
+
+    const conditions = campaign.conditions as any;
+
+    // Check user targeting if specified
+    if (conditions.userTargeting) {
+      // If specific users are targeted, check if current user is included
+      if (conditions.userTargeting.specificUsers &&
+        Array.isArray(conditions.userTargeting.specificUsers) &&
+        conditions.userTargeting.specificUsers.length > 0) {
+        if (!conditions.userTargeting.specificUsers.includes(userId)) {
+          return false;
+        }
+      }
+    }
+
+    // Check metadata conditions if specified
+    if (conditions.metadata && metadata) {
+      for (const [key, value] of Object.entries(conditions.metadata)) {
+        if (metadata[key] !== value) {
+          return false;
+        }
+      }
+    }
+
     return true;
   }
 
@@ -240,7 +308,6 @@ export class PointsCalculationService {
     transactionId: string,
     merchantId: string,
     userId: string,
-    loyaltyProgramId: string,
     points: number,
     status: "PENDING" | "COMPLETED" | "FAILED" = "PENDING",
     error?: string
@@ -250,10 +317,13 @@ export class PointsCalculationService {
         transactionId,
         merchantId,
         userId,
-        loyaltyProgramId,
         points,
         status,
         error,
+        metadata: {
+          timestamp: new Date().toISOString()
+        },
+        completedAt: status === "COMPLETED" ? new Date() : undefined,
       },
     });
   }
@@ -264,27 +334,35 @@ export class PointsCalculationService {
   async updatePointsBalance(
     userId: string,
     merchantId: string,
-    loyaltyProgramId: string,
     points: number
   ) {
-    return prisma.pointsBalance.upsert({
+    // First find if a balance record exists
+    const existingBalance = await prisma.pointsBalance.findFirst({
       where: {
-        userId_merchantId: {
-          userId,
-          merchantId,
-        },
-      },
-      create: {
         userId,
         merchantId,
-        loyaltyProgramId,
-        balance: points,
-      },
-      update: {
-        balance: {
-          increment: points,
-        },
       },
     });
+
+    if (existingBalance) {
+      // Update existing balance
+      return prisma.pointsBalance.update({
+        where: { id: existingBalance.id },
+        data: {
+          balance: {
+            increment: points,
+          },
+        },
+      });
+    } else {
+      // Create new balance
+      return prisma.pointsBalance.create({
+        data: {
+          userId,
+          merchantId,
+          balance: points,
+        },
+      });
+    }
   }
-} 
+}

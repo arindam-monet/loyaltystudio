@@ -1,6 +1,7 @@
-import { PrismaClient, PointsTransaction, PointsRule } from '@prisma/client';
+import { PrismaClient, PointsTransaction, PointsRule, WebhookEventType } from '@prisma/client';
 import { z } from 'zod';
 import { evaluateSegmentsAfterTransaction } from './segment-evaluation.js';
+import { webhookService } from '../services/webhook.js';
 
 const prismaClient = new PrismaClient();
 
@@ -91,27 +92,54 @@ export async function calculatePoints(transactionId: string) {
     });
 
     // Update points balance
-    await prismaClient.pointsBalance.upsert({
+    // First find if a balance record exists
+    const existingBalance = await prismaClient.pointsBalance.findFirst({
       where: {
-        userId_merchantId: {
-          userId: transaction.userId,
-          merchantId: metadata.merchantId,
-        },
-      },
-      create: {
         userId: transaction.userId,
         merchantId: metadata.merchantId,
-        balance: totalPoints,
-      },
-      update: {
-        balance: {
-          increment: totalPoints,
-        },
       },
     });
 
+    if (existingBalance) {
+      // Update existing balance
+      await prismaClient.pointsBalance.update({
+        where: { id: existingBalance.id },
+        data: {
+          balance: {
+            increment: totalPoints,
+          },
+        },
+      });
+    } else {
+      // Create new balance
+      await prismaClient.pointsBalance.create({
+        data: {
+          userId: transaction.userId,
+          merchantId: metadata.merchantId,
+          balance: totalPoints,
+        },
+      });
+    }
+
+    // Send webhook for points earned
+    if (totalPoints > 0) {
+      await webhookService.sendWebhook(
+        metadata.merchantId,
+        WebhookEventType.points_earned,
+        {
+          transactionId,
+          userId: transaction.userId || '',
+          points: totalPoints,
+          matchedRules,
+          timestamp: new Date().toISOString()
+        }
+      ).catch(err => console.error('Failed to send points earned webhook:', err));
+    }
+
     // Evaluate segments after points calculation
-    await evaluateSegmentsAfterTransaction(transaction.userId, metadata.merchantId);
+    if (transaction.userId) {
+      await evaluateSegmentsAfterTransaction(transaction.userId, metadata.merchantId);
+    }
 
     return calculation;
   } catch (error) {
