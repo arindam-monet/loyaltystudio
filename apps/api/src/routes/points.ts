@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WebhookEventType } from '@prisma/client';
 import { PointsCalculationService } from '../services/points-calculation.js';
 import { webhookService } from '../services/webhook.js';
 
@@ -200,19 +200,19 @@ export async function pointsRoutes(fastify: FastifyInstance) {
         });
 
         // Trigger webhook based on transaction type
-        let eventType: string;
+        let eventType: WebhookEventType;
         switch (data.type) {
           case 'EARN':
-            eventType = 'points_earned';
+            eventType = WebhookEventType.points_earned;
             break;
           case 'REDEEM':
-            eventType = 'points_redeemed';
+            eventType = WebhookEventType.points_redeemed;
             break;
           case 'ADJUST':
-            eventType = 'points_adjusted';
+            eventType = WebhookEventType.points_adjusted;
             break;
           default:
-            eventType = 'transaction_created';
+            eventType = WebhookEventType.transaction_created;
         }
 
         // Send webhook asynchronously (don't await)

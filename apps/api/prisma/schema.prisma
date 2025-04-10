@@ -484,17 +484,18 @@ model Webhook {
 }
 
 model WebhookDeliveryLog {
-  id         String           @id @default(cuid())
-  webhookId  String
-  eventType  WebhookEventType
-  payload    Json
-  statusCode Int?
-  response   String?
-  error      String?
-  attempts   Int              @default(0)
-  successful Boolean
-  createdAt  DateTime         @default(now())
-  webhook    Webhook          @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  webhookId    String
+  eventType    WebhookEventType
+  payload      Json
+  statusCode   Int?
+  response     String?
+  error        String?
+  attempts     Int              @default(0)
+  successful   Boolean
+  responseTime Int?             @default(0)
+  createdAt    DateTime         @default(now())
+  webhook      Webhook          @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@index([webhookId])
   @@index([eventType])

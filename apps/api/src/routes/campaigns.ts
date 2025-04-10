@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WebhookEventType } from '@prisma/client';
+import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
 
@@ -32,7 +33,7 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { loyaltyProgramId, includeInactive = false } = request.query as { 
+    const { loyaltyProgramId, includeInactive = false } = request.query as {
       loyaltyProgramId: string;
       includeInactive?: boolean;
     };
@@ -95,6 +96,18 @@ export async function campaignRoutes(fastify: FastifyInstance) {
     const data = campaignSchema.parse(request.body);
 
     try {
+      // Get the loyalty program to get the merchant ID
+      const loyaltyProgram = await prisma.loyaltyProgram.findUnique({
+        where: { id: data.loyaltyProgramId },
+        select: { merchantId: true }
+      });
+
+      if (!loyaltyProgram) {
+        return reply.code(404).send({
+          error: 'Loyalty program not found'
+        });
+      }
+
       const campaign = await prisma.campaign.create({
         data: {
           name: data.name,
@@ -111,8 +124,16 @@ export async function campaignRoutes(fastify: FastifyInstance) {
         },
         include: {
           participants: true,
+          loyaltyProgram: true
         }
       });
+
+      // Send webhook for campaign created
+      webhookService.sendWebhook(
+        loyaltyProgram.merchantId,
+        WebhookEventType.campaign_started,
+        campaign
+      ).catch(error => console.error('Failed to send campaign created webhook:', error));
 
       return reply.code(201).send(campaign);
     } catch (error) {
@@ -154,13 +175,45 @@ export async function campaignRoutes(fastify: FastifyInstance) {
     const data = campaignSchema.partial().parse(request.body);
 
     try {
+      // Get the existing campaign to check if status changed
+      const existingCampaign = await prisma.campaign.findUnique({
+        where: { id },
+        include: {
+          loyaltyProgram: true
+        }
+      });
+
+      if (!existingCampaign) {
+        return reply.code(404).send({
+          error: 'Campaign not found'
+        });
+      }
+
       const campaign = await prisma.campaign.update({
         where: { id },
         data,
         include: {
           participants: true,
+          loyaltyProgram: true
         }
       });
+
+      // Check if campaign status changed
+      if (data.isActive !== undefined && data.isActive !== existingCampaign.isActive) {
+        // Send webhook for campaign status change
+        webhookService.sendWebhook(
+          existingCampaign.loyaltyProgram.merchantId,
+          data.isActive ? WebhookEventType.campaign_started : WebhookEventType.campaign_ended,
+          campaign
+        ).catch(error => console.error(`Failed to send campaign ${data.isActive ? 'started' : 'ended'} webhook:`, error));
+      } else {
+        // Send webhook for campaign updated
+        webhookService.sendWebhook(
+          existingCampaign.loyaltyProgram.merchantId,
+          WebhookEventType.campaign_updated,
+          campaign
+        ).catch(error => console.error('Failed to send campaign updated webhook:', error));
+      }
 
       return reply.send(campaign);
     } catch (error) {
@@ -188,9 +241,39 @@ export async function campaignRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
 
     try {
+      // Get the campaign to get the merchant ID
+      const campaign = await prisma.campaign.findUnique({
+        where: { id },
+        include: {
+          loyaltyProgram: true
+        }
+      });
+
+      if (!campaign) {
+        return reply.code(404).send({
+          error: 'Campaign not found'
+        });
+      }
+
+      // Store merchant ID and campaign info for webhook
+      const merchantId = campaign.loyaltyProgram.merchantId;
+      const campaignInfo = {
+        id: campaign.id,
+        name: campaign.name,
+        type: campaign.type,
+        deletedAt: new Date().toISOString()
+      };
+
       await prisma.campaign.delete({
         where: { id },
       });
+
+      // Send webhook for campaign deleted
+      webhookService.sendWebhook(
+        merchantId,
+        WebhookEventType.campaign_ended,
+        campaignInfo
+      ).catch(error => console.error('Failed to send campaign deleted webhook:', error));
 
       return reply.code(204).send();
     } catch (error) {
@@ -326,4 +409,4 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       });
     }
   });
-} 
+}

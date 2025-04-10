@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -40,13 +40,14 @@ import {
   SelectValue,
   Checkbox,
   Textarea,
-
+  Skeleton,
   useToast,
 } from '@loyaltystudio/ui';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Play, MoreHorizontal, CheckCircle, XCircle, Copy, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Play, MoreHorizontal, CheckCircle, XCircle, Copy, ExternalLink, RefreshCw } from 'lucide-react';
+import { useWebhooks } from '@/hooks/use-webhooks';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,76 +93,28 @@ const testWebhookSchema = z.object({
 
 type TestWebhookFormValues = z.infer<typeof testWebhookSchema>;
 
-// Mock data for webhooks
-const mockWebhooks = [
-  {
-    id: '1',
-    url: 'https://example.com/webhooks/loyalty',
-    description: 'Main webhook endpoint for loyalty events',
-    events: ['transaction_created', 'points_earned', 'points_redeemed'],
-    isActive: true,
-    secret: 'whsec_1234567890abcdef',
-    createdAt: '2023-01-15',
-  },
-  {
-    id: '2',
-    url: 'https://example.com/webhooks/members',
-    description: 'Member management webhook',
-    events: ['member_created', 'member_updated', 'member_deleted'],
-    isActive: true,
-    secret: 'whsec_abcdef1234567890',
-    createdAt: '2023-02-20',
-  },
-];
 
-// Mock data for webhook delivery logs
-const mockDeliveryLogs = [
-  {
-    id: '1',
-    webhookId: '1',
-    eventType: 'transaction_created',
-    timestamp: '2023-04-01T12:30:45Z',
-    statusCode: 200,
-    successful: true,
-    responseTime: 245,
-  },
-  {
-    id: '2',
-    webhookId: '1',
-    eventType: 'points_earned',
-    timestamp: '2023-04-01T14:15:22Z',
-    statusCode: 200,
-    successful: true,
-    responseTime: 189,
-  },
-  {
-    id: '3',
-    webhookId: '1',
-    eventType: 'transaction_created',
-    timestamp: '2023-04-02T09:45:12Z',
-    statusCode: 500,
-    successful: false,
-    responseTime: 1245,
-  },
-  {
-    id: '4',
-    webhookId: '2',
-    eventType: 'member_created',
-    timestamp: '2023-04-02T10:22:33Z',
-    statusCode: 200,
-    successful: true,
-    responseTime: 156,
-  },
-];
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState(mockWebhooks);
+  const {
+    webhooks,
+    isLoading,
+    createWebhook,
+    updateWebhook,
+    deleteWebhook,
+    testWebhook,
+    regenerateSecret,
+    getWebhookLogs
+  } = useWebhooks();
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
   const [isViewSecretDialogOpen, setIsViewSecretDialogOpen] = useState(false);
-  const [selectedWebhook, setSelectedWebhook] = useState<typeof mockWebhooks[0] | null>(null);
-  const [deliveryLogs, setDeliveryLogs] = useState(mockDeliveryLogs);
+  const [selectedWebhook, setSelectedWebhook] = useState<any | null>(null);
+  const [deliveryLogs, setDeliveryLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<WebhookFormValues>({
@@ -181,60 +134,94 @@ export default function WebhooksPage() {
     },
   });
 
-  const onSubmit = (data: WebhookFormValues) => {
-    // In a real app, this would call an API to create a new webhook
-    const newWebhook = {
-      id: Date.now().toString(),
-      url: data.url,
-      description: data.description || '',
-      events: data.events,
-      isActive: true,
-      secret: `whsec_${Math.random().toString(36).substring(2, 15)}`,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
+  const onSubmit = async (data: WebhookFormValues) => {
+    setIsSubmitting(true);
+    try {
+      await createWebhook.mutateAsync({
+        url: data.url,
+        events: data.events,
+        description: data.description,
+      });
 
-    setWebhooks([...webhooks, newWebhook]);
-    setIsAddDialogOpen(false);
-    form.reset();
+      setIsAddDialogOpen(false);
+      form.reset();
 
-    toast({
-      title: 'Webhook created',
-      description: 'Your webhook has been created successfully.',
-    });
+      toast({
+        title: 'Webhook created',
+        description: 'Your webhook has been created successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to create webhook',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteWebhook = (id: string) => {
-    setWebhooks(webhooks.filter((webhook) => webhook.id !== id));
-    toast({
-      title: 'Webhook deleted',
-      description: 'The webhook has been deleted successfully.',
-    });
+  const handleDeleteWebhook = async (id: string) => {
+    try {
+      await deleteWebhook.mutateAsync(id);
+      toast({
+        title: 'Webhook deleted',
+        description: 'The webhook has been deleted successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to delete webhook',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleToggleWebhook = (id: string) => {
-    setWebhooks(
-      webhooks.map((webhook) =>
-        webhook.id === id
-          ? { ...webhook, isActive: !webhook.isActive }
-          : webhook
-      )
-    );
-
+  const handleToggleWebhook = async (id: string) => {
     const webhook = webhooks.find((w) => w.id === id);
-    toast({
-      title: webhook?.isActive ? 'Webhook disabled' : 'Webhook enabled',
-      description: webhook?.isActive
-        ? 'The webhook has been disabled and will not receive events.'
-        : 'The webhook has been enabled and will receive events.',
-    });
+    if (!webhook) return;
+
+    try {
+      await updateWebhook.mutateAsync({
+        id,
+        data: { isActive: !webhook.isActive }
+      });
+
+      toast({
+        title: webhook.isActive ? 'Webhook disabled' : 'Webhook enabled',
+        description: webhook.isActive
+          ? 'The webhook has been disabled and will not receive events.'
+          : 'The webhook has been enabled and will receive events.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to update webhook',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleViewSecret = (webhook: typeof mockWebhooks[0]) => {
+  const handleViewSecret = async (webhook: any) => {
     setSelectedWebhook(webhook);
     setIsViewSecretDialogOpen(true);
+
+    try {
+      const result = await regenerateSecret.mutateAsync(webhook.id);
+      // Update the selected webhook with the new secret
+      setSelectedWebhook({ ...webhook, secret: result.secret });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to get webhook secret',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleCopySecret = (secret: string) => {
+    if (!secret) return;
+
     navigator.clipboard.writeText(secret);
     toast({
       title: 'Secret copied',
@@ -242,50 +229,78 @@ export default function WebhooksPage() {
     });
   };
 
-  const handleTestWebhook = (webhook: typeof mockWebhooks[0]) => {
+  const handleTestWebhook = (webhook: any) => {
     setSelectedWebhook(webhook);
     setIsTestDialogOpen(true);
     setTestResult(null);
   };
 
-  const onTestSubmit = (data: TestWebhookFormValues) => {
-    // In a real app, this would call an API to test the webhook
-    // For now, we'll simulate a response
-    setTimeout(() => {
-      const success = Math.random() > 0.3; // 70% success rate for demo
-      setTestResult({
-        success,
-        message: success
-          ? 'Webhook test delivered successfully'
-          : 'Failed to deliver webhook test',
+  const fetchWebhookLogs = async (webhookId: string) => {
+    setIsLoadingLogs(true);
+    try {
+      const logsQuery = getWebhookLogs(webhookId);
+      const logsData = await logsQuery.refetch();
+      if (logsData.data) {
+        setDeliveryLogs(logsData.data.logs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch webhook logs:', error);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (webhooks.length > 0) {
+      // Fetch logs for the first webhook by default
+      fetchWebhookLogs(webhooks[0].id);
+    }
+  }, [webhooks.length]);
+
+  const onTestSubmit = async (data: TestWebhookFormValues) => {
+    if (!selectedWebhook) return;
+
+    setIsSubmitting(true);
+    try {
+      let payload = {};
+      if (data.payload) {
+        try {
+          payload = JSON.parse(data.payload);
+        } catch (e) {
+          toast({
+            title: 'Invalid JSON',
+            description: 'Please provide valid JSON for the payload',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
+      const result = await testWebhook.mutateAsync({
+        id: selectedWebhook.id,
+        data: {
+          eventType: data.eventType,
+          payload
+        }
       });
 
-      if (success) {
-        // Add a new delivery log
-        const newLog = {
-          id: Date.now().toString(),
-          webhookId: selectedWebhook!.id,
-          eventType: data.eventType,
-          timestamp: new Date().toISOString(),
-          statusCode: 200,
-          successful: true,
-          responseTime: Math.floor(Math.random() * 500) + 100,
-        };
-        setDeliveryLogs([newLog, ...deliveryLogs]);
-      } else {
-        // Add a failed delivery log
-        const newLog = {
-          id: Date.now().toString(),
-          webhookId: selectedWebhook!.id,
-          eventType: data.eventType,
-          timestamp: new Date().toISOString(),
-          statusCode: 500,
-          successful: false,
-          responseTime: Math.floor(Math.random() * 1000) + 500,
-        };
-        setDeliveryLogs([newLog, ...deliveryLogs]);
-      }
-    }, 1500);
+      setTestResult({
+        success: result.success,
+        message: result.message,
+      });
+
+      // Refresh logs after test
+      await fetchWebhookLogs(selectedWebhook.id);
+
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to test webhook',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -400,7 +415,9 @@ export default function WebhooksPage() {
                     <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">Create</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? 'Creating...' : 'Create'}
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -501,7 +518,7 @@ export default function WebhooksPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {webhooks.length === 0 && (
+              {!isLoading && webhooks.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     No webhooks found. Create one to get started.
@@ -514,11 +531,17 @@ export default function WebhooksPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Webhook Delivery Logs</CardTitle>
-          <CardDescription>
-            View recent webhook delivery attempts and their status
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Webhook Delivery Logs</CardTitle>
+            <CardDescription>
+              View recent webhook delivery attempts and their status
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => webhooks.length > 0 && fetchWebhookLogs(webhooks[0].id)}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -532,7 +555,17 @@ export default function WebhooksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {deliveryLogs.map((log) => {
+              {isLoadingLogs ? (
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : deliveryLogs.map((log) => {
                 const webhook = webhooks.find((w) => w.id === log.webhookId);
                 return (
                   <TableRow key={log.id}>
@@ -543,7 +576,7 @@ export default function WebhooksPage() {
                       {webhook?.url || 'Unknown'}
                     </TableCell>
                     <TableCell>
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
@@ -560,11 +593,11 @@ export default function WebhooksPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{log.responseTime}ms</TableCell>
+                    <TableCell>{log.responseTime || '-'}ms</TableCell>
                   </TableRow>
                 );
               })}
-              {deliveryLogs.length === 0 && (
+              {!isLoadingLogs && deliveryLogs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                     No delivery logs found.
@@ -682,7 +715,9 @@ export default function WebhooksPage() {
                 <Button type="button" variant="outline" onClick={() => setIsTestDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Send Test Event</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Testing...' : 'Send Test Event'}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -697,7 +732,7 @@ export default function WebhooksPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-lg border p-4 space-y-2">
               <h3 className="font-semibold">Getting Started</h3>
               <p className="text-sm text-muted-foreground">
@@ -719,6 +754,18 @@ export default function WebhooksPage() {
                 <a href="/developer/docs#webhook-events" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   View Events
+                </a>
+              </Button>
+            </div>
+            <div className="rounded-lg border p-4 space-y-2">
+              <h3 className="font-semibold">Test Webhooks</h3>
+              <p className="text-sm text-muted-foreground">
+                Use our testing tool to verify your webhook integrations
+              </p>
+              <Button variant="outline" className="w-full mt-2" asChild>
+                <a href="/developer/webhooks/test">
+                  <Play className="mr-2 h-4 w-4" />
+                  Test Webhooks
                 </a>
               </Button>
             </div>

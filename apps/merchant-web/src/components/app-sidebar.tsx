@@ -134,7 +134,19 @@ const getNavData = (pathname: string) => ({
           title: 'Webhooks',
           url: '/developer/webhooks',
           icon: Webhook,
-          isActive: pathname === '/developer/webhooks',
+          isActive: pathname === '/developer/webhooks' || pathname === '/developer/webhooks/test',
+          items: [
+            {
+              title: 'Manage',
+              url: '/developer/webhooks',
+              isActive: pathname === '/developer/webhooks',
+            },
+            {
+              title: 'Test Tool',
+              url: '/developer/webhooks/test',
+              isActive: pathname === '/developer/webhooks/test',
+            },
+          ],
         },
         {
           title: 'Documentation',

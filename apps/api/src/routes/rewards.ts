@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WebhookEventType } from '@prisma/client';
+import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
 
@@ -101,7 +102,17 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
               connect: { id: data.loyaltyProgramId }
             }
           },
+          include: {
+            loyaltyProgram: true
+          }
         });
+
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          loyaltyProgram.merchantId,
+          WebhookEventType.reward_created,
+          reward
+        ).catch(error => request.log.error({ error }, 'Failed to send reward created webhook'));
 
         return reply.code(201).send(reward);
       } catch (error) {
@@ -275,6 +286,91 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
     },
   });
 
+  // Delete reward
+  fastify.delete('/rewards/:id', {
+    schema: {
+      description: 'Delete a reward',
+      tags: ['rewards'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' },
+        },
+      },
+      response: {
+        204: {
+          type: 'null',
+          description: 'Reward deleted successfully'
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = request.user;
+
+        // Find the reward and include the loyalty program and merchant
+        const existingReward = await prisma.reward.findUnique({
+          where: { id },
+          include: {
+            loyaltyProgram: {
+              include: {
+                merchant: true
+              }
+            }
+          }
+        });
+
+        if (!existingReward) {
+          return reply.code(404).send({ error: 'Reward not found' });
+        }
+
+        // Verify that the reward belongs to the user's tenant
+        if (existingReward.loyaltyProgram.merchant.tenantId !== user.tenantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this reward'
+          });
+        }
+
+        // Verify that the merchant ID matches the request's merchant ID if it's set
+        if (request.merchantId && existingReward.loyaltyProgram.merchantId !== request.merchantId) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'You do not have access to this merchant'
+          });
+        }
+
+        // Store merchant ID for webhook
+        const merchantId = existingReward.loyaltyProgram.merchantId;
+
+        // Delete the reward
+        await prisma.reward.delete({
+          where: { id }
+        });
+
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          merchantId,
+          WebhookEventType.reward_deleted,
+          {
+            id,
+            name: existingReward.name,
+            loyaltyProgramId: existingReward.loyaltyProgramId,
+            deletedAt: new Date().toISOString()
+          }
+        ).catch(error => request.log.error({ error }, 'Failed to send reward deleted webhook'));
+
+        return reply.code(204).send();
+      } catch (error) {
+        request.log.error(error);
+        return reply.code(500).send({ error: 'Failed to delete reward' });
+      }
+    },
+  });
+
   // Update reward
   fastify.put('/rewards/:id', {
     schema: {
@@ -373,7 +469,17 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
         const reward = await prisma.reward.update({
           where: { id },
           data,
+          include: {
+            loyaltyProgram: true
+          }
         });
+
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          existingReward.loyaltyProgram.merchantId,
+          WebhookEventType.reward_updated,
+          reward
+        ).catch(error => request.log.error({ error }, 'Failed to send reward updated webhook'));
 
         return reward;
       } catch (error) {
@@ -477,6 +583,9 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
             status: 'PENDING',
             metadata: data.metadata,
           },
+          include: {
+            reward: true
+          }
         });
 
         // Create points transaction for redemption
@@ -492,6 +601,24 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
             },
           },
         });
+
+        // Send webhook asynchronously
+        webhookService.sendWebhook(
+          reward.loyaltyProgram.merchantId,
+          WebhookEventType.reward_redeemed,
+          {
+            redemption,
+            reward: {
+              id: reward.id,
+              name: reward.name,
+              description: reward.description,
+              type: reward.type,
+              pointsCost: reward.pointsCost
+            },
+            userId: redemption.userId,
+            timestamp: new Date().toISOString()
+          }
+        ).catch(error => request.log.error({ error }, 'Failed to send reward redeemed webhook'));
 
         return reply.code(201).send(redemption);
       } catch (error) {
@@ -703,11 +830,35 @@ export async function rewardsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Store previous status for webhook
+        const previousStatus = existingRedemption.status;
+
         // Update the redemption status
         const redemption = await prisma.rewardRedemption.update({
           where: { id },
           data: { status },
         });
+
+        // Send webhook for status change
+        webhookService.sendWebhook(
+          existingRedemption.reward.loyaltyProgram.merchantId,
+          WebhookEventType.reward_redeemed,
+          {
+            redemption: {
+              id: redemption.id,
+              status: redemption.status,
+              updatedAt: redemption.updatedAt
+            },
+            reward: {
+              id: existingRedemption.reward.id,
+              name: existingRedemption.reward.name
+            },
+            userId: existingRedemption.userId,
+            statusChanged: true,
+            previousStatus,
+            timestamp: new Date().toISOString()
+          }
+        ).catch(error => request.log.error({ error }, 'Failed to send redemption status updated webhook'));
 
         return {
           id: redemption.id,

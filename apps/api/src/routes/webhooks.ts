@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WebhookEventType } from '@prisma/client';
 import { webhookService } from '../services/webhook.js';
 import crypto from 'crypto';
 
@@ -12,44 +12,28 @@ const prismaAny = prisma as any;
 // We'll use request.user.merchantId to get the merchant ID
 
 // Webhook creation schema
-// Define webhook event types
-const WebhookEventTypes = [
-  'transaction_created',
-  'points_earned',
-  'points_redeemed',
-  'points_adjusted',
-  'member_created',
-  'member_updated',
-  'member_deleted',
-  'tier_changed',
-  'reward_redeemed',
-  'reward_created',
-  'reward_updated',
-  'reward_deleted',
-  'campaign_started',
-  'campaign_ended',
-  'campaign_updated'
-] as const;
+// Define webhook event types - these should match the WebhookEventType enum in Prisma
+const WebhookEventTypes = Object.values(WebhookEventType);
 
 // We use string literals for webhook event types
 
 const webhookSchema = z.object({
   url: z.string().url(),
-  events: z.array(z.enum(WebhookEventTypes)),
+  events: z.array(z.enum(WebhookEventTypes as unknown as [string, ...string[]])),
   description: z.string().optional(),
 });
 
 // Webhook update schema
 const webhookUpdateSchema = z.object({
   url: z.string().url().optional(),
-  events: z.array(z.enum(WebhookEventTypes)).optional(),
+  events: z.array(z.enum(WebhookEventTypes as unknown as [string, ...string[]])).optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
 // Webhook test schema
 const webhookTestSchema = z.object({
-  eventType: z.enum(WebhookEventTypes),
+  eventType: z.enum(WebhookEventTypes as unknown as [string, ...string[]]),
   payload: z.record(z.any()).optional(),
 });
 
@@ -530,7 +514,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
         };
 
         // Deliver test webhook
-        const result = await webhookService.deliverWebhook(id, eventType, testPayload);
+        const result = await webhookService.deliverWebhook(id, eventType as WebhookEventType, testPayload);
 
         if (result.success) {
           return {

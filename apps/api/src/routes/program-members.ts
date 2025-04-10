@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WebhookEventType } from '@prisma/client';
 import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
@@ -143,7 +143,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         // Send webhook asynchronously
         webhookService.sendWebhook(
           tier.loyaltyProgram.merchantId,
-          'member_created',
+          WebhookEventType.member_created,
           member
         ).catch(error => request.log.error({ error }, 'Failed to send member created webhook'));
       }
@@ -240,7 +240,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         // Send member updated webhook
         webhookService.sendWebhook(
           merchantId,
-          'member_updated',
+          WebhookEventType.member_updated,
           member
         ).catch(error => request.log.error({ error }, 'Failed to send member updated webhook'));
 
@@ -248,7 +248,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         if (data.tierId && data.tierId !== originalMember.tierId) {
           webhookService.sendWebhook(
             merchantId,
-            'tier_changed',
+            WebhookEventType.tier_changed,
             {
               memberId: member.id,
               email: member.email,
@@ -300,7 +300,7 @@ export async function programMemberRoutes(fastify: FastifyInstance) {
         // Send webhook asynchronously
         webhookService.sendWebhook(
           member.tier.loyaltyProgram.merchantId,
-          'member_deleted',
+          WebhookEventType.member_deleted,
           {
             id: member.id,
             email: member.email,

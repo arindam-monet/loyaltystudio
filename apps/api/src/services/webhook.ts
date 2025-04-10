@@ -2,14 +2,19 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from '../middleware/logger.js';
 import crypto from 'crypto';
 import got from 'got';
+import { WebhookEventType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export class WebhookService {
   /**
    * Send webhook to all subscribed endpoints for a merchant
+   * @param merchantId The ID of the merchant
+   * @param eventType The type of event (must be one of WebhookEventType)
+   * @param payload The payload to send with the webhook
+   * @returns Object with success status and count of webhooks delivered
    */
-  async sendWebhook(merchantId: string, eventType: string, payload: any) {
+  async sendWebhook(merchantId: string, eventType: WebhookEventType, payload: any) {
     try {
       logger.info({ merchantId, eventType }, 'Sending webhook');
 
@@ -45,8 +50,12 @@ export class WebhookService {
 
   /**
    * Deliver webhook to a specific endpoint
+   * @param webhookId The ID of the webhook to deliver to
+   * @param eventType The type of event (must be one of WebhookEventType)
+   * @param payload The payload to send with the webhook
+   * @returns Object with success status and status code
    */
-  async deliverWebhook(webhookId: string, eventType: string, payload: any) {
+  async deliverWebhook(webhookId: string, eventType: WebhookEventType, payload: any) {
     try {
       // Get webhook details
       // Type assertion for Prisma client
@@ -119,13 +128,15 @@ export class WebhookService {
       const statusCode = gotError.response?.statusCode;
       const errorBody = gotError.response?.body || null;
       const errorMessage = gotError.message || 'Unknown error';
+      const responseTime = gotError.timings?.phases?.total || 0;
 
       // Log error
       logger.error({
         error,
         webhookId,
         statusCode,
-        errorMessage
+        errorMessage,
+        responseTime
       }, 'Error delivering webhook');
 
       await this.logDelivery(
@@ -136,7 +147,7 @@ export class WebhookService {
         errorBody,
         errorMessage,
         false,
-        0
+        responseTime
       );
 
       // No need to manually queue for retry as Got handles retries automatically
@@ -165,16 +176,24 @@ export class WebhookService {
 
   /**
    * Log webhook delivery attempt
+   * @param webhookId The ID of the webhook
+   * @param eventType The type of event
+   * @param payload The payload sent with the webhook
+   * @param statusCode The HTTP status code returned
+   * @param response The response body
+   * @param error Any error message
+   * @param successful Whether the delivery was successful
+   * @param responseTime The time taken to deliver the webhook in ms
    */
   async logDelivery(
     webhookId: string,
-    eventType: string,
+    eventType: WebhookEventType,
     payload: any,
     statusCode: number | null,
     response: string | null,
     error: string | null,
     successful: boolean,
-    _responseTime: number // Prefix with underscore to indicate it's not used
+    responseTime: number
   ) {
     try {
       // Type assertion for Prisma client
@@ -188,7 +207,8 @@ export class WebhookService {
           response,
           error,
           successful,
-          attempts: 1
+          attempts: 1,
+          responseTime: responseTime
         }
       });
     } catch (logError) {
@@ -199,8 +219,11 @@ export class WebhookService {
   /**
    * Queue webhook for retry with exponential backoff
    * This is used as a fallback when Got's built-in retry mechanism fails
+   * @param webhookId The ID of the webhook to retry
+   * @param eventType The type of event
+   * @param payload The payload to send with the webhook
    */
-  async queueRetry(webhookId: string, eventType: string, payload: any) {
+  async queueRetry(webhookId: string, eventType: WebhookEventType, payload: any) {
     try {
       // Get delivery logs to determine retry count
       // Type assertion for Prisma client
