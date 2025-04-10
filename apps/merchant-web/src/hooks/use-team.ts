@@ -1,15 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { toast } from '@loyaltystudio/ui';
 
-type TeamMember = {
+export type TeamMember = {
   id: string;
   name: string | null;
   email: string;
   role: string;
   status: 'active' | 'pending';
+  isAdmin?: boolean;
+  isTenantOwner?: boolean;
 };
 
-type InviteData = {
+export type InviteData = {
   email: string;
   role: string;
 };
@@ -17,39 +20,67 @@ type InviteData = {
 export function useTeam() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['team-members'],
     queryFn: async () => {
-      const response = await apiClient.get('/team-members');
-      if (response.status !== 200) {
+      try {
+        const response = await apiClient.get('/team-members');
+        return response.data as TeamMember[];
+      } catch (error) {
+        console.error('Failed to fetch team members:', error);
         throw new Error('Failed to fetch team members');
       }
-      return response.data as TeamMember[];
     },
   });
 
   const invite = useMutation({
     mutationFn: async (data: InviteData) => {
-      const response = await apiClient.post('/team-members/invite', data);
-      if (response.status !== 200 && response.status !== 201) {
-        throw new Error('Failed to send invitation');
+      try {
+        const response = await apiClient.post('/team-members/invite', data);
+        return response.data;
+      } catch (error: any) {
+        console.error('Failed to send invitation:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to send invitation';
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        throw new Error(errorMessage);
       }
-      return response.data;
     },
     onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Invitation sent successfully',
+        variant: 'success',
+      });
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
     },
   });
 
   const remove = useMutation({
     mutationFn: async (memberId: string) => {
-      const response = await apiClient.delete(`/team-members/${memberId}`);
-      if (response.status !== 200 && response.status !== 204) {
-        throw new Error('Failed to remove team member');
+      try {
+        const response = await apiClient.delete(`/team-members/${memberId}`);
+        return response.data;
+      } catch (error: any) {
+        console.error('Failed to remove team member:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to remove team member';
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        throw new Error(errorMessage);
       }
-      return response.data;
     },
     onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Team member removed successfully',
+        variant: 'success',
+      });
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
     },
   });
@@ -57,7 +88,9 @@ export function useTeam() {
   return {
     data,
     isLoading,
+    error,
+    refetch,
     invite,
     remove,
   };
-} 
+}

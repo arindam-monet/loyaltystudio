@@ -1,14 +1,10 @@
 'use client';
 
-// Note: This is a placeholder implementation with mock data.
-// In a real application, this would be connected to the API.
-
 import { useState } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
   Button,
@@ -39,88 +35,89 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Skeleton,
+  toast,
 } from '@loyaltystudio/ui';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { Plus, Pencil, Trash2, MoreHorizontal, AlertCircle, Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@loyaltystudio/ui';
+import { useTeam, TeamMember } from '@/hooks/use-team';
 
 // Define the form schema
-const teamMemberSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+const inviteSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   role: z.enum(['admin', 'manager', 'member']),
 });
 
-type TeamMemberFormValues = z.infer<typeof teamMemberSchema>;
-
-// Mock data for team members
-// In a real implementation, this would come from an API call
-const mockTeamMembers = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin', status: 'active' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'manager', status: 'active' },
-  { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'member', status: 'invited' },
-];
-
-// This would be replaced with actual API calls in a real implementation
+type InviteFormValues = z.infer<typeof inviteSchema>;
 
 export default function TeamSettingsPage() {
-  const [teamMembers, setTeamMembers] = useState(mockTeamMembers);
+  const { data: teamMembers, isLoading, error, invite, remove, refetch } = useTeam();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [currentMember, setCurrentMember] = useState<typeof teamMembers[0] | null>(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
 
-  const form = useForm<TeamMemberFormValues>({
-    resolver: zodResolver(teamMemberSchema),
+  const form = useForm<InviteFormValues>({
+    resolver: zodResolver(inviteSchema),
     defaultValues: {
-      name: '',
       email: '',
       role: 'member',
     },
   });
 
-  const handleAddMember = (data: TeamMemberFormValues) => {
-    const newMember = {
-      id: Date.now().toString(),
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      status: 'invited',
-    };
-
-    setTeamMembers([...teamMembers, newMember]);
-    setIsAddDialogOpen(false);
-    form.reset();
+  const handleInviteMember = async (data: InviteFormValues) => {
+    try {
+      await invite.mutateAsync(data);
+      setIsAddDialogOpen(false);
+      form.reset();
+    } catch (error) {
+      // Error is handled by the mutation
+    }
   };
 
-  const handleEditMember = (data: TeamMemberFormValues) => {
-    if (!currentMember) return;
-
-    const updatedMembers = teamMembers.map(member =>
-      member.id === currentMember.id
-        ? { ...member, name: data.name, email: data.email, role: data.role }
-        : member
-    );
-
-    setTeamMembers(updatedMembers);
-    setIsEditDialogOpen(false);
-    setCurrentMember(null);
-    form.reset();
+  const handleDeleteMember = async (id: string) => {
+    setMemberToDelete(id);
+    setIsConfirmDeleteOpen(true);
   };
 
-  const handleDeleteMember = (id: string) => {
-    setTeamMembers(teamMembers.filter(member => member.id !== id));
+  const confirmDelete = async () => {
+    if (memberToDelete) {
+      try {
+        await remove.mutateAsync(memberToDelete);
+        setIsConfirmDeleteOpen(false);
+        setMemberToDelete(null);
+      } catch (error) {
+        // Error is handled by the mutation
+      }
+    }
   };
 
-  const openEditDialog = (member: typeof teamMembers[0]) => {
-    setCurrentMember(member);
-    form.reset({
-      name: member.name,
-      email: member.email,
-      role: member.role as 'admin' | 'manager' | 'member',
-    });
-    setIsEditDialogOpen(true);
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'default';
+      case 'manager':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    return status.toLowerCase() === 'active' ? 'success' : 'warning';
+  };
+
+  const formatRole = (role: string) => {
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+  };
+
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
   return (
@@ -137,32 +134,18 @@ export default function TeamSettingsPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Member
+                Invite Member
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Team Member</DialogTitle>
+                <DialogTitle>Invite Team Member</DialogTitle>
                 <DialogDescription>
-                  Add a new member to your team. They will receive an invitation email.
+                  Invite a new member to your team. They will receive an invitation email.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleAddMember)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+                <form onSubmit={form.handleSubmit(handleInviteMember)} className="space-y-4">
                   <FormField
                     control={form.control}
                     name="email"
@@ -204,10 +187,21 @@ export default function TeamSettingsPage() {
                   />
 
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddDialogOpen(false)}
+                      disabled={invite.isPending}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit">Add Member</Button>
+                    <Button
+                      type="submit"
+                      disabled={invite.isPending}
+                    >
+                      {invite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send Invitation
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -215,6 +209,16 @@ export default function TeamSettingsPage() {
           </Dialog>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                Failed to load team members. Please try again later.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -226,129 +230,118 @@ export default function TeamSettingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {teamMembers.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      member.role === 'admin'
-                        ? 'default'
-                        : member.role === 'manager'
-                          ? 'secondary'
-                          : 'outline'
-                    }>
-                      {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={member.status === 'active' ? 'success' : 'warning'}>
-                      {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(member)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteMember(member.id)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-6 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : !teamMembers || teamMembers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    No team members found. Invite someone to get started.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                teamMembers.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name || 'Not set'}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(member.role)}>
+                        {formatRole(member.role)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(member.status)}>
+                        {formatStatus(member.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {member.isTenantOwner ? (
+                        <div className="text-xs text-muted-foreground italic px-2">
+                          Tenant Owner (cannot be removed)
+                        </div>
+                      ) : member.isAdmin ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteMember(member.id)}
+                              className="text-destructive focus:text-destructive"
+                              disabled={remove.isPending}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remove Admin
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteMember(member.id)}
+                              className="text-destructive focus:text-destructive"
+                              disabled={remove.isPending}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Edit Member Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* Confirm Delete Dialog */}
+      <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Team Member</DialogTitle>
+            <DialogTitle>Remove Team Member</DialogTitle>
             <DialogDescription>
-              Update team member information and permissions
+              Are you sure you want to remove this team member? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleEditMember)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="john@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="member">Member</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      This determines what permissions the team member will have
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsConfirmDeleteOpen(false)}
+              disabled={remove.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={remove.isPending}
+            >
+              {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Remove
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

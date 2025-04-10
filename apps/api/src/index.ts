@@ -31,6 +31,7 @@ import { demoRequestRoutes } from './routes/demo-requests.js';
 import { invitationRoutes } from './routes/invitations.js';
 import { adminRoutes } from './routes/admin.js';
 import { healthRoutes } from './routes/health.js';
+import { teamMembersRoutes } from './routes/team-members.js';
 
 const app = fastify({
   logger: {
@@ -145,6 +146,7 @@ app.register(demoRequestRoutes, { prefix: '/api' });
 app.register(invitationRoutes);
 app.register(adminRoutes);
 app.register(healthRoutes);
+app.register(teamMembersRoutes);
 
 // Register db plugin
 app.register(dbPlugin);
