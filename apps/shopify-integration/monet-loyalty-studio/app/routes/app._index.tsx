@@ -25,7 +25,6 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { getMerchantByShop } from "../models/merchant.server";
-import { StarFilledMinor, StarOutlineMinor } from "@shopify/polaris-icons";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
