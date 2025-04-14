@@ -26,7 +26,11 @@
     "api:test:ai-generator": "cd apps/api && npx vitest run src/services/__tests__/ai-program-generator.test.ts",
     "docs:dev": "turbo dev --filter=@loyaltystudio/docs",
     "docs:build": "turbo build --filter=@loyaltystudio/docs",
-    "ui:build": "turbo build --filter=@loyaltystudio/ui"
+    "ui:build": "turbo build --filter=@loyaltystudio/ui",
+    "shopify:dev": "cd apps/shopify-integration/monet-loyalty-studio && pnpm dev",
+    "shopify:build": "cd apps/shopify-integration/monet-loyalty-studio && pnpm build",
+    "shopify:deploy": "cd apps/shopify-integration/monet-loyalty-studio && pnpm deploy",
+    "shopify:setup": "chmod +x scripts/setup-shopify-app.sh && ./scripts/setup-shopify-app.sh"
   },
   "devDependencies": {
     "@loyaltystudio/eslint-config": "workspace:*",
