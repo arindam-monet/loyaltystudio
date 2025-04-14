@@ -1,0 +1,80 @@
+{% comment %} blocks/points-balance.liquid {% endcomment %}
+{% if block.settings.points_display_enabled %}
+  <div class="loyalty-studio-points-balance">
+    <h3>{{ block.settings.points_terminology }} Balance</h3>
+    <div class="points-value" data-loyalty-studio-points-balance>
+      {% if customer %}
+        <div class="loading-indicator">Loading...</div>
+      {% else %}
+        <p>Sign in to view your {{ block.settings.points_terminology }} balance</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('[data-loyalty-studio-points-balance]') && window.customer) {
+      fetch('/apps/loyalty-studio/api/points-balance', {
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        const balanceElement = document.querySelector('[data-loyalty-studio-points-balance]');
+        balanceElement.innerHTML = `<p class="points-value">${data.balance} ${block.settings.points_terminology}</p>`;
+      })
+      .catch(error => {
+        console.error('Error fetching points balance:', error);
+      });
+    }
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Points Balance",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "points_display_enabled",
+      "label": "Enable Points Display",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "points_terminology",
+      "label": "Points Terminology",
+      "default": "Points"
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+  .loyalty-studio-points-balance {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  
+  .loyalty-studio-points-balance h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .loyalty-studio-points-balance .points-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  
+  .loyalty-studio-points-balance .loading-indicator {
+    font-size: 14px;
+    color: #666;
+  }
+</style>

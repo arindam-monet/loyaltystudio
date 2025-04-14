@@ -1,0 +1,21 @@
+name = "LoyaltyStudio"
+type = "theme"
+
+[settings]
+  [[settings.fields]]
+    key = "points_display_enabled"
+    type = "boolean"
+    label = "Enable Points Display"
+    default = true
+  
+  [[settings.fields]]
+    key = "rewards_catalog_enabled"
+    type = "boolean"
+    label = "Enable Rewards Catalog"
+    default = true
+  
+  [[settings.fields]]
+    key = "points_terminology"
+    type = "text"
+    label = "Points Terminology"
+    default = "Points"

@@ -1,0 +1,216 @@
+{% comment %} blocks/checkout-points.liquid {% endcomment %}
+{% if block.settings.checkout_points_enabled %}
+  <div class="loyalty-studio-checkout-points">
+    <h3>{{ block.settings.checkout_title }}</h3>
+    <div class="checkout-points-content" data-loyalty-studio-checkout-points>
+      {% if customer %}
+        <div class="loading-indicator">Calculating points...</div>
+      {% else %}
+        <p>Sign in to earn {{ block.settings.points_terminology }} on your purchase</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('[data-loyalty-studio-checkout-points]') && window.customer) {
+      // Get cart total
+      fetch('/cart.js', {
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+      .then(response => response.json())
+      .then(cart => {
+        const checkoutPointsElement = document.querySelector('[data-loyalty-studio-checkout-points]');
+        
+        // Calculate points based on cart total
+        // In a real implementation, this would be calculated by the server
+        const pointsPerDollar = {{ block.settings.points_per_dollar }};
+        const pointsToEarn = Math.floor((cart.total_price / 100) * pointsPerDollar);
+        
+        checkoutPointsElement.innerHTML = `
+          <p class="points-to-earn">You'll earn <strong>${pointsToEarn} ${block.settings.points_terminology}</strong> on this purchase!</p>
+        `;
+        
+        // If rewards redemption is enabled, fetch available rewards
+        if ({{ block.settings.enable_rewards_redemption }}) {
+          fetch('/apps/loyalty-studio/api/rewards', {
+            headers: {
+              'Accept': 'application/json',
+            },
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.rewards && data.rewards.length > 0) {
+              let rewardsHtml = '<div class="available-rewards">';
+              rewardsHtml += '<h4>Available Rewards</h4>';
+              
+              data.rewards.forEach(reward => {
+                rewardsHtml += `
+                  <div class="checkout-reward-item">
+                    <span class="reward-name">${reward.name}</span>
+                    <span class="reward-points">${reward.pointsCost} ${block.settings.points_terminology}</span>
+                    <button class="reward-apply-button" data-reward-id="${reward.id}">Apply</button>
+                  </div>
+                `;
+              });
+              
+              rewardsHtml += '</div>';
+              checkoutPointsElement.innerHTML += rewardsHtml;
+              
+              // Add event listeners to apply buttons
+              document.querySelectorAll('.reward-apply-button').forEach(button => {
+                button.addEventListener('click', function() {
+                  const rewardId = this.getAttribute('data-reward-id');
+                  applyReward(rewardId);
+                });
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching rewards:', error);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching cart:', error);
+      });
+    }
+  });
+  
+  function applyReward(rewardId) {
+    fetch('/apps/loyalty-studio/api/redeem', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ rewardId, applyToCart: true }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Reward applied to your cart!');
+        // Refresh the page to show updated cart
+        location.reload();
+      } else {
+        alert(data.error || 'Failed to apply reward. Please try again.');
+      }
+    })
+    .catch(error => {
+      console.error('Error applying reward:', error);
+      alert('An error occurred. Please try again.');
+    });
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Checkout Points",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "checkout_points_enabled",
+      "label": "Enable Checkout Points Display",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "checkout_title",
+      "label": "Checkout Title",
+      "default": "Earn Points on Your Purchase"
+    },
+    {
+      "type": "text",
+      "id": "points_terminology",
+      "label": "Points Terminology",
+      "default": "Points"
+    },
+    {
+      "type": "number",
+      "id": "points_per_dollar",
+      "label": "Points Per Dollar",
+      "default": 10
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_rewards_redemption",
+      "label": "Enable Rewards Redemption at Checkout",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+  .loyalty-studio-checkout-points {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  
+  .loyalty-studio-checkout-points h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .points-to-earn {
+    font-size: 16px;
+    margin-bottom: 15px;
+  }
+  
+  .available-rewards h4 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  
+  .checkout-reward-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .checkout-reward-item:last-child {
+    border-bottom: none;
+  }
+  
+  .reward-name {
+    flex: 1;
+    font-size: 14px;
+  }
+  
+  .reward-points {
+    margin: 0 10px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .reward-apply-button {
+    padding: 5px 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  
+  .reward-apply-button:hover {
+    background-color: #45a049;
+  }
+  
+  .loading-indicator {
+    font-size: 14px;
+    color: #666;
+  }
+</style>

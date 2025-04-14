@@ -1,0 +1,180 @@
+{% comment %} blocks/rewards-catalog.liquid {% endcomment %}
+{% if block.settings.rewards_catalog_enabled %}
+  <div class="loyalty-studio-rewards-catalog">
+    <h3>{{ block.settings.catalog_title }}</h3>
+    <div class="rewards-list" data-loyalty-studio-rewards-catalog>
+      {% if customer %}
+        <div class="loading-indicator">Loading rewards...</div>
+      {% else %}
+        <p>Sign in to view available rewards</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('[data-loyalty-studio-rewards-catalog]') && window.customer) {
+      fetch('/apps/loyalty-studio/api/rewards', {
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        const catalogElement = document.querySelector('[data-loyalty-studio-rewards-catalog]');
+        
+        if (data.rewards && data.rewards.length > 0) {
+          let rewardsHtml = '<div class="rewards-grid">';
+          
+          data.rewards.forEach(reward => {
+            rewardsHtml += `
+              <div class="reward-item">
+                <h4>${reward.name}</h4>
+                <p class="reward-description">${reward.description}</p>
+                <p class="reward-points">${reward.pointsCost} ${block.settings.points_terminology}</p>
+                <button class="reward-redeem-button" data-reward-id="${reward.id}">Redeem</button>
+              </div>
+            `;
+          });
+          
+          rewardsHtml += '</div>';
+          catalogElement.innerHTML = rewardsHtml;
+          
+          // Add event listeners to redeem buttons
+          document.querySelectorAll('.reward-redeem-button').forEach(button => {
+            button.addEventListener('click', function() {
+              const rewardId = this.getAttribute('data-reward-id');
+              redeemReward(rewardId);
+            });
+          });
+        } else {
+          catalogElement.innerHTML = '<p>No rewards available at this time.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching rewards:', error);
+      });
+    }
+  });
+  
+  function redeemReward(rewardId) {
+    fetch('/apps/loyalty-studio/api/redeem', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ rewardId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Reward redeemed successfully!');
+        // Refresh the rewards catalog
+        location.reload();
+      } else {
+        alert(data.error || 'Failed to redeem reward. Please try again.');
+      }
+    })
+    .catch(error => {
+      console.error('Error redeeming reward:', error);
+      alert('An error occurred. Please try again.');
+    });
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Rewards Catalog",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "rewards_catalog_enabled",
+      "label": "Enable Rewards Catalog",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "catalog_title",
+      "label": "Catalog Title",
+      "default": "Available Rewards"
+    },
+    {
+      "type": "text",
+      "id": "points_terminology",
+      "label": "Points Terminology",
+      "default": "Points"
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+  .loyalty-studio-rewards-catalog {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  
+  .loyalty-studio-rewards-catalog h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .rewards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+  }
+  
+  .reward-item {
+    padding: 15px;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .reward-item h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .reward-description {
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .reward-points {
+    font-weight: 700;
+    margin-bottom: 15px;
+  }
+  
+  .reward-redeem-button {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .reward-redeem-button:hover {
+    background-color: #45a049;
+  }
+  
+  .loading-indicator {
+    font-size: 14px;
+    color: #666;
+  }
+</style>

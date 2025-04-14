@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+model MerchantMapping {
+  id                     String   @id @default(uuid())
+  shopifyShopId          String   @unique
+  shopifyDomain          String   @unique
+  loyaltyStudioMerchantId String
+  accessToken            String
+  scopes                 String
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  webhooks               WebhookSubscription[]
+  settings               ShopifySettings?
+}
+
+model WebhookSubscription {
+  id               String   @id @default(uuid())
+  merchantMappingId String
+  topic            String
+  address          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  merchantMapping  MerchantMapping @relation(fields: [merchantMappingId], references: [id])
+
+  @@unique([merchantMappingId, topic])
+}
+
+model ShopifySettings {
+  id                     String   @id @default(uuid())
+  merchantMappingId      String   @unique
+  pointsTerminology      String   @default("Points")
+  autoEnrollCustomers    Boolean  @default(true)
+  displayPointsInHeader  Boolean  @default(true)
+  displayPointsInCart    Boolean  @default(true)
+  themeExtensionEnabled  Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  merchantMapping        MerchantMapping @relation(fields: [merchantMappingId], references: [id])
+}
