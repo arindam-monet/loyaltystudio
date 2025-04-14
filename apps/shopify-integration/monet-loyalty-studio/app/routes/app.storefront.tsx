@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import {
   Page,
@@ -14,68 +13,70 @@ import {
   Tabs,
   Box,
   Divider,
-  Icon,
   Thumbnail,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { CircleTickMajor, CircleCancelMajor } from "@shopify/polaris-icons";
+import { CheckCircleIcon, XCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { getMerchantByShop } from "../models/merchant.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
-  
+  const { session } = await authenticate.admin(request);
+
   // Get merchant mapping
   const merchant = await getMerchantByShop(session.shop);
   if (!merchant) {
-    return json({ error: "Merchant not found" });
+    return { error: "Merchant not found" };
   }
-  
+
   // Check if theme app extension is installed
   // In a real implementation, you would check if the theme app extension is installed
   const themeAppExtensionInstalled = false;
-  
-  return json({
+
+  return {
     merchant,
     themeAppExtensionInstalled,
-  });
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
+  await authenticate.admin(request);
   const formData = await request.formData();
-  const action = formData.get("action");
-  
-  if (action === "install_extension") {
+  const actionType = formData.get("action");
+
+  if (actionType === "install_extension") {
     try {
       // In a real implementation, you would install the theme app extension
-      return json({ success: true, message: "Theme app extension installed successfully" });
+      return { success: true, message: "Theme app extension installed successfully" };
     } catch (error) {
       console.error("Error installing theme app extension:", error);
-      return json({ error: "Failed to install theme app extension" });
+      return { error: "Failed to install theme app extension" };
     }
   }
-  
+
   return null;
 };
 
 export default function StorefrontPage() {
-  const { merchant, themeAppExtensionInstalled } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
-  
+
+  // Handle potential error state from loader
+  const themeAppExtensionInstalled = 'error' in data ? false : data.themeAppExtensionInstalled;
+
   const [selectedTab, setSelectedTab] = useState(0);
   const [isInstalling, setIsInstalling] = useState(false);
-  
+
   const handleInstallExtension = () => {
     setIsInstalling(true);
-    
+
     const formData = new FormData();
     formData.append("action", "install_extension");
-    
+
     submit(formData, { method: "post" });
   };
-  
+
   const tabs = [
     {
       id: "points-display",
@@ -96,7 +97,7 @@ export default function StorefrontPage() {
       panelID: "checkout-integration-panel",
     },
   ];
-  
+
   return (
     <Page>
       <TitleBar title="Storefront Integration" />
@@ -108,47 +109,48 @@ export default function StorefrontPage() {
                 <Text as="h2" variant="headingMd">
                   Theme App Extension
                 </Text>
-                
+
                 <Text as="p" variant="bodyMd">
                   The Theme App Extension allows you to display loyalty program elements in your storefront.
                 </Text>
-                
-                {actionData?.success && (
-                  <Banner title={actionData.message} status="success" />
+
+                {actionData && 'success' in actionData && (
+                  <Banner tone="success">{actionData.message}</Banner>
                 )}
-                
-                {actionData?.error && (
-                  <Banner title="Error" status="critical">
+
+                {actionData && 'error' in actionData && (
+                  <Banner tone="critical">
                     <p>{actionData.error}</p>
                   </Banner>
                 )}
-                
+
                 <InlineStack gap="200" align="center">
-                  <Icon
-                    source={themeAppExtensionInstalled ? CircleTickMajor : CircleCancelMajor}
-                    color={themeAppExtensionInstalled ? "success" : "critical"}
-                  />
+                  {themeAppExtensionInstalled ? (
+                    <CheckCircleIcon style={{ color: 'var(--p-color-success)' }} />
+                  ) : (
+                    <XCircleIcon style={{ color: 'var(--p-color-critical)' }} />
+                  )}
                   <Text as="span" variant="bodyMd">
                     {themeAppExtensionInstalled
                       ? "Theme App Extension is installed"
                       : "Theme App Extension is not installed"}
                   </Text>
                 </InlineStack>
-                
+
                 {!themeAppExtensionInstalled && (
                   <Button
-                    primary
+                    variant="primary"
                     onClick={handleInstallExtension}
                     loading={isInstalling}
                   >
                     Install Theme App Extension
                   </Button>
                 )}
-                
+
                 <Divider />
-                
+
                 <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab} />
-                
+
                 <Box paddingBlockStart="400">
                   {selectedTab === 0 && (
                     <BlockStack gap="400">
@@ -176,7 +178,7 @@ export default function StorefrontPage() {
                       </InlineStack>
                     </BlockStack>
                   )}
-                  
+
                   {selectedTab === 1 && (
                     <BlockStack gap="400">
                       <Text as="h3" variant="headingMd">
@@ -203,7 +205,7 @@ export default function StorefrontPage() {
                       </InlineStack>
                     </BlockStack>
                   )}
-                  
+
                   {selectedTab === 2 && (
                     <BlockStack gap="400">
                       <Text as="h3" variant="headingMd">

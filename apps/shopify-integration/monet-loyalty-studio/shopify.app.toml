@@ -1,31 +1,28 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-name = "LoyaltyStudio"
-handle = "loyalty-studio"
+client_id = "674cffdc205f1a4bce610c83ec323182"
+application_url = "https://paso-timber-identity-fountain.trycloudflare.com"
 embedded = true
-
-[build]
-include_config_on_deploy = true
-dev_store_url = "loyaltystudio.myshopify.com"
-automatically_update_urls_on_dev = true
+name = "monet loyalty studio"
+handle = "monet-loyalty-studio"
 
 [webhooks]
 api_version = "2025-04"
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
-
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_orders,read_customers,write_customers,read_discounts,write_discounts,read_themes,write_themes"
+scopes = "write_products"
 
 [auth]
-redirect_urls = []
+redirect_urls = [
+  "https://paso-timber-identity-fountain.trycloudflare.com/auth/callback",
+  "https://paso-timber-identity-fountain.trycloudflare.com/auth/shopify/callback",
+  "https://paso-timber-identity-fountain.trycloudflare.com/api/auth/callback"
+]
 
 [pos]
 embedded = false
+
+[build]
+dev_store_url = "loyaltystudio.myshopify.com"
+automatically_update_urls_on_dev = true
