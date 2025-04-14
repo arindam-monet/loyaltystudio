@@ -1,13 +1,13 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "674cffdc205f1a4bce610c83ec323182"
-name = "monet loyalty studio"
-handle = "monet-loyalty-studio"
-application_url = "https://example.com/"
+name = "LoyaltyStudio"
+handle = "loyalty-studio"
 embedded = true
 
 [build]
 include_config_on_deploy = true
+dev_store_url = "loyaltystudio.myshopify.com"
+automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2025-04"
@@ -22,10 +22,10 @@ api_version = "2025-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_products,write_products,read_orders,read_customers,write_customers,read_discounts,write_discounts,read_themes,write_themes"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = []
 
 [pos]
 embedded = false
