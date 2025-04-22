@@ -1,50 +1,72 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useMerchantStore } from "@/lib/stores/merchant-store";
+import { Campaign } from "@/lib/stores/campaign-store";
 
-export function useCampaigns(programId: string) {
+export function useCampaigns(loyaltyProgramId?: string) {
   const queryClient = useQueryClient();
   const { token } = useAuthStore();
+  const { selectedMerchant } = useMerchantStore();
 
   const {
-    data: campaigns,
+    data: campaigns = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["campaigns", programId],
+    queryKey: ["campaigns", selectedMerchant?.id, loyaltyProgramId],
     queryFn: async () => {
-      const response = await apiClient.get(`/loyalty-programs/${programId}/campaigns`);
+      if (!selectedMerchant?.id || !token || !loyaltyProgramId) {
+        throw new Error('No merchant selected, not authenticated, or no loyalty program ID provided');
+      }
+      const response = await apiClient.get('/campaigns', {
+        params: { loyaltyProgramId }
+      });
       return response.data;
     },
-    enabled: !!programId && !!token,
+    enabled: !!selectedMerchant?.id && !!token && !!loyaltyProgramId,
   });
 
   const createCampaign = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiClient.post(`/loyalty-programs/${programId}/campaigns`, data);
+    mutationFn: async (data: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>) => {
+      if (!selectedMerchant?.id || !token || !loyaltyProgramId) {
+        throw new Error('No merchant selected, not authenticated, or no loyalty program ID provided');
+      }
+      // Ensure loyaltyProgramId is included in the request
+      const campaignData = {
+        ...data,
+        loyaltyProgramId
+      };
+      const response = await apiClient.post('/campaigns', campaignData);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns", programId] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
   const updateCampaign = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiClient.patch(`/loyalty-programs/${programId}/campaigns/${id}`, data);
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Campaign> }) => {
+      if (!selectedMerchant?.id || !token) {
+        throw new Error('No merchant selected or not authenticated');
+      }
+      const response = await apiClient.patch(`/campaigns/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns", programId] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.delete(`/loyalty-programs/${programId}/campaigns/${id}`);
+      if (!selectedMerchant?.id || !token) {
+        throw new Error('No merchant selected or not authenticated');
+      }
+      await apiClient.delete(`/campaigns/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns", programId] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", selectedMerchant?.id, loyaltyProgramId] });
     },
   });
 
