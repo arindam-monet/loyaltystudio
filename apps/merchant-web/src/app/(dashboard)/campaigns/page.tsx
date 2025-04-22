@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -49,6 +50,12 @@ import {
   SelectTrigger,
   SelectValue,
   useToast,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Separator,
+  ScrollArea,
 } from "@loyaltystudio/ui";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,6 +67,15 @@ import { useLoyaltyPrograms } from "@/hooks/use-loyalty-programs";
 import { useLoyaltyProgramStore } from "@/lib/stores/loyalty-program-store";
 import { useCampaignStore, Campaign as CampaignType } from "@/lib/stores/campaign-store";
 
+const ruleSchema = z.object({
+  name: z.string().min(1, "Rule name is required"),
+  type: z.enum(["POINTS_THRESHOLD", "PURCHASE_HISTORY", "SEGMENT_MEMBERSHIP"]),
+  threshold: z.number().optional(),
+  timeframe: z.number().optional(),
+  minPurchases: z.number().optional(),
+  segmentId: z.string().optional(),
+});
+
 const campaignSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
@@ -68,8 +84,15 @@ const campaignSchema = z.object({
   isActive: z.boolean(),
   type: z.enum(["POINTS_MULTIPLIER", "BONUS_POINTS", "SPECIAL_REWARD"]),
   loyaltyProgramId: z.string().min(1, "Loyalty program is required"),
-  conditions: z.record(z.any()).optional(),
-  rewards: z.record(z.any()).optional(),
+  conditions: z.object({
+    rules: z.array(ruleSchema).optional(),
+    targetTierIds: z.array(z.string()).optional(),
+  }).optional(),
+  rewards: z.object({
+    pointsMultiplier: z.number().optional(),
+    bonusPoints: z.number().optional(),
+    rewardId: z.string().optional(),
+  }).optional(),
 });
 
 type CampaignFormData = z.infer<typeof campaignSchema>;
@@ -79,6 +102,7 @@ type Campaign = CampaignType;
 export default function CampaignsPage() {
   const { isLoading: isAuthLoading } = useAuthGuard();
   const { toast } = useToast();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
@@ -87,6 +111,16 @@ export default function CampaignsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('general');
+  const [rules, setRules] = useState<any[]>([]);
+  const [newRule, setNewRule] = useState({
+    name: '',
+    type: 'POINTS_THRESHOLD',
+    threshold: 100,
+    timeframe: 30,
+    minPurchases: 1,
+    segmentId: '',
+  });
   const { loyaltyPrograms = [], isLoading: isProgramsLoading } = useLoyaltyPrograms();
   const { setSelectedProgram: setGlobalSelectedProgram } = useLoyaltyProgramStore();
   const { campaigns = [], isLoading: isCampaignsLoading, createCampaign, updateCampaign, deleteCampaign } = useCampaigns(selectedProgram);
@@ -102,8 +136,15 @@ export default function CampaignsPage() {
       isActive: true,
       type: "POINTS_MULTIPLIER",
       loyaltyProgramId: "",
-      conditions: {},
-      rewards: {},
+      conditions: {
+        rules: [],
+        targetTierIds: [],
+      },
+      rewards: {
+        pointsMultiplier: 2,
+        bonusPoints: 0,
+        rewardId: "",
+      },
     },
   });
 
@@ -111,7 +152,7 @@ export default function CampaignsPage() {
   useEffect(() => {
     if (selectedProgram) {
       form.setValue('loyaltyProgramId', selectedProgram);
-      
+
       // Update the global store
       const program = loyaltyPrograms?.find(p => p.id === selectedProgram);
       if (program) {
@@ -170,11 +211,26 @@ export default function CampaignsPage() {
 
   const handleEdit = (campaign: Campaign) => {
     setEditingCampaign(campaign);
+
+    // Extract rules from campaign conditions if they exist
+    const campaignRules = campaign.conditions?.rules || [];
+    setRules(campaignRules);
+
     form.reset({
       ...campaign,
       startDate: new Date(campaign.startDate).toISOString().split("T")[0],
       endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split("T")[0] : "",
+      conditions: {
+        rules: campaignRules,
+        targetTierIds: campaign.conditions?.targetTierIds || [],
+      },
+      rewards: {
+        pointsMultiplier: campaign.rewards?.pointsMultiplier || 1,
+        bonusPoints: campaign.rewards?.bonusPoints || 0,
+        rewardId: campaign.rewards?.rewardId || "",
+      },
     });
+
     setOpen(true);
   };
 
@@ -304,144 +360,411 @@ export default function CampaignsPage() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Campaign Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter campaign name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="rules">Rules & Conditions</TabsTrigger>
+                    <TabsTrigger value="rewards">Rewards</TabsTrigger>
+                  </TabsList>
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Enter campaign description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <TabsContent value="general" className="space-y-4 pt-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Campaign Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Enter campaign name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="loyaltyProgramId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loyalty Program</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a loyalty program" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {loyaltyPrograms.map((program) => (
-                            <SelectItem key={program.id} value={program.id}>
-                              {program.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        The loyalty program this campaign belongs to
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} placeholder="Enter campaign description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Start Date</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="loyaltyProgramId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loyalty Program</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a loyalty program" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {loyaltyPrograms.map((program) => (
+                                <SelectItem key={program.id} value={program.id}>
+                                  {program.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            The loyalty program this campaign belongs to
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>End Date</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Date</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Campaign Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select campaign type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="POINTS_MULTIPLIER">Points Multiplier</SelectItem>
-                          <SelectItem value="BONUS_POINTS">Bonus Points</SelectItem>
-                          <SelectItem value="SPECIAL_REWARD">Special Reward</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        The type of promotional campaign
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>End Date</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Active Status</FormLabel>
-                        <FormDescription>
-                          Enable or disable this campaign
-                        </FormDescription>
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Campaign Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select campaign type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="POINTS_MULTIPLIER">Points Multiplier</SelectItem>
+                              <SelectItem value="BONUS_POINTS">Bonus Points</SelectItem>
+                              <SelectItem value="SPECIAL_REWARD">Special Reward</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            The type of promotional campaign
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Active Status</FormLabel>
+                            <FormDescription>
+                              Enable or disable this campaign
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="rules" className="space-y-4 pt-4">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Campaign Rules</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Define the rules that determine who is eligible for this campaign
+                      </p>
+
+                      <div className="space-y-4">
+                        <div className="rounded-md border p-4">
+                          <h4 className="font-medium mb-2">Add New Rule</h4>
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <Label htmlFor="ruleName">Rule Name</Label>
+                              <Input
+                                id="ruleName"
+                                placeholder="Enter rule name"
+                                value={newRule.name}
+                                onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="ruleType">Rule Type</Label>
+                              <Select
+                                value={newRule.type}
+                                onValueChange={(value) => setNewRule({ ...newRule, type: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select rule type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="POINTS_THRESHOLD">Points Threshold</SelectItem>
+                                  <SelectItem value="PURCHASE_HISTORY">Purchase History</SelectItem>
+                                  <SelectItem value="SEGMENT_MEMBERSHIP">Segment Membership</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {newRule.type === 'POINTS_THRESHOLD' && (
+                            <div className="mb-4">
+                              <Label htmlFor="threshold">Points Threshold</Label>
+                              <Input
+                                id="threshold"
+                                type="number"
+                                placeholder="Enter points threshold"
+                                value={newRule.threshold}
+                                onChange={(e) => setNewRule({ ...newRule, threshold: parseInt(e.target.value) })}
+                              />
+                            </div>
+                          )}
+
+                          {newRule.type === 'PURCHASE_HISTORY' && (
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label htmlFor="minPurchases">Minimum Purchases</Label>
+                                <Input
+                                  id="minPurchases"
+                                  type="number"
+                                  placeholder="Enter minimum purchases"
+                                  value={newRule.minPurchases}
+                                  onChange={(e) => setNewRule({ ...newRule, minPurchases: parseInt(e.target.value) })}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="timeframe">Timeframe (days)</Label>
+                                <Input
+                                  id="timeframe"
+                                  type="number"
+                                  placeholder="Enter timeframe in days"
+                                  value={newRule.timeframe}
+                                  onChange={(e) => setNewRule({ ...newRule, timeframe: parseInt(e.target.value) })}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {newRule.type === 'SEGMENT_MEMBERSHIP' && (
+                            <div className="mb-4">
+                              <Label htmlFor="segmentId">Segment</Label>
+                              <Select
+                                value={newRule.segmentId}
+                                onValueChange={(value) => setNewRule({ ...newRule, segmentId: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select segment" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="segment1">VIP Customers</SelectItem>
+                                  <SelectItem value="segment2">New Customers</SelectItem>
+                                  <SelectItem value="segment3">Frequent Shoppers</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              if (!newRule.name) {
+                                toast({
+                                  title: "Error",
+                                  description: "Rule name is required",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
+                              const updatedRules = [...rules, { ...newRule, id: Date.now().toString() }];
+                              setRules(updatedRules);
+
+                              // Update form value
+                              form.setValue('conditions.rules', updatedRules);
+
+                              // Reset new rule form
+                              setNewRule({
+                                name: '',
+                                type: 'POINTS_THRESHOLD',
+                                threshold: 100,
+                                timeframe: 30,
+                                minPurchases: 1,
+                                segmentId: '',
+                              });
+                            }}
+                          >
+                            Add Rule
+                          </Button>
+                        </div>
+
+                        <div className="rounded-md border">
+                          <h4 className="font-medium p-4 border-b">Current Rules</h4>
+                          <ScrollArea className="h-[200px]">
+                            {rules.length === 0 ? (
+                              <div className="p-4 text-center text-muted-foreground">
+                                No rules added yet. Add a rule above.
+                              </div>
+                            ) : (
+                              <div className="divide-y">
+                                {rules.map((rule, index) => (
+                                  <div key={rule.id || index} className="p-4 flex justify-between items-center">
+                                    <div>
+                                      <h5 className="font-medium">{rule.name}</h5>
+                                      <p className="text-sm text-muted-foreground">
+                                        {rule.type === 'POINTS_THRESHOLD' && `Points Threshold: ${rule.threshold}`}
+                                        {rule.type === 'PURCHASE_HISTORY' && `Min Purchases: ${rule.minPurchases} in ${rule.timeframe} days`}
+                                        {rule.type === 'SEGMENT_MEMBERSHIP' && `Segment: ${rule.segmentId}`}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const updatedRules = rules.filter((_, i) => i !== index);
+                                        setRules(updatedRules);
+                                        form.setValue('conditions.rules', updatedRules);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </div>
                       </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="rewards" className="space-y-4 pt-4">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Campaign Rewards</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Define the rewards for this campaign based on the campaign type
+                      </p>
+
+                      {form.watch('type') === 'POINTS_MULTIPLIER' && (
+                        <FormField
+                          control={form.control}
+                          name="rewards.pointsMultiplier"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Points Multiplier</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="0.1"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The multiplier to apply to points earned during this campaign (e.g., 2 for double points)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                      )}
+
+                      {form.watch('type') === 'BONUS_POINTS' && (
+                        <FormField
+                          control={form.control}
+                          name="rewards.bonusPoints"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bonus Points</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                The number of bonus points to award when conditions are met
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      {form.watch('type') === 'SPECIAL_REWARD' && (
+                        <FormField
+                          control={form.control}
+                          name="rewards.rewardId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Special Reward</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a reward" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="reward1">Free Product</SelectItem>
+                                  <SelectItem value="reward2">10% Discount</SelectItem>
+                                  <SelectItem value="reward3">Free Shipping</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                The special reward to offer for this campaign
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
 
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button
@@ -451,6 +774,7 @@ export default function CampaignsPage() {
                       setOpen(false);
                       setEditingCampaign(null);
                       form.reset();
+                      setRules([]);
                     }}
                   >
                     Cancel
@@ -596,6 +920,17 @@ export default function CampaignsPage() {
                               ? "Bonus Points"
                               : "Special Reward"}
                         </Badge>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {campaign.type === "POINTS_MULTIPLIER" && campaign.rewards?.pointsMultiplier && (
+                            <span>×{campaign.rewards.pointsMultiplier} points</span>
+                          )}
+                          {campaign.type === "BONUS_POINTS" && campaign.rewards?.bonusPoints && (
+                            <span>+{campaign.rewards.bonusPoints} points</span>
+                          )}
+                          {campaign.type === "SPECIAL_REWARD" && campaign.rewards?.rewardId && (
+                            <span>Special reward</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
@@ -609,6 +944,11 @@ export default function CampaignsPage() {
                         >
                           {campaign.isActive ? "Active" : "Inactive"}
                         </Badge>
+                        <div className="mt-1 text-xs">
+                          {campaign.conditions?.rules && campaign.conditions.rules.length > 0 && (
+                            <span className="text-muted-foreground">{campaign.conditions.rules.length} rule(s)</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -620,9 +960,19 @@ export default function CampaignsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEdit(campaign)}>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedCampaign(campaign);
+                              handleEdit(campaign);
+                            }}>
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedCampaign(campaign);
+                              router.push(`/campaigns/${campaign.id}`);
+                            }}>
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              View Details
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

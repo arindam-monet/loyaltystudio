@@ -32,11 +32,17 @@ export function useCampaigns(loyaltyProgramId?: string) {
       if (!selectedMerchant?.id || !token || !loyaltyProgramId) {
         throw new Error('No merchant selected, not authenticated, or no loyalty program ID provided');
       }
+
       // Ensure loyaltyProgramId is included in the request
       const campaignData = {
         ...data,
-        loyaltyProgramId
+        loyaltyProgramId,
+        // Ensure conditions and rewards are properly formatted
+        conditions: data.conditions || { rules: [], targetTierIds: [] },
+        rewards: data.rewards || { pointsMultiplier: 1, bonusPoints: 0, rewardId: '' }
       };
+
+      console.log('Creating campaign with data:', campaignData);
       const response = await apiClient.post('/campaigns', campaignData);
       return response.data;
     },
@@ -50,7 +56,16 @@ export function useCampaigns(loyaltyProgramId?: string) {
       if (!selectedMerchant?.id || !token) {
         throw new Error('No merchant selected or not authenticated');
       }
-      const response = await apiClient.patch(`/campaigns/${id}`, data);
+
+      // Ensure conditions and rewards are properly formatted if they exist
+      const campaignData = {
+        ...data,
+        conditions: data.conditions || undefined,
+        rewards: data.rewards || undefined
+      };
+
+      console.log('Updating campaign with data:', campaignData);
+      const response = await apiClient.patch(`/campaigns/${id}`, campaignData);
       return response.data;
     },
     onSuccess: () => {
