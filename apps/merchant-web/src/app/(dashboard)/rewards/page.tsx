@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
   Form,
   FormControl,
   FormDescription,
@@ -31,6 +32,7 @@ import {
   Switch,
   Alert,
   AlertDescription,
+  AlertTitle,
   Table,
   TableBody,
   TableCell,
@@ -44,6 +46,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Skeleton,
+  Label,
+  useToast,
 } from '@loyaltystudio/ui';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,8 +56,10 @@ import { z } from 'zod';
 import { useRewards } from '@/hooks/use-rewards';
 import { useRewardStore } from '@/lib/stores/reward-store';
 import type { Reward } from '@/lib/stores/reward-store';
-import { MoreHorizontal, Pencil, Plus, Trash2, Gift, Tag, Award, Ticket } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, Gift, Tag, Award, Ticket, AlertCircle } from "lucide-react";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { useLoyaltyPrograms } from '@/hooks/use-loyalty-programs';
+import { useLoyaltyProgramStore } from '@/lib/stores/loyalty-program-store';
 
 const rewardSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -71,10 +78,18 @@ type RewardFormData = z.infer<typeof rewardSchema>;
 
 export default function RewardsPage() {
   const { isLoading: isAuthLoading } = useAuthGuard();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
-  const { rewards = [], isLoading, createReward, updateReward, deleteReward } = useRewards();
+  const [selectedProgram, setSelectedProgram] = useState<string>('');
+  const [isChangingProgram, setIsChangingProgram] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [rewardToDelete, setRewardToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { loyaltyPrograms, isLoading: isLoyaltyProgramsLoading } = useLoyaltyPrograms();
+  const { setSelectedProgram: setGlobalSelectedProgram } = useLoyaltyProgramStore();
+  const { rewards = [], isLoading: isRewardsLoading, createReward, updateReward, deleteReward } = useRewards(selectedProgram);
   const { setSelectedReward } = useRewardStore();
 
   const form = useForm<RewardFormData>({
@@ -88,22 +103,62 @@ export default function RewardsPage() {
     },
   });
 
+  // Update form when program is selected
+  useEffect(() => {
+    if (selectedProgram) {
+      // Update the global store
+      const program = loyaltyPrograms?.find(p => p.id === selectedProgram);
+      if (program) {
+        setGlobalSelectedProgram(program);
+      }
+    }
+  }, [selectedProgram, loyaltyPrograms, setGlobalSelectedProgram]);
+
   const onSubmit = async (data: RewardFormData) => {
     try {
       setError(null);
-      
-      if (editingReward) {
-        await updateReward.mutateAsync({ id: editingReward.id, data });
-      } else {
-        await createReward.mutateAsync(data);
+
+      if (!selectedProgram) {
+        setError('Please select a loyalty program first');
+        return;
       }
-      
+
+      // Ensure loyaltyProgramId is included in the request
+      const rewardData = {
+        ...data,
+        loyaltyProgramId: selectedProgram
+      };
+
+      if (editingReward) {
+        await updateReward.mutateAsync({ id: editingReward.id, data: rewardData });
+        toast({
+          title: "Reward Updated",
+          description: `The reward "${data.name}" has been successfully updated.`,
+          duration: 3000,
+        });
+      } else {
+        await createReward.mutateAsync(rewardData);
+        toast({
+          title: "Reward Created",
+          description: `The reward "${data.name}" has been successfully created.`,
+          duration: 3000,
+        });
+      }
+
       setOpen(false);
       form.reset();
       setEditingReward(null);
     } catch (error) {
       console.error('Failed to save reward:', error);
       setError(error instanceof Error ? error.message : 'Failed to save reward');
+
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to save reward',
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 
@@ -113,12 +168,46 @@ export default function RewardsPage() {
     setOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = (id: string) => {
+    setRewardToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!rewardToDelete) return;
+
     try {
-      await deleteReward.mutateAsync(id);
+      setIsDeleting(true);
+      setError(null);
+
+      // Log the request details for debugging
+      console.log('Deleting reward with ID:', rewardToDelete);
+
+      // Use the hook's deleteReward function
+      await deleteReward.mutateAsync(rewardToDelete);
+
+      // Show success toast
+      toast({
+        title: "Reward Deleted",
+        description: "The reward has been successfully deleted.",
+        duration: 3000,
+      });
+
+      setDeleteDialogOpen(false);
+      setRewardToDelete(null);
     } catch (error) {
       console.error('Failed to delete reward:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete reward');
+
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete reward',
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -137,9 +226,9 @@ export default function RewardsPage() {
     }
   };
 
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading || isLoyaltyProgramsLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen w-full">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
@@ -147,6 +236,39 @@ export default function RewardsPage() {
 
   return (
     <div className="container py-6 space-y-6">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Reward</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this reward? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Rewards</h1>
@@ -161,18 +283,20 @@ export default function RewardsPage() {
             form.reset();
           }
         }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Reward
-            </Button>
-          </DialogTrigger>
+          {selectedProgram && (
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Reward
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingReward ? 'Edit Reward' : 'Create Reward'}</DialogTitle>
               <DialogDescription>
-                {editingReward 
-                  ? 'Update the details of this reward' 
+                {editingReward
+                  ? 'Update the details of this reward'
                   : 'Add a new reward to your loyalty program'}
               </DialogDescription>
             </DialogHeader>
@@ -375,110 +499,186 @@ export default function RewardsPage() {
         </Dialog>
       </div>
 
-      {rewards.length === 0 ? (
+      <div className="space-y-4">
         <Card>
-          <CardContent className="flex flex-col items-center justify-center p-6">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-medium">No rewards created yet</h3>
-              <p className="text-sm text-muted-foreground">
-                Create your first reward to start engaging your customers
-              </p>
-              <Button 
-                className="mt-4" 
-                onClick={() => setOpen(true)}
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <Label htmlFor="program">Select Loyalty Program</Label>
+              <Select
+                value={selectedProgram}
+                onValueChange={(value) => {
+                  if (value !== selectedProgram) {
+                    setIsChangingProgram(true);
+                    setSelectedProgram(value);
+                    setTimeout(() => setIsChangingProgram(false), 300);
+                  }
+                }}
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Reward
-              </Button>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a loyalty program" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loyaltyPrograms?.map((program: any) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Rewards</CardTitle>
-            <CardDescription>
-              Manage your rewards and their redemption options
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Reward</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Points Cost</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rewards.map((reward: Reward) => (
-                  <TableRow key={reward.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-md border bg-muted">
-                          {getRewardIcon(reward.type)}
-                        </div>
-                        <div>
-                          <div>{reward.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {reward.description}
+
+        {!selectedProgram ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>No loyalty program selected</AlertTitle>
+                <AlertDescription>
+                  Please select a loyalty program to manage its rewards.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : isChangingProgram || isRewardsLoading ? (
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-7 w-48 mb-2" />
+              <Skeleton className="h-4 w-72" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                    <Skeleton className="h-5 w-24" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : rewards.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-medium">No rewards created yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create your first reward to start engaging your customers
+                </p>
+                <Button
+                  className="mt-4"
+                  onClick={() => setOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Reward
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Rewards</CardTitle>
+              <CardDescription>
+                Manage your rewards and their redemption options
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Reward</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Points Cost</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rewards.map((reward: Reward) => (
+                    <TableRow key={reward.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md border bg-muted">
+                            {getRewardIcon(reward.type)}
+                          </div>
+                          <div>
+                            <div>{reward.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {reward.description}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {reward.type === "PHYSICAL"
-                          ? "Physical Product"
-                          : reward.type === "DIGITAL"
-                          ? "Digital Item"
-                          : reward.type === "EXPERIENCE"
-                          ? "Experience"
-                          : "Coupon/Discount"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{reward.pointsCost} points</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={reward.isActive ? "default" : "secondary"}
-                      >
-                        {reward.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(reward)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDelete(reward.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {reward.type === "PHYSICAL"
+                            ? "Physical Product"
+                            : reward.type === "DIGITAL"
+                              ? "Digital Item"
+                              : reward.type === "EXPERIENCE"
+                                ? "Experience"
+                                : "Coupon/Discount"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{reward.pointsCost} points</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={reward.isActive ? "default" : "secondary"}
+                        >
+                          {reward.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEdit(reward)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => confirmDelete(reward.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
