@@ -1,6 +1,17 @@
 {
-  "buildCommand": "cd ../.. && pnpm merchant:build",
+  "buildCommand": "cd ../.. && pnpm install && pnpm merchant:build",
   "outputDirectory": ".next",
-  "installCommand": "cd ../.. && pnpm install",
-  "framework": "nextjs"
+  "installCommand": "npm i -g pnpm",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://your-api-url.koyeb.app/:path*"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://your-api-url.koyeb.app",
+    "NEXT_PUBLIC_SUPABASE_URL": "your-supabase-project-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "your-supabase-anon-key"
+  }
 }
