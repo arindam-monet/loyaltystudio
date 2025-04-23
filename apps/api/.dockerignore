@@ -1,0 +1,12 @@
+node_modules
+.turbo
+.next
+dist
+.env
+.env.*
+!.env.example
+npm-debug.log*
+.git
+.github
+scripts
+deploy
