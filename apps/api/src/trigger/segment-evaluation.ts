@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { SegmentService } from '../services/segment';
+import { SegmentService } from '../services/segment.js';
 
 const prisma = new PrismaClient();
 const segmentService = new SegmentService();
@@ -173,4 +173,4 @@ export async function evaluateAllSegments() {
   } catch (error) {
     console.error('Failed to evaluate all segments:', error);
   }
-} 
+}

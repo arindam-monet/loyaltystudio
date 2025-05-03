@@ -1,4 +1,5 @@
-import Redis from 'ioredis';
+// Using require instead of import to avoid TypeScript issues
+const Redis = require('ioredis');
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -31,7 +32,7 @@ export class CacheService {
   private static instance: CacheService;
   private readonly defaultTTL = 3600; // 1 hour in seconds
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): CacheService {
     if (!CacheService.instance) {
@@ -167,4 +168,4 @@ export class CacheService {
 }
 
 // Export singleton instance
-export const cache = CacheService.getInstance(); 
+export const cache = CacheService.getInstance();

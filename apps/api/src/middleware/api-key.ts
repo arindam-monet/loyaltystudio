@@ -60,7 +60,7 @@ export const apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
           endpoint: request.url,
           method: request.method,
           status: reply.statusCode,
-          duration: reply.getResponseTime(),
+          duration: 0, // We'll update this in onResponse hook
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         },
@@ -73,4 +73,4 @@ export const apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
       });
     }
   });
-}; 
+};

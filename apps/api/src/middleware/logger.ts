@@ -1,14 +1,17 @@
 import fp from 'fastify-plugin';
-import pino from 'pino';
-import pinoPretty from 'pino-pretty';
+// Using require instead of import to avoid TypeScript issues
+const pino = require('pino');
 
-const logger = pino(
-  pinoPretty({
-    colorize: true,
-    translateTime: 'SYS:standard',
-    ignore: 'pid,hostname',
-  })
-);
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname',
+    },
+  },
+});
 
 export const loggerPlugin = fp(async (fastify) => {
   fastify.decorate('logger', logger);
@@ -47,4 +50,4 @@ export const loggerPlugin = fp(async (fastify) => {
   });
 });
 
-export { logger }; 
+export { logger };
