@@ -7,8 +7,15 @@ RUN npm install -g typescript prisma pnpm@10.4.1
 
 # Copy package.json files for workspace setup
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
 COPY packages/schemas/package.json ./packages/schemas/
 COPY apps/api/package.json ./apps/api/
+
+# Copy TypeScript configuration files
+COPY packages/typescript-config/base.json ./packages/typescript-config/
+COPY packages/typescript-config/nextjs.json ./packages/typescript-config/
+COPY packages/typescript-config/react-library.json ./packages/typescript-config/
 
 # Install dependencies using pnpm with workspace support
 RUN pnpm install --frozen-lockfile
@@ -17,10 +24,30 @@ RUN pnpm install --frozen-lockfile
 COPY packages/schemas ./packages/schemas/
 COPY apps/api ./apps/api/
 
-# Build the TypeScript code
+# Create a simplified tsconfig for schemas that doesn't rely on workspace references
 WORKDIR /app/packages/schemas
+RUN echo '{ \
+  "compilerOptions": { \
+    "target": "ES2022", \
+    "module": "NodeNext", \
+    "moduleResolution": "NodeNext", \
+    "esModuleInterop": true, \
+    "declaration": true, \
+    "declarationMap": true, \
+    "isolatedModules": true, \
+    "skipLibCheck": true, \
+    "strict": true, \
+    "outDir": "dist", \
+    "rootDir": "src" \
+  }, \
+  "include": ["src/**/*"], \
+  "exclude": ["node_modules", "dist"] \
+}' > tsconfig.json
+
+# Build the schemas package
 RUN pnpm build
 
+# Build the API
 WORKDIR /app/apps/api
 # Generate Prisma client
 RUN npx prisma generate
