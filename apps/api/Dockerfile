@@ -2,17 +2,16 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install global dependencies
-RUN npm install -g typescript prisma ts-node
+# Install global dependencies and pnpm
+RUN npm install -g typescript prisma ts-node pnpm@10.4.1
 
 # Copy package.json files for workspace setup
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/schemas/package.json ./packages/schemas/
 COPY apps/api/package.json ./apps/api/
 
-# Install dependencies using npm (since pnpm is having issues)
-RUN cd apps/api && npm install
-RUN cd packages/schemas && npm install
+# Install dependencies using pnpm with workspace support
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY packages/schemas ./packages/schemas/
