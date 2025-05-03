@@ -44,19 +44,19 @@ RUN echo '{ \
   "exclude": ["node_modules", "dist"] \
 }' > tsconfig.json
 
-# Ensure the src directory exists with a basic index.ts file and build the schemas package
-RUN mkdir -p src && \
-    cat > src/index.ts << 'EOL'
-import { z } from 'zod';
+# Ensure the src directory exists with a basic index.ts file
+RUN mkdir -p src
 
-// Basic schemas
-export const userSchema = z.object({
-  id: z.string().optional(),
-  email: z.string().email(),
-});
-
-export default { userSchema };
-EOL
+# Create a basic index.ts file
+RUN echo "import { z } from 'zod';" > src/index.ts && \
+    echo "" >> src/index.ts && \
+    echo "// Basic schemas" >> src/index.ts && \
+    echo "export const userSchema = z.object({" >> src/index.ts && \
+    echo "  id: z.string().optional()," >> src/index.ts && \
+    echo "  email: z.string().email()," >> src/index.ts && \
+    echo "});" >> src/index.ts && \
+    echo "" >> src/index.ts && \
+    echo "export default { userSchema };" >> src/index.ts
 
 # Build the schemas package
 RUN pnpm build
