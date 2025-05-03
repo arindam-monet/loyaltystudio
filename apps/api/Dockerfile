@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install global dependencies and pnpm
-RUN npm install -g typescript prisma ts-node pnpm@10.4.1
+RUN npm install -g typescript prisma pnpm@10.4.1
 
 # Copy package.json files for workspace setup
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -17,9 +17,15 @@ RUN pnpm install --frozen-lockfile
 COPY packages/schemas ./packages/schemas/
 COPY apps/api ./apps/api/
 
-# Generate Prisma client
+# Build the TypeScript code
+WORKDIR /app/packages/schemas
+RUN pnpm build
+
 WORKDIR /app/apps/api
+# Generate Prisma client
 RUN npx prisma generate
+# Build TypeScript
+RUN pnpm build
 
 # Expose the port
 EXPOSE 3003
@@ -27,8 +33,6 @@ EXPOSE 3003
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3003
-ENV TS_NODE_TRANSPILE_ONLY=true
-ENV TS_NODE_PROJECT=tsconfig.json
 
-# Start the application directly with ts-node (skipping TypeScript checks)
-CMD ["npx", "ts-node", "--transpile-only", "src/index.ts"]
+# Start the application using the compiled JavaScript
+CMD ["node", "dist/index.js"]
