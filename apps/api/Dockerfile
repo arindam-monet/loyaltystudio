@@ -78,4 +78,4 @@ ENV NODE_ENV=production
 ENV PORT=3003
 
 # Start the application using the compiled JavaScript or fallback to source
-CMD ["sh", "-c", "if [ -f dist/index.js ]; then node dist/index.js; else echo 'Compiled JavaScript not found, using tsx to run source'; npx tsx src/index.ts; fi"]
+CMD ["sh", "-c", "if [ -f dist/index.js ]; then node dist/index.js; else echo 'Compiled JavaScript not found, using tsx to run source'; NODE_OPTIONS='--experimental-specifier-resolution=node' npx tsx src/index.ts; fi"]
