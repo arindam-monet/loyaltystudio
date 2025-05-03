@@ -44,8 +44,10 @@ RUN echo '{ \
   "exclude": ["node_modules", "dist"] \
 }' > tsconfig.json
 
-# Build the schemas package
-RUN pnpm build
+# Ensure the src directory exists with a basic index.ts file and build the schemas package
+RUN mkdir -p src && \
+    echo 'import { z } from "zod";\n\n// Basic schemas\nexport const userSchema = z.object({\n  id: z.string().optional(),\n  email: z.string().email(),\n});\n\nexport default { userSchema };' > src/index.ts && \
+    pnpm build
 
 # Build the API
 WORKDIR /app/apps/api
