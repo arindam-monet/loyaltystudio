@@ -46,8 +46,20 @@ RUN echo '{ \
 
 # Ensure the src directory exists with a basic index.ts file and build the schemas package
 RUN mkdir -p src && \
-    echo 'import { z } from "zod";\n\n// Basic schemas\nexport const userSchema = z.object({\n  id: z.string().optional(),\n  email: z.string().email(),\n});\n\nexport default { userSchema };' > src/index.ts && \
-    pnpm build
+    cat > src/index.ts << 'EOL'
+import { z } from 'zod';
+
+// Basic schemas
+export const userSchema = z.object({
+  id: z.string().optional(),
+  email: z.string().email(),
+});
+
+export default { userSchema };
+EOL
+
+# Build the schemas package
+RUN pnpm build
 
 # Build the API
 WORKDIR /app/apps/api
