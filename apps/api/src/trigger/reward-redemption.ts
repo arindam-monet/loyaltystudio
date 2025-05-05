@@ -23,7 +23,7 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
     randomize: true,
   },
   run: async (payload: RewardRedemptionPayload) => {
-    await logger.info("Starting reward redemption processing job", { payload });
+    logger.info("Starting reward redemption processing job", { payload });
 
     try {
       // Get redemption details
@@ -42,7 +42,7 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
       // Check if user has enough points
       const userBalance = await prisma.pointsBalance.findUnique({
         where: {
-          userId_merchantId: {
+          userMerchantBalance: {
             userId: payload.userId,
             merchantId: payload.merchantId,
           },
@@ -61,7 +61,7 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
           },
         });
 
-        await logger.warn(`Redemption ${payload.redemptionId} failed: insufficient points`, {
+        logger.warn(`Redemption ${payload.redemptionId} failed: insufficient points`, {
           userId: payload.userId,
           requiredPoints: redemption.reward.pointsCost,
           availablePoints: userBalance?.balance || 0,
@@ -70,7 +70,7 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
         // Deduct points from user's balance
         await prisma.pointsBalance.update({
           where: {
-            userId_merchantId: {
+            userMerchantBalance: {
               userId: payload.userId,
               merchantId: payload.merchantId,
             },
@@ -107,16 +107,16 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
           },
         });
 
-        await logger.info(`Processed redemption ${payload.redemptionId}`, {
+        logger.info(`Processed redemption ${payload.redemptionId}`, {
           userId: payload.userId,
           rewardId: redemption.rewardId,
           pointsCost: redemption.reward.pointsCost,
         });
       }
 
-      await logger.info("Completed reward redemption processing job");
+      logger.info("Completed reward redemption processing job");
     } catch (error) {
-      await logger.error("Reward redemption processing job failed", { 
+      logger.error("Reward redemption processing job failed", {
         error,
         redemptionId: payload.redemptionId,
         merchantId: payload.merchantId,
@@ -125,4 +125,4 @@ export const rewardRedemptionJob: ReturnType<typeof schemaTask> = schemaTask({
       throw error;
     }
   },
-}); 
+});
