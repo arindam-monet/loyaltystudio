@@ -53,7 +53,8 @@ export function useTeam() {
       toast({
         title: 'Success',
         description: 'Invitation sent successfully',
-        variant: 'success',
+        variant: 'default',
+        className: 'bg-green-100 text-green-800 hover:bg-green-100',
       });
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
     },
@@ -79,7 +80,8 @@ export function useTeam() {
       toast({
         title: 'Success',
         description: 'Team member removed successfully',
-        variant: 'success',
+        variant: 'default',
+        className: 'bg-green-100 text-green-800 hover:bg-green-100',
       });
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
     },

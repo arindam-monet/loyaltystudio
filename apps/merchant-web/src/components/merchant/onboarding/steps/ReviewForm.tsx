@@ -144,8 +144,11 @@ export function ReviewForm({ data, onEdit }: ReviewFormProps) {
     },
   ]
 
-  const isSectionComplete = (fields: any[]) => {
-    return fields?.every((field) => field.value !== undefined)
+  const isSectionComplete = (fields: any[] | undefined) => {
+    if (!fields || fields.length === 0) {
+      return false;
+    }
+    return fields.every((field) => field.value !== undefined);
   }
 
   return (
@@ -210,4 +213,4 @@ export function ReviewForm({ data, onEdit }: ReviewFormProps) {
       </div>
     </div>
   )
-} 
+}

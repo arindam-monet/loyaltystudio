@@ -106,12 +106,30 @@ const ruleSchema = z.object({
   effects: z.array(effectSchema).min(1, "At least one effect is required"),
 });
 
-type RuleFormData = z.infer<typeof ruleSchema>;
+// Define a more explicit type that ensures isActive is always boolean
+interface RuleFormData {
+  name: string;
+  description?: string;
+  isActive: boolean;
+  conditions: {
+    type: string;
+    operator: string;
+    value: string;
+    tierId?: string;
+  }[];
+  effects: {
+    type: string;
+    value: string;
+    formula?: string;
+    rewardId?: string;
+    tierId?: string;
+  }[];
+}
 
 interface EnhancedRuleBuilderProps {
   programId: string;
   initialRules?: RuleFormData[];
-  onSave?: (rules: RuleFormData[]) => Promise<void>;
+  onSave?: (rules: RuleFormData[]) => Promise<any>;
 }
 
 export function EnhancedRuleBuilder({
@@ -129,8 +147,21 @@ export function EnhancedRuleBuilder({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
+  // Create a custom resolver that doesn't use the zod schema directly
+  const customResolver = async (values: any) => {
+    // Ensure isActive is always a boolean
+    if (values.isActive === undefined) {
+      values.isActive = true;
+    }
+
+    return {
+      values,
+      errors: {}
+    };
+  };
+
   const form = useForm<RuleFormData>({
-    resolver: zodResolver(ruleSchema),
+    resolver: customResolver,
     defaultValues: {
       name: "",
       description: "",

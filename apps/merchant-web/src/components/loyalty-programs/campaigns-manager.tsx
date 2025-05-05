@@ -50,7 +50,7 @@ const campaignSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   isActive: z.boolean(),
-  type: z.enum(["POINTS", "REWARD", "CUSTOM"]),
+  type: z.enum(["POINTS_MULTIPLIER", "BONUS_POINTS", "SPECIAL_REWARD"]),
   rules: z.array(z.object({
     type: z.string(),
     value: z.number(),
@@ -81,14 +81,19 @@ export function CampaignsManager({ programId }: CampaignsManagerProps) {
       startDate: new Date().toISOString().split("T")[0],
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
       isActive: true,
-      type: "POINTS",
+      type: "POINTS_MULTIPLIER",
     },
   });
 
   const onSubmit = async (data: CampaignFormData) => {
     try {
       setError(null);
-      await createCampaign.mutateAsync(data);
+      // Add the loyalty program ID to the data
+      const campaignData = {
+        ...data,
+        loyaltyProgramId: programId
+      };
+      await createCampaign.mutateAsync(campaignData);
       setOpen(false);
       form.reset();
     } catch (error) {
@@ -198,9 +203,9 @@ export function CampaignsManager({ programId }: CampaignsManagerProps) {
                           {...field}
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <option value="POINTS">Points Campaign</option>
-                          <option value="REWARD">Reward Campaign</option>
-                          <option value="CUSTOM">Custom Campaign</option>
+                          <option value="POINTS_MULTIPLIER">Points Multiplier</option>
+                          <option value="BONUS_POINTS">Bonus Points</option>
+                          <option value="SPECIAL_REWARD">Special Reward</option>
                         </select>
                       </FormControl>
                       <FormDescription>
@@ -283,11 +288,11 @@ export function CampaignsManager({ programId }: CampaignsManagerProps) {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {campaign.type === "POINTS"
-                        ? "Points"
-                        : campaign.type === "REWARD"
-                        ? "Reward"
-                        : "Custom"}
+                      {campaign.type === "POINTS_MULTIPLIER"
+                        ? "Points Multiplier"
+                        : campaign.type === "BONUS_POINTS"
+                          ? "Bonus Points"
+                          : "Special Reward"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -340,4 +345,4 @@ export function CampaignsManager({ programId }: CampaignsManagerProps) {
       </Card>
     </div>
   );
-} 
+}

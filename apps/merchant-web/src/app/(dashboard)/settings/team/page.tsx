@@ -109,7 +109,7 @@ export default function TeamSettingsPage() {
   };
 
   const getStatusBadgeVariant = (status: string) => {
-    return status.toLowerCase() === 'active' ? 'success' : 'warning';
+    return status.toLowerCase() === 'active' ? 'default' : 'secondary';
   };
 
   const formatRole = (role: string) => {
@@ -257,7 +257,14 @@ export default function TeamSettingsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusBadgeVariant(member.status)}>
+                      <Badge
+                        variant={getStatusBadgeVariant(member.status)}
+                        className={
+                          member.status.toLowerCase() === 'active'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                            : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
+                        }
+                      >
                         {formatStatus(member.status)}
                       </Badge>
                     </TableCell>
