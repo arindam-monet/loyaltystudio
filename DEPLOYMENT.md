@@ -28,7 +28,21 @@ This guide outlines the steps to deploy the LoyaltyStudio POC to production usin
    - `SUPABASE_ANON_KEY`: Your public anon key
    - `SUPABASE_SERVICE_KEY`: Your service role key
 
-## Step 3: Deploy the API to Koyeb
+## Step 3: Set Up Redis with Upstash
+
+1. Sign up for an Upstash account at [upstash.com](https://upstash.com)
+2. Create a new Redis database:
+   - Click "Create Database"
+   - Choose a name (e.g., "loyaltystudio-redis")
+   - Select a region closest to your deployment
+   - Choose the appropriate plan (free tier is sufficient for testing)
+   - Click "Create"
+3. Note your connection details:
+   - `REDIS_URL`: The Redis connection string (starts with `redis://`)
+   - `REDIS_PASSWORD`: The password for authentication
+   - Set `REDIS_TLS` to `true` as Upstash requires TLS
+
+## Step 4: Deploy the API to Koyeb
 
 ### Option 1: Using the Standalone Deployment Package
 
@@ -98,10 +112,13 @@ This guide outlines the steps to deploy the LoyaltyStudio POC to production usin
    - `SUPABASE_SERVICE_KEY`: your-supabase-service-key
    - `SUPABASE_ANON_KEY`: your-supabase-anon-key
    - `CORS_ORIGIN`: https://your-merchant-app.vercel.app
+   - `REDIS_URL`: your-upstash-redis-url
+   - `REDIS_PASSWORD`: your-upstash-redis-password
+   - `REDIS_TLS`: true
 
 7. Deploy the service
 
-## Step 4: Deploy the Merchant Web App to Vercel
+## Step 5: Deploy the Merchant Web App to Vercel
 
 1. Update the Vercel configuration in `apps/merchant-web/vercel.json`:
    - Replace `https://your-api-url.koyeb.app` with your actual Koyeb API URL

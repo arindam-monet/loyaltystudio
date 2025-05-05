@@ -35,7 +35,10 @@ koyeb service create \
   --env SUPABASE_URL=$SUPABASE_URL \
   --env SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY \
   --env SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-  --env CORS_ORIGIN=$CORS_ORIGIN
+  --env CORS_ORIGIN=$CORS_ORIGIN \
+  --env REDIS_URL=$REDIS_URL \
+  --env REDIS_PASSWORD=$REDIS_PASSWORD \
+  --env REDIS_TLS=true
 
 echo "Deployment initiated. Check the Koyeb dashboard for status."
 echo "You can monitor the deployment with: koyeb service get api -a loyaltystudio-api"
