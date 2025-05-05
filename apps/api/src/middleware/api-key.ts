@@ -38,7 +38,7 @@ export const apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
       // Find the API key and check if it's active
       const key = await prisma.apiKey.findFirst({
         where: {
-          key: apiKey,
+          key: Array.isArray(apiKey) ? apiKey[0] : apiKey,
           isActive: true,
         },
       });

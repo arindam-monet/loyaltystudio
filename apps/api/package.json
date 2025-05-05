@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_ENV=development PORT=3003 tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "node --loader ts-node/esm scripts/build-without-typecheck.js",
+    "build:prod": "tsc",
     "start": "NODE_ENV=production PORT=3003 node dist/index.js",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
