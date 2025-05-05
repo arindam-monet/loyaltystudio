@@ -1,16 +1,16 @@
 {
-  "buildCommand": "cd ../.. && pnpm install && pnpm merchant:build",
+  "buildCommand": "npm i -g pnpm && node vercel-build.js",
   "outputDirectory": ".next",
   "installCommand": "npm i -g pnpm",
   "framework": "nextjs",
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://your-api-url.koyeb.app/:path*"
+      "destination": "https://existing-corette-monet-work-83be2228.koyeb.app/:path*"
     }
   ],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://your-api-url.koyeb.app",
+    "NEXT_PUBLIC_API_URL": "https://existing-corette-monet-work-83be2228.koyeb.app/",
     "NEXT_PUBLIC_SUPABASE_URL": "your-supabase-project-url",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "your-supabase-anon-key"
   }

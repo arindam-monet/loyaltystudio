@@ -1,0 +1,16 @@
+# Ignore node_modules at all levels
+node_modules
+**/node_modules
+
+# Ignore other apps in the monorepo
+../api
+../admin-portal
+../web
+../docs
+../shopify-integration
+
+# Ignore build artifacts
+.turbo
+.next
+dist
+build
