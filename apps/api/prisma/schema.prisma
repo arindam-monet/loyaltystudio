@@ -178,31 +178,37 @@ model PointsTransaction {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   programMemberId String?
+  loyaltyProgramId String?
+  isExpired       Boolean             @default(false)
   calculations    PointsCalculation[]
   programMember   ProgramMember?      @relation(fields: [programMemberId], references: [id])
   user            User?               @relation(fields: [userId], references: [id])
+  loyaltyProgram  LoyaltyProgram?     @relation(fields: [loyaltyProgramId], references: [id])
 
   @@index([programMemberId])
   @@index([userId])
   @@index([type])
+  @@index([loyaltyProgramId])
+  @@index([isExpired])
 }
 
 model LoyaltyProgram {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  merchantId  String
-  isActive    Boolean       @default(true)
-  metadata    Json?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  settings    Json?
-  campaigns   Campaign[]
-  merchant    Merchant      @relation(fields: [merchantId], references: [id])
-  pointsRules PointsRule[]
-  tiers       ProgramTier[]
-  rewards     Reward[]
-  segments    Segment[]
+  id                String              @id @default(cuid())
+  name              String
+  description       String?
+  merchantId        String
+  isActive          Boolean             @default(true)
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  settings          Json?
+  campaigns         Campaign[]
+  merchant          Merchant            @relation(fields: [merchantId], references: [id])
+  pointsRules       PointsRule[]
+  tiers             ProgramTier[]
+  rewards           Reward[]
+  segments          Segment[]
+  pointsTransactions PointsTransaction[]
 
   @@index([merchantId])
 }

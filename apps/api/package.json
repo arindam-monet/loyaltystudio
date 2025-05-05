@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit",
     "dev:debug": "prisma generate && tsx --inspect watch src/index.ts",
     "create:super-admin": "NODE_ENV=development tsx scripts/create-super-admin.ts",
-    "verify:super-admin": "NODE_ENV=development tsx scripts/verify-super-admin.ts"
+    "verify:super-admin": "NODE_ENV=development tsx scripts/verify-super-admin.ts",
+    "test:points-expiration": "NODE_ENV=development tsx src/scripts/test-points-expiration.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",

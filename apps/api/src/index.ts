@@ -32,6 +32,7 @@ import { invitationRoutes } from './routes/invitations.js';
 import { adminRoutes } from './routes/admin.js';
 import { healthRoutes } from './routes/health.js';
 import { teamMembersRoutes } from './routes/team-members.js';
+import { registerJobs } from './trigger/index.js';
 
 const app = fastify({
   logger: {
@@ -180,6 +181,8 @@ const start = async () => {
   try {
     console.log('Starting server...');
 
+    // Register trigger.dev jobs
+    registerJobs();
 
     await app.listen({ port: parseInt(env.PORT), host: env.API_HOST });
     console.log(`Server is running on ${env.API_URL}`);
