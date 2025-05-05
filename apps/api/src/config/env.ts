@@ -40,7 +40,7 @@ const envSchema = z.object({
   }),
 
   // DNS Provider Configuration
-  DNS_PROVIDER: z.enum(['cloudflare', 'godaddy', 'namecheap']).default('cloudflare'),
+  DNS_PROVIDER: z.enum(['cloudflare', 'godaddy', 'namecheap', 'none']).default('none'),
 
   // Cloudflare Configuration
   CLOUDFLARE_API_TOKEN: z.string().optional(),

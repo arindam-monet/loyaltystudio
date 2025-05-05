@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 export const subdomainPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', async (request, reply) => {
     const host = request.headers.host || '';
-    
+
     // Skip subdomain check for localhost or IP addresses
     if (host.includes('localhost') || host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
       return;
@@ -58,10 +58,11 @@ export const subdomainPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     // Check if this is an allowed system subdomain
-    if (!env.ALLOWED_SUBDOMAINS.includes(subdomain)) {
+    const allowedSubdomains = env.ALLOWED_SUBDOMAINS || ['admin', 'merchant', 'api'];
+    if (!allowedSubdomains.includes(subdomain)) {
       return reply.code(400).send({
         error: 'Invalid subdomain',
-        message: `Subdomain "${subdomain}" is not allowed. Allowed subdomains: ${env.ALLOWED_SUBDOMAINS.join(', ')}`
+        message: `Subdomain "${subdomain}" is not allowed. Allowed subdomains: ${allowedSubdomains.join(', ')}`
       });
     }
 
@@ -85,4 +86,4 @@ declare module 'fastify' {
       domain: string;
     };
   }
-} 
+}

@@ -2,11 +2,19 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { DNSProviderFactory } from '../services/dns/index.js';
+import { DNSProvider } from '../services/dns/types.js';
 import { generateSubdomain, isValidSubdomain, isReservedSubdomain, getMerchantDomain } from '../utils/subdomain.js';
-import { env } from '../config/env.js';
 
 const prisma = new PrismaClient();
-const dnsProvider = DNSProviderFactory.createProvider();
+// Create DNS provider with error handling
+let dnsProvider: DNSProvider;
+try {
+  dnsProvider = DNSProviderFactory.createProvider();
+} catch (error) {
+  console.error('Failed to initialize DNS provider:', error);
+  // The factory should now handle this case and return a mock provider
+  dnsProvider = DNSProviderFactory.createProvider(); // Try again, should get mock provider
+}
 
 // Add interface for authenticated request
 interface AuthenticatedRequest extends FastifyRequest {
@@ -278,19 +286,38 @@ export async function merchantRoutes(fastify: FastifyInstance) {
           // Create merchant
           const newMerchant = await tx.merchant.create({
             data: {
-              ...data,
+              name: data.name,
+              description: data.description,
+              industry: data.industry,
+              website: data.website,
               subdomain: generatedSubdomain,
+              email: data.email,
+              phone: data.phone,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country,
+              zipCode: data.zipCode,
+              currency: data.currency,
+              timezone: data.timezone,
+              tenantId: data.tenantId,
+              branding: data.branding,
             },
           });
 
           console.log('Merchant created successfully:', JSON.stringify(newMerchant, null, 2));
 
           // Create DNS record if DNS provider is configured
-          try {
-            await dnsProvider.createSubdomain(generatedSubdomain);
-          } catch (error) {
-            // Log the error but don't fail the transaction
-            console.error('Failed to create DNS record:', error);
+          if (dnsProvider) {
+            try {
+              await dnsProvider.createSubdomain(generatedSubdomain);
+              console.log(`DNS record created for subdomain: ${generatedSubdomain}`);
+            } catch (error) {
+              // Log the error but don't fail the transaction
+              console.error('Failed to create DNS record:', error);
+            }
+          } else {
+            console.log(`Skipping DNS record creation for subdomain: ${generatedSubdomain} - No DNS provider available`);
           }
 
           return newMerchant;

@@ -101,7 +101,8 @@ export function validateSubdomain(subdomain: string): boolean {
  * @returns The full domain string
  */
 export function getMerchantDomain(subdomain: string): string {
-  return `${subdomain}.${env.BASE_DOMAIN}`;
+  const baseDomain = env.BASE_DOMAIN || 'example.com';
+  return `${subdomain}.${baseDomain}`;
 }
 
 /**
@@ -122,4 +123,4 @@ export function extractTenantDomain(host: string): string | null {
   const parts = host.split('.');
   if (parts.length < 2) return null;
   return parts.slice(1).join('.');
-} 
+}

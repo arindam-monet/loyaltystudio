@@ -22,12 +22,13 @@ export class CloudflareProvider implements DNSProvider {
   private baseDomain: string;
 
   constructor() {
-    if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ZONE_ID) {
-      throw new Error('Cloudflare configuration is missing');
+    if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ZONE_ID || !env.BASE_DOMAIN) {
+      throw new Error('Cloudflare configuration is missing: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, and BASE_DOMAIN are required');
     }
     this.apiToken = env.CLOUDFLARE_API_TOKEN;
     this.zoneId = env.CLOUDFLARE_ZONE_ID;
     this.baseDomain = env.BASE_DOMAIN;
+    console.log('Cloudflare DNS provider initialized successfully');
   }
 
   private async request(endpoint: string, options: RequestInit = {}): Promise<CloudflareResponse> {
@@ -95,4 +96,4 @@ export class CloudflareProvider implements DNSProvider {
       return false;
     }
   }
-} 
+}
