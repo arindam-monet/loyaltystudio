@@ -1,10 +1,39 @@
 import { config } from 'dotenv';
 import { join } from 'path';
 import { z } from 'zod';
+import fs from 'fs';
 
 // Load environment variables based on NODE_ENV
+// First, try to load from .env file if it exists
 const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env.production';
-config({ path: join(process.cwd(), envFile) });
+const envPath = join(process.cwd(), envFile);
+
+try {
+  // Check if the file exists before trying to load it
+  if (fs.existsSync(envPath)) {
+    console.log(`Loading environment variables from ${envPath}`);
+    config({ path: envPath });
+  } else {
+    console.log(`Environment file ${envPath} not found. Using process environment variables.`);
+  }
+} catch (error) {
+  console.warn(`Error loading environment file ${envPath}:`, error);
+  console.log('Continuing with process environment variables.');
+}
+
+// Log environment variables for debugging (excluding sensitive values)
+console.log('Environment variables loaded:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('API_HOST:', process.env.API_HOST);
+console.log('API_URL:', process.env.API_URL);
+console.log('CORS_ORIGIN:', process.env.CORS_ORIGIN);
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? '[SET]' : '[NOT SET]');
+console.log('DIRECT_URL:', process.env.DIRECT_URL ? '[SET]' : '[NOT SET]');
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? '[SET]' : '[NOT SET]');
+console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '[SET]' : '[NOT SET]');
+console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '[SET]' : '[NOT SET]');
+console.log('REDIS_URL:', process.env.REDIS_URL ? '[SET]' : '[NOT SET]');
 
 const envSchema = z.object({
   // Server Configuration
@@ -135,26 +164,83 @@ const envSchema = z.object({
   CAL_BOOKING_URL: z.string().url().default('https://cal.com/loyaltystudio/demo'),
 });
 
+// Define a variable to hold our environment configuration
+let envConfig: z.infer<typeof envSchema>;
+
+// Parse environment variables
 const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
-  console.error('❌ Invalid environment variables:', _env.error.format());
-  throw new Error('Invalid environment variables');
-}
+  console.error('❌ Invalid environment variables:');
 
-export const env = _env.data;
+  // Format and log the specific errors for easier debugging
+  const formattedErrors = _env.error.format();
+  Object.entries(formattedErrors).forEach(([key, value]) => {
+    if (key !== '_errors' && typeof value === 'object' && '_errors' in value) {
+      console.error(`  - ${key}: ${(value as any)._errors.join(', ')}`);
+    }
+  });
 
-// Validate required environment variables
-const requiredEnvVars = [
-  'DATABASE_URL',
-  'DIRECT_URL',
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_KEY',
-  'SUPABASE_ANON_KEY',
-] as const;
+  // In production, we'll continue with defaults where possible
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('⚠️ Attempting to continue with default values where possible...');
+    try {
+      // Try to parse with more lenient validation
+      const lenientSchema = envSchema.partial();
+      const lenientEnv = lenientSchema.parse(process.env);
 
-for (const key of requiredEnvVars) {
-  if (!env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`);
+      console.warn('⚠️ Using partial environment configuration. Some features may not work correctly.');
+
+      // Set the environment config
+      envConfig = lenientEnv as z.infer<typeof envSchema>;
+
+      // Check critical variables
+      const criticalVars = [
+        'DATABASE_URL',
+        'DIRECT_URL',
+        'SUPABASE_URL',
+        'SUPABASE_SERVICE_KEY',
+        'SUPABASE_ANON_KEY',
+      ] as const;
+
+      const missingCritical = criticalVars.filter(key => !envConfig[key]);
+
+      if (missingCritical.length > 0) {
+        console.error(`❌ Missing critical environment variables: ${missingCritical.join(', ')}`);
+        console.error('Application cannot start without these variables.');
+        throw new Error(`Missing critical environment variables: ${missingCritical.join(', ')}`);
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to start with partial configuration:', error);
+      throw new Error('Cannot start application with current environment configuration');
+    }
+  } else {
+    // In development, fail fast
+    throw new Error('Invalid environment variables');
   }
+} else {
+  // All good, use the validated environment
+  envConfig = _env.data;
+
+  // Validate required environment variables
+  const requiredEnvVars = [
+    'DATABASE_URL',
+    'DIRECT_URL',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_KEY',
+    'SUPABASE_ANON_KEY',
+  ] as const;
+
+  const missingVars = requiredEnvVars.filter(key => !envConfig[key]);
+
+  if (missingVars.length > 0) {
+    console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  }
+
+  console.log('✅ Environment validation successful');
 }
+
+// Export the environment configuration
+export const env = envConfig;
