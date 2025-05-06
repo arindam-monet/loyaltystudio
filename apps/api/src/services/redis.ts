@@ -13,8 +13,7 @@ let redis: any;
     // Create Redis client
     redis = new Redis({
       url: env.REDIS_URL,
-      token: env.REDIS_PASSWORD,
-      tls: env.REDIS_TLS,
+      token: env.REDIS_PASSWORD
     });
 
     // Set up event handlers
