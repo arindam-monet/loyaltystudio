@@ -181,43 +181,38 @@ if (!_env.success) {
     }
   });
 
-  // In production, we'll continue with defaults where possible
-  if (process.env.NODE_ENV === 'production') {
-    console.warn('⚠️ Attempting to continue with default values where possible...');
-    try {
-      // Try to parse with more lenient validation
-      const lenientSchema = envSchema.partial();
-      const lenientEnv = lenientSchema.parse(process.env);
+  // Always try to continue with defaults where possible
+  console.warn('⚠️ Attempting to continue with default values where possible...');
+  try {
+    // Try to parse with more lenient validation
+    const lenientSchema = envSchema.partial();
+    const lenientEnv = lenientSchema.parse(process.env);
 
-      console.warn('⚠️ Using partial environment configuration. Some features may not work correctly.');
+    console.warn('⚠️ Using partial environment configuration. Some features may not work correctly.');
 
-      // Set the environment config
-      envConfig = lenientEnv as z.infer<typeof envSchema>;
+    // Set the environment config
+    envConfig = lenientEnv as z.infer<typeof envSchema>;
 
-      // Check critical variables
-      const criticalVars = [
-        'DATABASE_URL',
-        'DIRECT_URL',
-        'SUPABASE_URL',
-        'SUPABASE_SERVICE_KEY',
-        'SUPABASE_ANON_KEY',
-      ] as const;
+    // Check critical variables
+    const criticalVars = [
+      'DATABASE_URL',
+      'DIRECT_URL',
+      'SUPABASE_URL',
+      'SUPABASE_SERVICE_KEY',
+      'SUPABASE_ANON_KEY',
+    ] as const;
 
-      const missingCritical = criticalVars.filter(key => !envConfig[key]);
+    const missingCritical = criticalVars.filter(key => !envConfig[key]);
 
-      if (missingCritical.length > 0) {
-        console.error(`❌ Missing critical environment variables: ${missingCritical.join(', ')}`);
-        console.error('Application cannot start without these variables.');
-        throw new Error(`Missing critical environment variables: ${missingCritical.join(', ')}`);
-      }
-
-    } catch (error) {
-      console.error('❌ Failed to start with partial configuration:', error);
-      throw new Error('Cannot start application with current environment configuration');
+    if (missingCritical.length > 0) {
+      console.error(`❌ Missing critical environment variables: ${missingCritical.join(', ')}`);
+      console.error('Application cannot start without these variables.');
+      throw new Error(`Missing critical environment variables: ${missingCritical.join(', ')}`);
     }
-  } else {
-    // In development, fail fast
-    throw new Error('Invalid environment variables');
+
+  } catch (error) {
+    console.error('❌ Failed to start with partial configuration:', error);
+    throw new Error('Cannot start application with current environment configuration');
   }
 } else {
   // All good, use the validated environment
