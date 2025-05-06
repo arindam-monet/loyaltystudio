@@ -1,9 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import { Redis } from 'ioredis';
-import { env } from '../config/env.js';
-
-const prisma = new PrismaClient();
-const redis = new Redis(env.REDIS_URL);
+import { cache } from './redis.js';
+import { prisma } from '../db/prisma.js';
 
 // Types for points calculation
 export interface PointsCalculationContext {
@@ -241,13 +237,20 @@ export class PointsCalculationService {
   }
 
   private calculateRulePoints(rule: any, amount: number) {
-    switch (rule.type) {
+    // Get rule type from metadata
+    const ruleType = rule.metadata?.type || 'FIXED';
+
+    switch (ruleType) {
       case 'FIXED':
         return rule.points;
       case 'PERCENTAGE':
         return Math.floor(amount * (rule.points / 100));
       case 'DYNAMIC':
         // Implement dynamic calculation based on rule configuration
+        // Check for max points limit if set
+        if (rule.metadata?.maxPoints && rule.points > rule.metadata.maxPoints) {
+          return rule.metadata.maxPoints;
+        }
         return rule.points;
       default:
         return 0;
@@ -297,8 +300,13 @@ export class PointsCalculationService {
 
   private async cacheCalculationResult(userId: string, merchantId: string, points: number) {
     const key = `points:${userId}:${merchantId}`;
-    await redis.incrby(key, points);
-    await redis.expire(key, 86400); // Cache for 24 hours
+
+    // Get current value if exists
+    const currentValue = await cache.get(key);
+    const newValue = currentValue ? parseInt(currentValue) + points : points;
+
+    // Set the new value with expiration
+    await cache.set(key, newValue.toString(), 86400); // Cache for 24 hours
   }
 
   /**
