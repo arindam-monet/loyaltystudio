@@ -2,44 +2,19 @@
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 // @ts-ignore - Ignore TypeScript errors for ioredis import
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis'
 
 // Redis client instance
 let redis: any;
-
-// Create a mock Redis client as a fallback
-const createMockRedisClient = () => {
-  return {
-    get: async () => null,
-    set: async () => 'OK',
-    del: async () => 0,
-    exists: async () => 0,
-    mget: async () => [],
-    flushall: async () => 'OK',
-    pipeline: () => ({
-      set: () => ({ exec: async () => [] }),
-      exec: async () => [],
-    }),
-    multi: () => ({
-      set: () => ({ exec: async () => [] }),
-      exec: async () => [],
-    }),
-    on: () => redis,
-  };
-};
 
 // Initialize Redis with an IIFE to handle async operations
 (async () => {
   try {
     // Create Redis client
-    // @ts-ignore - Ignore TypeScript errors for Redis constructor
-    redis = new Redis(env.REDIS_URL, {
-      password: env.REDIS_PASSWORD || undefined,
-      tls: env.REDIS_TLS ? {} : undefined,
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
+    redis = new Redis({
+      url: env.REDIS_URL,
+      token: env.REDIS_PASSWORD,
+      tls: env.REDIS_TLS,
     });
 
     // Set up event handlers
@@ -48,7 +23,7 @@ const createMockRedisClient = () => {
     });
 
     redis.on('error', (error: Error) => {
-      logger.error('Redis connection error:', error);
+      logger.error('Redis connection error:', error.message);
     });
 
     redis.on('close', () => {
@@ -58,9 +33,9 @@ const createMockRedisClient = () => {
     logger.info('Redis client initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize Redis:', error);
-    // Use mock Redis client
-    redis = createMockRedisClient();
   }
+
+  return redis;
 })();
 
 // Cache service class
