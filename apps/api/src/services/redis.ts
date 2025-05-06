@@ -68,9 +68,22 @@ function createRedisClient(): RedisClient {
   } else {
     // Use Upstash Redis for production
     logger.info('Using Upstash Redis for production');
+
+    // Validate Upstash Redis URL format
+    if (!env.REDIS_URL.startsWith('https://')) {
+      logger.error('[Upstash Redis] The URL must start with https://. Received:', env.REDIS_URL);
+      throw new Error('Invalid Upstash Redis URL format. Must start with https://');
+    }
+
+    // Validate token is provided
+    if (!env.REDIS_PASSWORD) {
+      logger.error('[Upstash Redis] The \'token\' property is missing or undefined in your Redis config.');
+      throw new Error('Missing Upstash Redis token. Please set REDIS_PASSWORD environment variable.');
+    }
+
     const client = new UpstashRedis({
       url: env.REDIS_URL,
-      token: env.REDIS_PASSWORD || ''
+      token: env.REDIS_PASSWORD
     });
 
     // Create adapter to match our interface

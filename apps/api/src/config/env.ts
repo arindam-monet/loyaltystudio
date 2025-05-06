@@ -3,7 +3,7 @@ import { join } from 'path';
 import { z } from 'zod';
 
 // Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
+const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env.production';
 config({ path: join(process.cwd(), envFile) });
 
 const envSchema = z.object({
@@ -23,7 +23,25 @@ const envSchema = z.object({
     .transform(origins => {
       // Handle both string and array formats
       if (origins === '*') return '*';
-      return origins.split(',').map(origin => origin.trim());
+
+      const originList = origins.split(',').map(origin => origin.trim());
+
+      // Log the configured origins for debugging
+      console.log('Configured CORS origins:', originList);
+
+      // In production, ensure we have at least one non-localhost origin
+      if (process.env.NODE_ENV === 'production') {
+        const productionOrigins = originList.filter(origin =>
+          !origin.includes('localhost') && !origin.includes('127.0.0.1')
+        );
+
+        if (productionOrigins.length === 0 && origins !== '*') {
+          console.warn('Warning: No non-localhost origins configured for CORS in production.');
+          console.warn('This may cause CORS errors when accessing the API from remote clients.');
+        }
+      }
+
+      return originList;
     }),
 
   // Logging Configuration
@@ -64,9 +82,38 @@ const envSchema = z.object({
   SUPABASE_SESSION_EXPIRY: z.string().default('3600').transform(s => parseInt(s, 10)), // Default to 1 hour
 
   // Redis Configuration
-  REDIS_URL: z.string().default('redis://localhost:6379'),
-  REDIS_PASSWORD: z.string().optional(),
-  REDIS_TLS: z.string().default('false').transform(s => s === 'true'),
+  REDIS_URL: z.string()
+    .default('redis://localhost:6379')
+    .transform(url => {
+      const isDev = process.env.NODE_ENV === 'development';
+      // In production, ensure URL is in the correct format for Upstash
+      if (!isDev && url.startsWith('redis://')) {
+        console.warn('Warning: REDIS_URL starts with redis:// in production. Upstash requires https:// URLs.');
+        // We don't auto-correct the URL to avoid silent failures
+      } else if (isDev && url.startsWith('https://')) {
+        console.warn('Note: Using Upstash Redis URL in development environment');
+      }
+      return url;
+    }),
+  REDIS_PASSWORD: z.string()
+    .optional()
+    .transform(password => {
+      // Make password required in production for Upstash Redis
+      if (process.env.NODE_ENV === 'production' && !password) {
+        console.warn('Warning: REDIS_PASSWORD is not set in production. Upstash Redis requires a token.');
+      }
+      return password || '';
+    }),
+  REDIS_TLS: z.string()
+    .default('false')
+    .transform(s => {
+      const isTls = s === 'true';
+      // In production with Upstash, TLS should be enabled
+      if (process.env.NODE_ENV === 'production' && !isTls) {
+        console.warn('Warning: REDIS_TLS is set to false in production. Upstash Redis requires TLS.');
+      }
+      return isTls;
+    }),
 
   // Trigger.dev Configuration
   TRIGGER_API_KEY: z.string().default('development-key'),

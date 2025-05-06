@@ -44,22 +44,34 @@ const app = fastify({
 app.register(cors, {
   origin: (origin, cb) => {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return cb(null, true);
+    if (!origin) {
+      console.log('CORS: Allowing request with no origin');
+      return cb(null, true);
+    }
 
     // If CORS_ORIGIN is '*', allow all origins
-    if (env.CORS_ORIGIN === '*') return cb(null, true);
+    if (env.CORS_ORIGIN === '*') {
+      console.log(`CORS: Allowing origin ${origin} because CORS_ORIGIN is set to '*'`);
+      return cb(null, true);
+    }
 
     // Check if the origin is in the allowed list
     if (Array.isArray(env.CORS_ORIGIN) && env.CORS_ORIGIN.includes(origin)) {
+      console.log(`CORS: Allowing origin ${origin} - found in allowed list`);
       return cb(null, true);
     }
 
     // If not in the allowed list
+    console.error(`CORS: Rejecting origin ${origin} - not in allowed list:`, env.CORS_ORIGIN);
     return cb(new Error(`Origin ${origin} not allowed by CORS`), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Merchant-ID'],
+
+  // Add preflight response headers for better debugging
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 });
 
 // Register custom logger first
@@ -122,7 +134,7 @@ app.register(merchantAuthorizationPlugin, { prefix: '' });
 console.log('Merchant authorization plugin registered');
 
 // Add a global preHandler hook to log all requests
-app.addHook('preHandler', async (request, reply) => {
+app.addHook('preHandler', async (request) => {
   console.log('GLOBAL HOOK: Processing request for path:', request.url);
 });
 
