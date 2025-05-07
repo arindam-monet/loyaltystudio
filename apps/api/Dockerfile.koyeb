@@ -75,9 +75,9 @@ fi\n\
 \n\
 # Start the application\n\
 node dist/index.js\n\
-' > /app/apps/api/start.sh
+' > /app/start.sh
 
-RUN chmod +x /app/apps/api/start.sh
+RUN chmod +x /app/start.sh
 
 # Expose the port
 EXPOSE 3003
@@ -87,4 +87,4 @@ ENV NODE_ENV=production
 ENV PORT=3003
 
 # Start the application using the script
-CMD ["/app/apps/api/start.sh"]
+CMD ["/app/start.sh"]
