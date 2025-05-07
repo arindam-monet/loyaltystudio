@@ -48,7 +48,7 @@ const envSchema = z.object({
 
   // CORS Configuration
   CORS_ORIGIN: z.string()
-    .default('http://localhost:3001,http://localhost:3002,http://localhost:3004,http://localhost:3005')
+    .default('http://localhost:3001,http://localhost:3002,http://localhost:3004,http://localhost:3005,*')
     .transform(origins => {
       // Handle both string and array formats
       if (origins === '*') return '*';
@@ -112,7 +112,7 @@ const envSchema = z.object({
 
   // Redis Configuration
   REDIS_URL: z.string()
-    .default('redis://localhost:6379')
+    .default('https://neutral-insect-33412.upstash.io')
     .transform(url => {
       const isDev = process.env.NODE_ENV === 'development';
       // In production, ensure URL is in the correct format for Upstash
@@ -125,6 +125,7 @@ const envSchema = z.object({
       return url;
     }),
   REDIS_PASSWORD: z.string()
+    .default('AYKEAAIjcDE1OGY2MDQ5NTllOGU0Y2JjOTZkMjc0NTU4MjgwN2RmNHAxMA')
     .optional()
     .transform(password => {
       // Make password required in production for Upstash Redis
