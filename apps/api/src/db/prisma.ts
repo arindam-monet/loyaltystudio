@@ -1,5 +1,5 @@
 // Import the PrismaClient
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client/edge.js';
 
 // Declare global type for prisma instance
 declare global {
