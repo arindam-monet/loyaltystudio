@@ -112,7 +112,7 @@ const envSchema = z.object({
 
   // Redis Configuration
   REDIS_URL: z.string()
-    .default('https://neutral-insect-33412.upstash.io')
+    .default('redis://localhost:6379')
     .transform(url => {
       const isDev = process.env.NODE_ENV === 'development';
       // In production, ensure URL is in the correct format for Upstash
@@ -125,7 +125,6 @@ const envSchema = z.object({
       return url;
     }),
   REDIS_PASSWORD: z.string()
-    .default('AYKEAAIjcDE1OGY2MDQ5NTllOGU0Y2JjOTZkMjc0NTU4MjgwN2RmNHAxMA')
     .optional()
     .transform(password => {
       // Make password required in production for Upstash Redis
