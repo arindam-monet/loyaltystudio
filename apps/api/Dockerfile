@@ -73,60 +73,9 @@ RUN mkdir -p dist
 # Expose the port
 EXPOSE 3003
 
-# Set default environment variables
+# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3003
 
-# Create a script to check for environment variables and start the application
-RUN echo '#!/bin/sh\n\
-echo "Starting API server..."\n\
-echo "NODE_ENV: $NODE_ENV"\n\
-echo "PORT: $PORT"\n\
-echo "API_HOST: $API_HOST"\n\
-echo "CORS_ORIGIN: $CORS_ORIGIN"\n\
-echo "DATABASE_URL: ${DATABASE_URL:+[SET]}"\n\
-echo "DIRECT_URL: ${DIRECT_URL:+[SET]}"\n\
-echo "SUPABASE_URL: ${SUPABASE_URL:+[SET]}"\n\
-echo "SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:+[SET]}"\n\
-echo "SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:+[SET]}"\n\
-echo "REDIS_URL: ${REDIS_URL:+[SET]}"\n\
-\n\
-# Check for required environment variables\n\
-if [ -z "$DATABASE_URL" ]; then\n\
-  echo "ERROR: DATABASE_URL is not set"\n\
-  exit 1\n\
-fi\n\
-\n\
-if [ -z "$DIRECT_URL" ]; then\n\
-  echo "ERROR: DIRECT_URL is not set"\n\
-  exit 1\n\
-fi\n\
-\n\
-if [ -z "$SUPABASE_URL" ]; then\n\
-  echo "ERROR: SUPABASE_URL is not set"\n\
-  exit 1\n\
-fi\n\
-\n\
-if [ -z "$SUPABASE_SERVICE_KEY" ]; then\n\
-  echo "ERROR: SUPABASE_SERVICE_KEY is not set"\n\
-  exit 1\n\
-fi\n\
-\n\
-if [ -z "$SUPABASE_ANON_KEY" ]; then\n\
-  echo "ERROR: SUPABASE_ANON_KEY is not set"\n\
-  exit 1\n\
-fi\n\
-\n\
-# Start the application\n\
-if [ -f dist/index.js ]; then\n\
-  echo "Starting with compiled JavaScript"\n\
-  node dist/index.js\n\
-else\n\
-  echo "Compiled JavaScript not found, using tsx to run source"\n\
-  NODE_OPTIONS="--experimental-specifier-resolution=node" npx tsx src/index.ts\n\
-fi' > /app/start.sh
-
-RUN chmod +x /app/start.sh
-
-# Start the application using the script
-CMD ["/app/start.sh"]
+# Start the application using the compiled JavaScript or fallback to source
+CMD ["sh", "-c", "if [ -f dist/index.js ]; then node dist/index.js; else echo 'Compiled JavaScript not found, using tsx to run source'; NODE_OPTIONS='--experimental-specifier-resolution=node' npx tsx src/index.ts; fi"]
