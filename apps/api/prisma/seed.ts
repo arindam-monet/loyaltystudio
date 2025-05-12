@@ -1,7 +1,73 @@
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import * as dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.local';
+const envPath = path.join(process.cwd(), envFile);
+
+if (fs.existsSync(envPath)) {
+  console.log(`Loading environment variables from ${envPath}`);
+  dotenv.config({ path: envPath });
+} else {
+  console.log(`Environment file ${envPath} not found. Using process environment variables.`);
+}
+
+// Configure logger based on environment
+const logger = {
+  info: (message: string) => {
+    if (process.env.SEED_LOG_LEVEL !== 'silent') {
+      console.log(`[INFO] ${message}`);
+    }
+  },
+  error: (message: string, error?: any) => {
+    if (process.env.SEED_LOG_LEVEL !== 'silent') {
+      console.error(`[ERROR] ${message}`, error || '');
+    }
+  },
+  warn: (message: string) => {
+    if (process.env.SEED_LOG_LEVEL !== 'silent' && process.env.SEED_LOG_LEVEL !== 'error') {
+      console.warn(`[WARN] ${message}`);
+    }
+  },
+  debug: (message: string) => {
+    if (process.env.SEED_LOG_LEVEL === 'debug') {
+      console.debug(`[DEBUG] ${message}`);
+    }
+  }
+};
+
+// Environment-specific configuration
+const seedConfig = {
+  // Default tenant configuration
+  tenant: {
+    name: process.env.DEFAULT_TENANT_NAME || 'LoyaltyStudio',
+    domain: process.env.DEFAULT_TENANT_DOMAIN || 'loyaltystudio.app',
+  },
+  // Super admin configuration
+  superAdmin: {
+    email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@monet.work',
+    password: process.env.SUPER_ADMIN_PASSWORD || 'Test@1234',
+    name: process.env.SUPER_ADMIN_NAME || 'Super Admin',
+  },
+  // Role definitions
+  roles: [
+    { name: 'SUPER_ADMIN', description: 'Super Administrator with full access' },
+    { name: 'ADMIN', description: 'Administrator with tenant-level access' },
+    { name: 'USER', description: 'Regular user with limited access' },
+  ],
+  // Permission definitions
+  permissions: {
+    user: ['create', 'read', 'update', 'delete'],
+    role: ['create', 'read', 'update', 'delete'],
+    permission: ['create', 'read', 'update'],
+  },
+};
+
+// Initialize Prisma client
 const prisma = new PrismaClient();
 
 // Initialize Supabase client for user creation
@@ -14,153 +80,74 @@ const supabase = supabaseAvailable
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
-async function main() {
-  // Create default roles
-  const superAdminRole = await prisma.role.upsert({
-    where: { name: 'SUPER_ADMIN' },
-    update: {},
-    create: {
-      name: 'SUPER_ADMIN',
-      description: 'Super Administrator with full access',
-    },
-  });
+/**
+ * Create default roles
+ */
+async function createRoles() {
+  logger.info('Creating default roles...');
 
-  const adminRole = await prisma.role.upsert({
-    where: { name: 'ADMIN' },
-    update: {},
-    create: {
-      name: 'ADMIN',
-      description: 'Administrator with tenant-level access',
-    },
-  });
+  const roles = await Promise.all(
+    seedConfig.roles.map((role: { name: string; description: string }) =>
+      prisma.role.upsert({
+        where: { name: role.name },
+        update: {},
+        create: {
+          name: role.name,
+          description: role.description,
+        },
+      })
+    )
+  );
 
-  const userRole = await prisma.role.upsert({
-    where: { name: 'USER' },
-    update: {},
-    create: {
-      name: 'USER',
-      description: 'Regular user with limited access',
-    },
-  });
+  logger.debug(`Created ${roles.length} roles`);
+  return {
+    superAdminRole: roles.find((r: any) => r.name === 'SUPER_ADMIN')!,
+    adminRole: roles.find((r: any) => r.name === 'ADMIN')!,
+    userRole: roles.find((r: any) => r.name === 'USER')!,
+  };
+}
 
-  // Create default permissions
-  const permissions = await Promise.all([
-    // User permissions
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'user', action: 'create' } },
-      update: {},
-      create: {
-        name: 'Create User',
-        description: 'Can create new users',
-        resource: 'user',
-        action: 'create',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'user', action: 'read' } },
-      update: {},
-      create: {
-        name: 'Read User',
-        description: 'Can read user information',
-        resource: 'user',
-        action: 'read',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'user', action: 'update' } },
-      update: {},
-      create: {
-        name: 'Update User',
-        description: 'Can update user information',
-        resource: 'user',
-        action: 'update',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'user', action: 'delete' } },
-      update: {},
-      create: {
-        name: 'Delete User',
-        description: 'Can delete users',
-        resource: 'user',
-        action: 'delete',
-      },
-    }),
+/**
+ * Create default permissions
+ */
+async function createPermissions() {
+  logger.info('Creating default permissions...');
 
-    // Role permissions
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'role', action: 'create' } },
-      update: {},
-      create: {
-        name: 'Create Role',
-        description: 'Can create new roles',
-        resource: 'role',
-        action: 'create',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'role', action: 'read' } },
-      update: {},
-      create: {
-        name: 'Read Role',
-        description: 'Can read role information',
-        resource: 'role',
-        action: 'read',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'role', action: 'update' } },
-      update: {},
-      create: {
-        name: 'Update Role',
-        description: 'Can update role information',
-        resource: 'role',
-        action: 'update',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'role', action: 'delete' } },
-      update: {},
-      create: {
-        name: 'Delete Role',
-        description: 'Can delete roles',
-        resource: 'role',
-        action: 'delete',
-      },
-    }),
+  const permissionPromises = [];
 
-    // Permission permissions
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'permission', action: 'create' } },
-      update: {},
-      create: {
-        name: 'Create Permission',
-        description: 'Can create new permissions',
-        resource: 'permission',
-        action: 'create',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'permission', action: 'read' } },
-      update: {},
-      create: {
-        name: 'Read Permission',
-        description: 'Can read permission information',
-        resource: 'permission',
-        action: 'read',
-      },
-    }),
-    prisma.permission.upsert({
-      where: { resource_action: { resource: 'permission', action: 'update' } },
-      update: {},
-      create: {
-        name: 'Update Permission',
-        description: 'Can update permission information',
-        resource: 'permission',
-        action: 'update',
-      },
-    }),
-  ]);
+  // Create permissions for each resource and action
+  for (const [resource, actions] of Object.entries(seedConfig.permissions)) {
+    for (const action of actions as string[]) {
+      permissionPromises.push(
+        prisma.permission.upsert({
+          where: { resource_action: { resource, action } },
+          update: {},
+          create: {
+            name: `${action.charAt(0).toUpperCase() + action.slice(1)} ${resource.charAt(0).toUpperCase() + resource.slice(1)}`,
+            description: `Can ${action} ${resource} information`,
+            resource,
+            action,
+          },
+        })
+      );
+    }
+  }
+
+  const permissions = await Promise.all(permissionPromises);
+  logger.debug(`Created ${permissions.length} permissions`);
+
+  return permissions;
+}
+
+/**
+ * Assign permissions to roles
+ */
+async function assignPermissionsToRoles(roles: {
+  superAdminRole: any,
+  adminRole: any,
+  userRole: any
+}, permissions: any[]) {
+  logger.info('Assigning permissions to roles...');
 
   // Assign all permissions to SUPER_ADMIN role
   await Promise.all(
@@ -168,13 +155,13 @@ async function main() {
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: superAdminRole.id,
+            roleId: roles.superAdminRole.id,
             permissionId: permission.id,
           },
         },
         update: {},
         create: {
-          roleId: superAdminRole.id,
+          roleId: roles.superAdminRole.id,
           permissionId: permission.id,
         },
       })
@@ -190,13 +177,13 @@ async function main() {
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: adminRole.id,
+            roleId: roles.adminRole.id,
             permissionId: permission.id,
           },
         },
         update: {},
         create: {
-          roleId: adminRole.id,
+          roleId: roles.adminRole.id,
           permissionId: permission.id,
         },
       })
@@ -212,32 +199,49 @@ async function main() {
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: userRole.id,
+            roleId: roles.userRole.id,
             permissionId: permission.id,
           },
         },
         update: {},
         create: {
-          roleId: userRole.id,
+          roleId: roles.userRole.id,
           permissionId: permission.id,
         },
       })
     )
   );
 
-  // Create a default tenant for the super admin
+  logger.debug('Permissions assigned to roles successfully');
+}
+
+/**
+ * Create default tenant
+ */
+async function createDefaultTenant() {
+  logger.info('Creating default tenant...');
+
   const defaultTenant = await prisma.tenant.upsert({
-    where: { domain: 'loyaltystudio.app' },
+    where: { domain: seedConfig.tenant.domain },
     update: {},
     create: {
-      name: 'LoyaltyStudio',
-      domain: 'loyaltystudio.app',
+      name: seedConfig.tenant.name,
+      domain: seedConfig.tenant.domain,
     },
   });
 
-  // Create super admin user
-  const superAdminEmail = 'superadmin@monet.work';
-  const superAdminPassword = 'Test@1234';
+  logger.debug(`Created default tenant: ${defaultTenant.name}`);
+  return defaultTenant;
+}
+
+/**
+ * Create or update super admin user
+ */
+async function createSuperAdminUser(defaultTenant: any, superAdminRole: any) {
+  logger.info('Creating or updating super admin user...');
+
+  const superAdminEmail = seedConfig.superAdmin.email;
+  const superAdminPassword = seedConfig.superAdmin.password;
 
   // Check if the user already exists in the database
   const existingUser = await prisma.user.findUnique({
@@ -249,20 +253,20 @@ async function main() {
 
     if (supabase) {
       try {
-        console.log('Creating super admin user in Supabase...');
+        logger.info('Creating super admin user in Supabase...');
 
         // First check if the user already exists in Supabase by listing users and filtering
         const { data: userData, error: listError } = await supabase.auth.admin.listUsers();
 
         if (listError) {
-          console.error('Failed to list users:', listError.message);
+          logger.error('Failed to list users:', listError.message);
           userId = randomUUID(); // Fallback to a random UUID
         } else {
           // Find the user by email
           const existingUser = userData?.users?.find(user => user.email === superAdminEmail);
 
           if (existingUser) {
-            console.log('User already exists in Supabase, using existing ID');
+            logger.info('User already exists in Supabase, using existing ID');
             userId = existingUser.id;
 
             // Update the user's password
@@ -277,27 +281,27 @@ async function main() {
               password: superAdminPassword,
               email_confirm: true,
               user_metadata: {
-                name: 'Super Admin',
+                name: seedConfig.superAdmin.name,
                 role: 'SUPER_ADMIN',
                 tenant_id: defaultTenant.id,
               },
             });
 
             if (error) {
-              console.error('Failed to create user in Supabase:', error);
+              logger.error('Failed to create user in Supabase:', error);
               userId = randomUUID(); // Fallback to a random UUID if Supabase fails
             } else {
               userId = newUser.user.id;
-              console.log('Created super admin in Supabase with ID:', userId);
+              logger.debug(`Created super admin in Supabase with ID: ${userId}`);
             }
           }
         }
       } catch (error) {
-        console.error('Error with Supabase operations:', error);
+        logger.error('Error with Supabase operations:', error);
         userId = randomUUID(); // Fallback to a random UUID
       }
     } else {
-      console.log('Supabase credentials not available, using random UUID for user');
+      logger.warn('Supabase credentials not available, using random UUID for user');
       userId = randomUUID();
     }
 
@@ -306,7 +310,7 @@ async function main() {
       data: {
         id: userId,
         email: superAdminEmail,
-        name: 'Super Admin',
+        name: seedConfig.superAdmin.name,
         tenantId: defaultTenant.id,
         roleId: superAdminRole.id,
         emailVerified: true,
@@ -316,9 +320,9 @@ async function main() {
       },
     });
 
-    console.log('Created super admin user in database');
+    logger.info('Created super admin user in database');
   } else {
-    console.log('Super admin user already exists in database, updating role');
+    logger.info('Super admin user already exists in database, updating role');
 
     // Update the existing user to ensure they have the super admin role
     await prisma.user.update({
@@ -331,13 +335,43 @@ async function main() {
       },
     });
   }
+}
 
-  console.log('Seed completed successfully');
+/**
+ * Main seed function
+ */
+async function main() {
+  logger.info('Starting database seed...');
+
+  try {
+    // Use a transaction to ensure all operations succeed or fail together
+    await prisma.$transaction(async () => {
+      // Create roles
+      const roles = await createRoles();
+
+      // Create permissions
+      const permissions = await createPermissions();
+
+      // Assign permissions to roles
+      await assignPermissionsToRoles(roles, permissions);
+
+      // Create default tenant
+      const defaultTenant = await createDefaultTenant();
+
+      // Create super admin user
+      await createSuperAdminUser(defaultTenant, roles.superAdminRole);
+    });
+
+    logger.info('Seed completed successfully');
+  } catch (error) {
+    logger.error('Transaction failed, rolling back changes:', error);
+    throw error;
+  }
 }
 
 main()
   .catch((e) => {
-    console.error('Error during seeding:', e);
+    logger.error('Error during seeding:', e);
     process.exit(1);
   })
   .finally(async () => {
