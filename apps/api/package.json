@@ -15,7 +15,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
-    "prisma:seed": "NODE_ENV=development ts-node prisma/seed.ts",
+    "prisma:seed": "NODE_ENV=development tsx prisma/seed.ts",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -63,6 +63,6 @@
     "vitest": "^3.1.1"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   }
 }
