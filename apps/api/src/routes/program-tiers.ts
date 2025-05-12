@@ -150,7 +150,17 @@ export async function programTierRoutes(fastify: FastifyInstance) {
       }
 
       const tier = await prisma.programTier.create({
-        data,
+        data: {
+          name: data.name,
+          description: data.description,
+          pointsThreshold: data.pointsThreshold,
+          benefits: data.benefits,
+          loyaltyProgram: {
+            connect: {
+              id: data.loyaltyProgramId
+            }
+          }
+        },
         include: {
           members: true
         }
@@ -255,9 +265,23 @@ export async function programTierRoutes(fastify: FastifyInstance) {
         }
       }
 
+      // Create a clean update object
+      const updateData: any = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.pointsThreshold !== undefined) updateData.pointsThreshold = data.pointsThreshold;
+      if (data.benefits !== undefined) updateData.benefits = data.benefits;
+
+      // If loyaltyProgramId is provided, use connect
+      if (data.loyaltyProgramId) {
+        updateData.loyaltyProgram = {
+          connect: { id: data.loyaltyProgramId }
+        };
+      }
+
       const tier = await prisma.programTier.update({
         where: { id },
-        data,
+        data: updateData,
         include: {
           members: true
         }

@@ -10,6 +10,7 @@ interface AuthenticatedRequest extends FastifyRequest {
     id: string;
     email: string;
     tenantId: string;
+    merchantId?: string;
     role: {
       id: string;
       name: string;
@@ -99,7 +100,18 @@ export async function segmentRoutes(fastify: FastifyInstance) {
 
     try {
       const segment = await prisma.segment.create({
-        data,
+        data: {
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          criteria: data.criteria,
+          isActive: data.isActive,
+          loyaltyProgram: {
+            connect: {
+              id: data.loyaltyProgramId
+            }
+          }
+        },
         include: {
           members: true
         }
@@ -142,9 +154,24 @@ export async function segmentRoutes(fastify: FastifyInstance) {
     const data = segmentSchema.partial().parse(request.body);
 
     try {
+      // Create a clean update object without loyaltyProgramId
+      const updateData: any = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.type !== undefined) updateData.type = data.type;
+      if (data.criteria !== undefined) updateData.criteria = data.criteria;
+      if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+      // If loyaltyProgramId is provided, use connect
+      if (data.loyaltyProgramId) {
+        updateData.loyaltyProgram = {
+          connect: { id: data.loyaltyProgramId }
+        };
+      }
+
       const segment = await prisma.segment.update({
         where: { id },
-        data,
+        data: updateData,
         include: {
           members: true
         }
@@ -303,12 +330,10 @@ export async function segmentRoutes(fastify: FastifyInstance) {
     const { id, userId } = request.params as { id: string; userId: string };
 
     try {
-      await prisma.segmentMember.delete({
+      await prisma.segmentMember.deleteMany({
         where: {
-          segmentId_userId: {
-            segmentId: id,
-            userId,
-          },
+          segmentId: id,
+          userId: userId
         },
       });
 
@@ -320,4 +345,4 @@ export async function segmentRoutes(fastify: FastifyInstance) {
       });
     }
   });
-} 
+}

@@ -121,12 +121,10 @@ export class SegmentService {
 
   // Remove member from segment
   async removeMemberFromSegment(segmentId: string, userId: string) {
-    return prisma.segmentMember.delete({
+    return prisma.segmentMember.deleteMany({
       where: {
-        segmentId_userId: {
-          segmentId,
-          userId,
-        },
+        segmentId,
+        userId,
       },
     });
   }
@@ -166,7 +164,9 @@ export class SegmentService {
         throw new Error('User not found');
       }
 
-      return this.evaluateUserAgainstCriteria(user, segment.criteria as SegmentCriteria);
+      // Convert the criteria to the expected format
+      const criteria = segment.criteria as unknown as SegmentCriteria;
+      return this.evaluateUserAgainstCriteria(user, criteria);
     }
 
     // For hybrid segments, check both static and dynamic criteria
@@ -187,7 +187,9 @@ export class SegmentService {
         throw new Error('User not found');
       }
 
-      return this.evaluateUserAgainstCriteria(user, segment.criteria as SegmentCriteria);
+      // Convert the criteria to the expected format
+      const criteria = segment.criteria as unknown as SegmentCriteria;
+      return this.evaluateUserAgainstCriteria(user, criteria);
     }
 
     return false;
@@ -264,4 +266,4 @@ export class SegmentService {
         return false;
     }
   }
-} 
+}

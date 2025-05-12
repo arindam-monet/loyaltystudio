@@ -104,7 +104,10 @@ export async function roleRoutes(fastify: FastifyInstance) {
         }
 
         const role = await prisma.role.create({
-          data,
+          data: {
+            name: data.name,
+            description: data.description
+          },
         });
 
         return reply.code(201).send(role);
@@ -261,4 +264,4 @@ export async function roleRoutes(fastify: FastifyInstance) {
       }
     },
   });
-} 
+}

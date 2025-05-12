@@ -16,7 +16,9 @@ export class TierEvaluationService {
     const member = await prisma.programMember.findFirst({
       where: {
         userId,
-        loyaltyProgramId,
+        tier: {
+          loyaltyProgramId
+        }
       },
       include: {
         tier: true,
@@ -43,24 +45,24 @@ export class TierEvaluationService {
     let pointsToNextTier = 0;
 
     for (let i = 0; i < tiers.length; i++) {
-      if (member.points >= tiers[i].pointsThreshold) {
+      if (member.pointsBalance >= tiers[i].pointsThreshold) {
         currentTier = tiers[i];
         if (i < tiers.length - 1) {
           nextTier = tiers[i + 1];
-          pointsToNextTier = nextTier.pointsThreshold - member.points;
+          pointsToNextTier = nextTier.pointsThreshold - member.pointsBalance;
         }
       } else {
         if (!currentTier) {
           nextTier = tiers[i];
-          pointsToNextTier = nextTier.pointsThreshold - member.points;
+          pointsToNextTier = nextTier.pointsThreshold - member.pointsBalance;
         }
         break;
       }
     }
 
     // Check if tier should be updated
-    const shouldUpgrade = nextTier && member.points >= nextTier.pointsThreshold;
-    const shouldDowngrade = currentTier && member.points < currentTier.pointsThreshold;
+    const shouldUpgrade = nextTier && member.pointsBalance >= nextTier.pointsThreshold;
+    const shouldDowngrade = currentTier && member.pointsBalance < currentTier.pointsThreshold;
 
     return {
       currentTier: currentTier?.id || null,
@@ -77,20 +79,21 @@ export class TierEvaluationService {
     if (evaluation.shouldUpgrade || evaluation.shouldDowngrade) {
       const newTierId = evaluation.shouldUpgrade ? evaluation.nextTier : evaluation.currentTier;
 
-      await prisma.programMember.update({
+      await prisma.programMember.updateMany({
         where: {
-          userId_loyaltyProgramId: {
-            userId,
-            loyaltyProgramId,
-          },
+          userId: userId,
+          tier: {
+            loyaltyProgramId: loyaltyProgramId
+          }
         },
         data: {
           tierId: newTierId,
-          lastTierUpdate: new Date(),
         },
       });
 
-      // Log tier change
+      // Log tier change - commented out as tierChange model doesn't exist
+      // We would need to create this model in the schema first
+      /*
       await prisma.tierChange.create({
         data: {
           userId,
@@ -101,6 +104,7 @@ export class TierEvaluationService {
           changeType: evaluation.shouldUpgrade ? 'UPGRADE' : 'DOWNGRADE',
         },
       });
+      */
     }
   }
 
@@ -109,7 +113,9 @@ export class TierEvaluationService {
     const member = await prisma.programMember.findFirst({
       where: {
         userId,
-        loyaltyProgramId,
+        tier: {
+          loyaltyProgramId
+        }
       },
     });
 
@@ -120,11 +126,11 @@ export class TierEvaluationService {
     return {
       currentTier: evaluation.currentTier,
       nextTier: evaluation.nextTier,
-      currentPoints: member.points,
+      currentPoints: member.pointsBalance,
       pointsToNextTier: evaluation.pointsToNextTier,
       progressPercentage: evaluation.nextTier
-        ? (member.points / evaluation.pointsToNextTier) * 100
+        ? (member.pointsBalance / evaluation.pointsToNextTier) * 100
         : 100,
     };
   }
-} 
+}

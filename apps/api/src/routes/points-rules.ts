@@ -136,7 +136,7 @@ export async function pointsRulesRoutes(fastify: FastifyInstance) {
 
           // Create new points rules
           const newRules = await Promise.all(
-            pointsRules.map(rule => 
+            pointsRules.map(rule =>
               tx.pointsRule.create({
                 data: {
                   ...rule,
@@ -209,8 +209,22 @@ export async function pointsRulesRoutes(fastify: FastifyInstance) {
         // Create the points rule
         const pointsRule = await prisma.pointsRule.create({
           data: {
-            ...data,
-            loyaltyProgramId: programId
+            name: data.name,
+            description: data.description,
+            type: data.type,
+            conditions: data.conditions,
+            points: data.points,
+            maxPoints: data.maxPoints,
+            minAmount: data.minAmount,
+            categoryRules: data.categoryRules,
+            timeRules: data.timeRules,
+            metadata: data.metadata,
+            isActive: data.isActive,
+            loyaltyProgram: {
+              connect: {
+                id: programId
+              }
+            }
           }
         });
 

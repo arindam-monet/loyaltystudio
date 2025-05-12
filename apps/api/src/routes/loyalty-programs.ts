@@ -215,7 +215,12 @@ export async function loyaltyProgramRoutes(fastify: FastifyInstance) {
         // First create the loyalty program
         const loyaltyProgram = await prisma.loyaltyProgram.create({
           data: {
-            ...data,
+            name: data.name,
+            description: data.description,
+            merchantId: data.merchantId,
+            settings: data.settings,
+            metadata: data.metadata,
+            isActive: data.isActive
           },
         });
 

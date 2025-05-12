@@ -8,11 +8,14 @@ interface AuthUser {
   id: string;
   email: string;
   tenantId: string;
+  merchantId?: string;
   role: {
     id: string;
     name: string;
     description?: string;
   };
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 declare module 'fastify' {

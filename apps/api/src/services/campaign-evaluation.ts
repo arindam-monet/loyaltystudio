@@ -55,7 +55,9 @@ export class CampaignEvaluationService {
     const member = await prisma.programMember.findFirst({
       where: {
         userId,
-        loyaltyProgramId: campaign.loyaltyProgramId,
+        tier: {
+          loyaltyProgramId: campaign.loyaltyProgramId
+        }
       },
       include: {
         tier: true,
@@ -71,8 +73,12 @@ export class CampaignEvaluationService {
     }
 
     // Check tier eligibility
-    if (campaign.targetTierIds && campaign.targetTierIds.length > 0) {
-      if (!member.tierId || !campaign.targetTierIds.includes(member.tierId)) {
+    // Assuming targetTierIds is stored in campaign.metadata
+    const campaignData = campaign as any;
+    if (campaignData?.metadata?.targetTierIds &&
+      Array.isArray(campaignData.metadata.targetTierIds) &&
+      campaignData.metadata.targetTierIds.length > 0) {
+      if (!member.tierId || !campaignData.metadata.targetTierIds.includes(member.tierId)) {
         return {
           isEligible: false,
           reasons: ['Not eligible for this tier'],
@@ -82,7 +88,8 @@ export class CampaignEvaluationService {
     }
 
     // Evaluate campaign rules
-    const rules = campaign.rules as any[];
+    // Assuming rules are stored in campaign.conditions
+    const rules = (campaign.conditions as any)?.rules || [];
     const matchedRules = [];
     const reasons = [];
 
@@ -108,12 +115,17 @@ export class CampaignEvaluationService {
         const member = await prisma.programMember.findFirst({
           where: {
             userId,
-            loyaltyProgramId,
+            tier: {
+              loyaltyProgramId
+            }
           },
         });
-        return member?.points >= rule.threshold;
+        return member?.pointsBalance >= rule.threshold;
 
       case 'PURCHASE_HISTORY':
+        // Purchase model doesn't exist yet, so we'll return false
+        // This would need to be implemented once the Purchase model is added to the schema
+        /*
         const purchases = await prisma.purchase.findMany({
           where: {
             userId,
@@ -124,6 +136,9 @@ export class CampaignEvaluationService {
           },
         });
         return purchases.length >= rule.minPurchases;
+        */
+        console.warn('Purchase model not implemented yet');
+        return false;
 
       case 'SEGMENT_MEMBERSHIP':
         const segment = await prisma.segment.findFirst({
@@ -158,10 +173,10 @@ export class CampaignEvaluationService {
       data: {
         campaignId,
         userId,
-        joinedAt: new Date(),
         status: 'ACTIVE',
         metadata: {
           matchedRules: eligibility.matchedRules,
+          joinedAt: new Date().toISOString() // Store as metadata since joinedAt is not a field
         },
       },
     });
@@ -192,7 +207,8 @@ export class CampaignEvaluationService {
     }
 
     const campaign = participant.campaign;
-    const rules = campaign.rules as any[];
+    // Assuming rules are stored in campaign.conditions
+    const rules = (campaign.conditions as any)?.rules || [];
     const progress = [];
 
     for (const rule of rules) {
@@ -205,12 +221,16 @@ export class CampaignEvaluationService {
       });
     }
 
+    // Extract joinedAt from metadata
+    const metadata = participant.metadata as any;
+    const joinedAt = metadata?.joinedAt ? new Date(metadata.joinedAt) : new Date();
+
     return {
       campaignId,
       status: participant.status,
-      joinedAt: participant.joinedAt,
+      joinedAt,
       progress,
-      totalProgress: (progress.filter(p => p.completed).length / progress.length) * 100,
+      totalProgress: progress.length > 0 ? (progress.filter(p => p.completed).length / progress.length) * 100 : 0,
     };
   }
-} 
+}

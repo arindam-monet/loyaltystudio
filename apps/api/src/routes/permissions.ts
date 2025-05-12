@@ -104,7 +104,7 @@ export async function permissionRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const data = permissionSchema.parse(request.body);
-        
+
         // Check if permission already exists
         const existing = await prisma.permission.findFirst({
           where: {
@@ -118,7 +118,12 @@ export async function permissionRoutes(fastify: FastifyInstance) {
         }
 
         const permission = await prisma.permission.create({
-          data,
+          data: {
+            name: data.name,
+            resource: data.resource,
+            action: data.action,
+            description: data.description
+          },
         });
 
         return reply.code(201).send(permission);
@@ -247,7 +252,7 @@ export async function permissionRoutes(fastify: FastifyInstance) {
       try {
         const { id, roleId } = request.params as { id: string; roleId: string };
 
-        await prisma.permissionRole.create({
+        await prisma.rolePermission.create({
           data: {
             permissionId: id,
             roleId,
@@ -289,12 +294,10 @@ export async function permissionRoutes(fastify: FastifyInstance) {
       try {
         const { id, roleId } = request.params as { id: string; roleId: string };
 
-        await prisma.permissionRole.delete({
+        await prisma.rolePermission.deleteMany({
           where: {
-            permissionId_roleId: {
-              permissionId: id,
-              roleId,
-            },
+            permissionId: id,
+            roleId: roleId,
           },
         });
 
@@ -305,4 +308,4 @@ export async function permissionRoutes(fastify: FastifyInstance) {
       }
     },
   });
-} 
+}
