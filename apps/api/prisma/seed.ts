@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import * as dotenv from 'dotenv';

@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -16,12 +17,12 @@ export const rbacPlugin = fp(async (fastify: FastifyInstance) => {
   const prisma = new PrismaClient();
 
   // Helper function to check if user has a specific role
-  fastify.decorateRequest('hasRole', function(this: FastifyRequest, roleName: string): boolean {
+  fastify.decorateRequest('hasRole', function (this: FastifyRequest, roleName: string): boolean {
     return this.user?.role?.name === roleName;
   });
 
   // Helper function to check if user has a specific permission
-  fastify.decorateRequest('hasPermission', async function(
+  fastify.decorateRequest('hasPermission', async function (
     this: FastifyRequest,
     resource: string,
     action: string
@@ -71,4 +72,4 @@ export const rbacPlugin = fp(async (fastify: FastifyInstance) => {
       }
     }
   });
-}); 
+});

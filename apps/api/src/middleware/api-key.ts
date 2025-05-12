@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 import { validateApiKey } from '../services/api-key.js';
 
 const prisma = new PrismaClient();

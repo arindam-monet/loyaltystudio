@@ -1,7 +1,8 @@
 import { FastifyPluginAsync } from 'fastify';
 import { env } from '../config/env.js';
 import { extractSubdomain, extractTenantDomain } from '../utils/subdomain.js';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 
 const prisma = new PrismaClient();
 

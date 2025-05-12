@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 
 const prisma = new PrismaClient();
 
@@ -82,4 +83,4 @@ export async function userRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: 'Failed to fetch user profile' });
     }
   });
-} 
+}

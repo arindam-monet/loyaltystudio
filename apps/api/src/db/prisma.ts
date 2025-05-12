@@ -1,10 +1,12 @@
-// Import the PrismaClient
-import { PrismaClient } from '@prisma/client';
+// Import the PrismaClient (safe for both dev + prod)
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 import { env } from '../config/env.js';
 
 // Declare global type for prisma instance
 declare global {
-  var prisma: PrismaClient | undefined;
+  // Need to use any to avoid TypeScript errors with the global variable
+  var prisma: any;
 }
 
 // Create a singleton instance of PrismaClient with explicit DATABASE_URL
