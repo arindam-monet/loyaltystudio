@@ -1,13 +1,21 @@
 {
-  "extends": "@loyaltystudiotypescript-config/base.json",
+  "extends": "@loyaltystudio/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     }
   },
-  "include": ["src/**/*", "openapi.json"],
-  "exclude": ["node_modules", "dist"]
-} 
+  "include": [
+    "src/**/*",
+    "openapi.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

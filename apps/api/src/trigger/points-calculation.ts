@@ -1,6 +1,6 @@
 import prismaPkg from '@prisma/client';
-const { PrismaClient } = prismaPkg;
-import type { PointsTransaction, PointsRule, WebhookEventType } from '@prisma/client';
+const { PrismaClient, WebhookEventType } = prismaPkg;
+import type { PointsTransaction, PointsRule } from '@prisma/client';
 import { z } from 'zod';
 import { evaluateSegmentsAfterTransaction } from './segment-evaluation.js';
 import { webhookService } from '../services/webhook.js';
