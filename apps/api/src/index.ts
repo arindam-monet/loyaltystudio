@@ -50,7 +50,7 @@ app.register(cors, {
     }
 
     // If CORS_ORIGIN is '*', allow all origins
-      if (env.CORS_ORIGIN === '*') {
+    if (env.CORS_ORIGIN === '*') {
       console.log(`CORS: Allowing origin ${origin} because CORS_ORIGIN is set to '*'`);
       return cb(null, true);
     }
@@ -95,8 +95,9 @@ app.register(swagger, {
         email: 'support@loyaltystudio.ai'
       }
     },
-    host: 'localhost:3003',
-    schemes: ['http'],
+    // Extract host and scheme from API_URL
+    host: new URL(env.API_URL).host,
+    schemes: [new URL(env.API_URL).protocol.replace(':', '')],
     consumes: ['application/json'],
     produces: ['application/json'],
     tags: [
