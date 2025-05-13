@@ -1,6 +1,5 @@
 import prismaPkg from '@prisma/client';
-const { PrismaClient } = prismaPkg;
-import { WebhookEventType } from '@prisma/client';
+const { PrismaClient, WebhookEventType } = prismaPkg;
 import { logger } from '../middleware/logger.js';
 import crypto from 'crypto';
 import got from 'got';
@@ -15,7 +14,7 @@ export class WebhookService {
    * @param payload The payload to send with the webhook
    * @returns Object with success status and count of webhooks delivered
    */
-  async sendWebhook(merchantId: string, eventType: WebhookEventType, payload: any) {
+  async sendWebhook(merchantId: string, eventType: any, payload: any) {
     try {
       logger.info({ merchantId, eventType }, 'Sending webhook');
 
@@ -56,7 +55,7 @@ export class WebhookService {
    * @param payload The payload to send with the webhook
    * @returns Object with success status and status code
    */
-  async deliverWebhook(webhookId: string, eventType: WebhookEventType, payload: any) {
+  async deliverWebhook(webhookId: string, eventType: any, payload: any) {
     try {
       // Get webhook details
       // Type assertion for Prisma client
@@ -188,7 +187,7 @@ export class WebhookService {
    */
   async logDelivery(
     webhookId: string,
-    eventType: WebhookEventType,
+    eventType: any,
     payload: any,
     statusCode: number | null,
     response: string | null,
@@ -224,7 +223,7 @@ export class WebhookService {
    * @param eventType The type of event
    * @param payload The payload to send with the webhook
    */
-  async queueRetry(webhookId: string, eventType: WebhookEventType, payload: any) {
+  async queueRetry(webhookId: string, eventType: any, payload: any) {
     try {
       // Get delivery logs to determine retry count
       // Type assertion for Prisma client
