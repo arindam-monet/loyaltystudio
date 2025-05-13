@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient, WebhookEventType } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
+import { WebhookEventType } from '@prisma/client';
 import { webhookService } from '../services/webhook.js';
 
 const prisma = new PrismaClient();
