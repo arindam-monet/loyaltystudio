@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 import { DNSProviderFactory } from '../services/dns/index.js';
 import { DNSProvider } from '../services/dns/types.js';
 import { generateSubdomain, isValidSubdomain, isReservedSubdomain, getMerchantDomain } from '../utils/subdomain.js';

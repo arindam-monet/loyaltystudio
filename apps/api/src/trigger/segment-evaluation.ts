@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
 import { SegmentService } from '../services/segment.js';
 
 const prisma = new PrismaClient();
