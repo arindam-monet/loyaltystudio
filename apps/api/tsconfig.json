@@ -21,7 +21,8 @@
   },
   "include": [
     "src/**/*",
-    "trigger.config.ts"
+    "trigger.config.ts",
+    "prisma/**/*"
   ],
   "exclude": [
     "node_modules",

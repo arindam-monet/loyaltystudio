@@ -264,7 +264,7 @@ async function createSuperAdminUser(defaultTenant: any, superAdminRole: any) {
           userId = randomUUID(); // Fallback to a random UUID
         } else {
           // Find the user by email
-          const existingUser = userData?.users?.find(user => user.email === superAdminEmail);
+          const existingUser = userData?.users?.find((user: any) => user.email === superAdminEmail);
 
           if (existingUser) {
             logger.info('User already exists in Supabase, using existing ID');
