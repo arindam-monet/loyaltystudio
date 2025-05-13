@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import prismaPkg from '@prisma/client';
+const { PrismaClient } = prismaPkg;
+import { WebhookEventType } from '@prisma/client';
 import { logger } from '../middleware/logger.js';
 import crypto from 'crypto';
 import got from 'got';
-import { WebhookEventType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
